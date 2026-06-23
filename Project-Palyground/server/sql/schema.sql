@@ -67,3 +67,36 @@ create index if not exists idx_questions_exam_id on questions(exam_id);
 create index if not exists idx_choices_question_id on choices(question_id);
 create index if not exists idx_attempts_exam_id on attempts(exam_id);
 create index if not exists idx_attempts_user_id on attempts(user_id);
+
+-- Prisma-managed CBT content tables. Names/columns are quoted to match schema.prisma exactly.
+create table if not exists "Subject" (
+  id text primary key default gen_random_uuid()::text,
+  name text not null unique,
+  "createdAt" timestamptz not null default now()
+);
+
+create table if not exists "Chapter" (
+  id text primary key default gen_random_uuid()::text,
+  name text not null,
+  "subjectId" text not null references "Subject"(id) on delete cascade,
+  "createdAt" timestamptz not null default now()
+);
+
+create table if not exists "Question" (
+  id text primary key default gen_random_uuid()::text,
+  statement text not null,
+  "chapterId" text not null references "Chapter"(id) on delete cascade,
+  "correctAnswer" text not null,
+  explanation text,
+  "createdAt" timestamptz not null default now()
+);
+
+create table if not exists "Option" (
+  id text primary key default gen_random_uuid()::text,
+  text text not null,
+  "questionId" text not null references "Question"(id) on delete cascade
+);
+
+create index if not exists "Chapter_subjectId_idx" on "Chapter"("subjectId");
+create index if not exists "Question_chapterId_idx" on "Question"("chapterId");
+create index if not exists "Option_questionId_idx" on "Option"("questionId");

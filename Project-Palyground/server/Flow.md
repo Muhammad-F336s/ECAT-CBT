@@ -263,3 +263,140 @@ npm.cmd run dev:server
 ```
 
 Use this from the main project folder if you want to start the backend without first moving into the `server` folder.
+
+---
+
+## Prisma Check Commands
+
+Run these commands from PowerShell inside the server folder:
+
+```powershell
+cd E:\ECAT-CBT\Project-Palyground\server
+```
+
+This moves you into the backend folder where `package.json`, `prisma.config.js`, `prisma/schema.prisma`, and `scripts/seed.js` exist.
+
+```powershell
+npm.cmd install
+```
+
+Use this first if dependencies are missing or after pulling package changes.
+
+Expected response:
+
+```text
+added ... packages
+audited ... packages
+```
+
+If everything is already installed, npm may say:
+
+```text
+up to date, audited ... packages
+```
+
+```powershell
+npm.cmd run prisma:validate
+```
+
+Use this to check that `prisma/schema.prisma` and `prisma.config.js` are valid.
+
+Expected response:
+
+```text
+The schema at prisma\schema.prisma is valid
+Loaded Prisma config from prisma.config.js.
+Prisma schema loaded from prisma\schema.prisma.
+```
+
+```powershell
+npm.cmd run prisma:generate
+```
+
+Use this to generate Prisma Client after changing `schema.prisma` or installing dependencies.
+
+Expected response:
+
+```text
+Generated Prisma Client (v7.8.0) to .\node_modules\@prisma\client
+Loaded Prisma config from prisma.config.js.
+Prisma schema loaded from prisma\schema.prisma.
+```
+
+```powershell
+npm.cmd run db:setup
+```
+
+Use this to create/update the Neon tables from `sql/schema.sql`, including the Prisma tables `"Subject"`, `"Chapter"`, `"Question"`, and `"Option"`.
+
+Expected response:
+
+```text
+Neon database schema is ready.
+```
+
+```powershell
+npm.cmd run prisma:seed
+```
+
+Use this to insert the default Prisma seed data. The seed is idempotent, so running it again should not duplicate `Physics`.
+
+Expected response:
+
+```text
+Running seed command `node ./scripts/seed.js` ...
+Seeding started...
+Subject ready: Physics (ID: ...)
+Chapter ready: Electrostatics
+The seed command has been executed.
+Loaded Prisma config from prisma.config.js.
+```
+
+```powershell
+npm.cmd run prisma:push
+```
+
+This tries to push `schema.prisma` directly to the database. In this project, prefer `npm.cmd run db:setup` because Neon pooled connections can make `prisma db push` fail with a schema engine error.
+
+Expected successful response:
+
+```text
+Your database is now in sync with your Prisma schema.
+```
+
+Possible response in this project:
+
+```text
+Error: Schema engine error:
+```
+
+If this happens, run:
+
+```powershell
+npm.cmd run db:setup
+npm.cmd run prisma:seed
+```
+
+```powershell
+rg --files -g "*.ts"
+```
+
+Use this to confirm no TypeScript files remain.
+
+Expected response:
+
+```text
+```
+
+No output means there are no `.ts` files. If `rg` exits with code `1`, that is also normal when no files match.
+
+Recommended full Prisma check flow:
+
+```powershell
+cd E:\ECAT-CBT\Project-Palyground\server
+npm.cmd install
+npm.cmd run prisma:validate
+npm.cmd run prisma:generate
+npm.cmd run db:setup
+npm.cmd run prisma:seed
+```
