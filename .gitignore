@@ -12,7 +12,8 @@ dist
 dist-ssr
 *.local
 .claude
-Project PlayGround V-1
+Project-PlayGround V-1
+Practice-Playgroud
 
 # Editor directories and files
 .vscode/*
