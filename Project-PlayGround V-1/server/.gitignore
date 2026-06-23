@@ -26,3 +26,7 @@ resources
 *.njsproj
 *.sln
 *.sw?
+
+/src/generated/prisma
+
+/src/generated/prisma

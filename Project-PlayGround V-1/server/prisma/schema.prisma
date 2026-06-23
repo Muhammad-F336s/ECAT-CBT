@@ -1,0 +1,45 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. Subjects Table (e.g., Physics, Maths)
+model Subject {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  chapters  Chapter[]
+  createdAt DateTime  @default(now())
+}
+
+// 2. Chapters Table (e.g., Matrices, Electrostatics)
+model Chapter {
+  id        String     @id @default(uuid())
+  name      String
+  subjectId String
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  questions Question[]
+  createdAt DateTime   @default(now())
+}
+
+// 3. Questions Table
+model Question {
+  id            String   @id @default(uuid())
+  statement     String   @db.Text
+  chapterId     String
+  chapter       Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  options       Option[]
+  correctAnswer String   // Is mein sahi option ki ID ya text store hoga
+  explanation   String?  @db.Text
+  createdAt     DateTime @default(now())
+}
+
+// 4. Options Table (Har question ke 4 options)
+model Option {
+  id         String   @id @default(uuid())
+  text       String
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}

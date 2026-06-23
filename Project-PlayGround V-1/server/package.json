@@ -1,0 +1,30 @@
+{
+  "name": "project-palyground-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "db:setup": "node src/setupDatabase.js",
+    "prisma:push": "prisma db push --config=./prisma.config.js",
+    "prisma:generate": "prisma generate --config=./prisma.config.js",
+    "prisma:validate": "prisma validate --config=./prisma.config.js",
+    "prisma:seed": "prisma db seed --config=./prisma.config.js"
+  },
+  "prisma": {
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@prisma/adapter-neon": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "prisma": "^7.8.0"
+  }
+}
