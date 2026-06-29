@@ -1,21 +1,47 @@
-import "dotenv/config"; // load environment variables from server/.env into process.env
-import { neon } from "@neondatabase/serverless"; // Neon serverless Postgres client
+// import "dotenv/config";
+// import { neon } from "@neondatabase/serverless";
+// import { PrismaNeon } from "@prisma/adapter-neon";
+// import { PrismaClient } from "@prisma/client";
 
-let sql; // cached client instance shared across imports
+// if (!process.env.DATABASE_URL) {
+//   throw new Error("DATABASE_URL is missing. Add it to server/.env");
+// }
 
-export function getSql() { // return a Neon client, creating it on first call
-  if (!process.env.DATABASE_URL) { // ensure the DATABASE_URL env variable is present
-    throw new Error("DATABASE_URL is missing. Copy server/.env.example to server/.env and add your Neon connection string.");
-  }
+// let sql;
 
-  if (!sql) { // if no client exists yet, create one using the connection string
-    sql = neon(process.env.DATABASE_URL);
-  }
+// export function getSql() {
+//   if (!sql) {
+//     sql = neon(process.env.DATABASE_URL);
+//   }
 
-  return sql; // return the cached or newly created client
+//   return sql;
+// }
+
+// export async function checkDatabase() {
+//   const rows = await getSql()`select now() as connected_at`;
+//   return rows[0];
+// }
+
+// const adapter = new PrismaNeon({
+//   connectionString: process.env.DATABASE_URL,
+// });
+
+// const prisma = new PrismaClient({ adapter });
+
+// export default prisma;
+import { PrismaNeon } from "@prisma/adapter-neon";
+import { PrismaClient } from "@prisma/client";
+import "dotenv/config";
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is missing in environment variables.");
 }
 
-export async function checkDatabase() { // simple helper to verify DB connectivity
-  const rows = await getSql()`select now() as connected_at`; // run a lightweight query using the tagged template
-  return rows[0]; // return the first row containing connection time
-}
+// Neon Serverless adapter for Prisma runtime orchestration
+const adapter = new PrismaNeon({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const prisma = new PrismaClient({ adapter });
+
+export default prisma;

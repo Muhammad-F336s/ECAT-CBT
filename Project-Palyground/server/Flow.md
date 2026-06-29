@@ -339,6 +339,20 @@ Neon database schema is ready.
 npm.cmd run prisma:seed
 ```
 
+```powershell
+cd E:\ECAT-CBT\Project-Palyground\server\scripts
+node generateQuestions.js
+```
+
+Use this to insert the sample Physics/Electrostatics question through Prisma Client.
+
+Expected response:
+
+```text
+Adding sample data to Neon Database...
+Sample data successfully injected into Neon.
+```
+
 Use this to insert the default Prisma seed data. The seed is idempotent, so running it again should not duplicate `Physics`.
 
 Expected response:
