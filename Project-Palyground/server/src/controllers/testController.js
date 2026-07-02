@@ -2,12 +2,40 @@ import prisma from "../db.js";
 
 export const generateTest = async (req, res) => {
   try {
-    const { subjectId, totalQuestions = 10, chapterIds } = req.body;
+    const { subjectId, totalQuestions = 10, chapterIds, userId } = req.body;
 
     if (!subjectId) {
       return res
         .status(400)
         .json({ error: "Subject ID is required." });
+    }
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required." });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, isApproved: true, testAttemptsLimit: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    if (user.role !== "admin" && !user.isApproved) {
+      return res.status(403).json({
+        error: "Your account is pending approval by admin.",
+      });
+    }
+
+    if (user.role !== "admin") {
+      const attemptsUsed = await prisma.testAttempt.count({ where: { userId } });
+      if (user.testAttemptsLimit >= 0 && attemptsUsed >= user.testAttemptsLimit) {
+        return res.status(403).json({
+          error: "Your test attempts have been completed. Renew your package or contact admin.",
+        });
+      }
     }
 
     // 1. Build the query based on the target criteria

@@ -74,7 +74,16 @@ router.get("/google/callback", async (req, res) => {
     const { email, name } = userRes.data;
 
     // 3. Sync profile into database table
-    let user = await prisma.user.findUnique({ where: { email } });
+    const [existingUser, existingAdmin] = await Promise.all([
+      prisma.user.findUnique({ where: { email } }),
+      prisma.admin.findUnique({ where: { email } }),
+    ]);
+
+    if (existingAdmin) {
+      return res.status(400).send("This email is already registered with an admin account.");
+    }
+
+    let user = existingUser;
     if (!user) {
       user = await prisma.user.create({
         data: { name, email, password: "" }, // Social auth checks match explicit passwords null
@@ -140,7 +149,16 @@ router.get("/github/callback", async (req, res) => {
     const name = userRes.data.name || userRes.data.login;
 
     // 3. User verification schema mapping
-    let user = await prisma.user.findUnique({ where: { email } });
+    const [existingUser, existingAdmin] = await Promise.all([
+      prisma.user.findUnique({ where: { email } }),
+      prisma.admin.findUnique({ where: { email } }),
+    ]);
+
+    if (existingAdmin) {
+      return res.status(400).send("This email is already registered with an admin account.");
+    }
+
+    let user = existingUser;
     if (!user) {
       user = await prisma.user.create({
         data: { name, email, password: "" },

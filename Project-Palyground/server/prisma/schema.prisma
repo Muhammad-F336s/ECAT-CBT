@@ -8,16 +8,42 @@ generator client {
 
 // 1. User Table (Authentication & Identity)
 model User {
-  id          String        @id @default(uuid())
-  name        String
-  email       String        @unique
-  password    String
-  role        String        @default("student") // student ya admin
-  attempts    TestAttempt[] // Relation: User ne kitne tests diye
-  createdAt   DateTime      @default(now())
+  id                String        @id @default(uuid())
+  name              String
+  email             String        @unique
+  password          String
+  role              String        @default("student")
+  isApproved        Boolean       @default(false)
+  testAttemptsLimit Int           @default(0)
+  attempts          TestAttempt[] // Relation: User ne kitne tests diye
+  createdAt         DateTime      @default(now())
 }
 
-// 2. Subjects Table (e.g., Physics, Maths)
+// 2. Admin Table (Dedicated admin identity and access controls)
+model Admin {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  password    String
+  secretHash  String
+  secretCode  String?
+  rank        String   @default("Admin")
+  isFrozen    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model LoginMessage {
+  id              String   @id @default(uuid())
+  recipientEmail  String
+  recipientRole   String
+  body            String   @db.Text
+  senderEmail     String?
+  showSenderEmail Boolean  @default(true)
+  isRead          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+}
+
+// 3. Subjects Table (e.g., Physics, Maths)
 model Subject {
   id        String    @id @default(uuid())
   name      String    @unique

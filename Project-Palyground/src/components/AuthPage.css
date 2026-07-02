@@ -207,6 +207,29 @@
   transition: all 0.2s ease;
 }
 
+.input-field-group--with-action {
+  position: relative;
+}
+
+.input-field-group--with-action input {
+  padding-right: 72px;
+}
+
+.input-field-group--with-action button {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 10px;
+  background: #dfece3;
+  color: #315f38;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .input-field-group input:focus {
   outline: none;
   background-color: #ffffff;
@@ -267,6 +290,17 @@
   background-color: #fff5f5;
   border: 1px solid #fed7d7;
   color: #c53030;
+  font-size: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.auth-success-alert {
+  background-color: #eef9f1;
+  border: 1px solid #cdebd6;
+  color: #315f38;
   font-size: 12px;
   padding: 10px;
   border-radius: 8px;

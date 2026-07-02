@@ -1,5 +1,5 @@
 import Dashboard from "./Dashboard";
-import "./DashboardPage.css";
+import "./UserDashboard.css";
 
 const ProgressPage = ({ userId }) => {
   return (

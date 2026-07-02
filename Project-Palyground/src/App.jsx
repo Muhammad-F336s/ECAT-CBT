@@ -6,12 +6,35 @@ import {
   useNavigate,
   useLocation,
 } from "react-router-dom";
-import { FaBars, FaChevronLeft, FaChevronRight, FaTimes } from "react-icons/fa";
+import {
+  FaBars,
+  FaBell,
+  FaBook,
+  FaChartBar,
+  FaChevronDown,
+  FaChevronLeft,
+  FaChevronRight,
+  FaCog,
+  FaCommentDots,
+  FaHeadset,
+  FaHourglassHalf,
+  FaKey,
+  FaRegCheckCircle,
+  FaTachometerAlt,
+  FaTimes,
+  FaUsers,
+} from "react-icons/fa";
 import AuthPage from "./components/AuthPage";
-import DashboardPage from "./components/DashboardPage";
+import AdminAdministration from "./components/AdminAdministration";
+import AdminApprovals from "./components/AdminApprovals";
+import AdminDashboard from "./components/AdminDashboard";
+import AdminMessages from "./components/AdminMessages";
+import AdminStudents from "./components/AdminStudents";
+import UserDashboard from "./components/UserDashboard";
 import ProgressPage from "./components/ProgressPage";
 import ProfilePage from "./components/ProfilePage";
 import TestWindow from "./components/TestWindow";
+import API from "./utils/api";
 import logoutIcon from "./assets/logout-pypojw37dhfwhy26x2wxze.webp";
 import "./App.css";
 
@@ -38,6 +61,11 @@ const PAGE_COPY = {
     title: "Update your account and security settings",
     copy: "Change your profile details, update your password, and upload a profile image for a more professional account.",
   },
+  adminDashboard: {
+    label: "Admin Overview",
+    title: "Dedicated admin workspace",
+    copy: "Approve learners, manage access, and keep the platform aligned with your rules from one focused control panel.",
+  },
 };
 
 const parseAuthFromUrl = () => {
@@ -56,18 +84,28 @@ const parseAuthFromUrl = () => {
 };
 
 function App() {
+  const navigate = useNavigate();
+
   const [user, setUser] = useState(() => {
     try {
       const authFromUrl = parseAuthFromUrl();
       if (authFromUrl) {
         localStorage.setItem("token", authFromUrl.token);
         localStorage.setItem("user", JSON.stringify(authFromUrl.user));
-        window.history.replaceState({}, "", "/dashboard");
+        window.history.replaceState(
+          {},
+          "",
+          authFromUrl.user.role === "admin" ? "/admin/dashboard" : "/dashboard",
+        );
         return authFromUrl.user;
       }
 
       const storedUser = localStorage.getItem("user");
-      return storedUser ? JSON.parse(storedUser) : null;
+      if (storedUser) {
+        return JSON.parse(storedUser);
+      }
+
+      return null;
     } catch (err) {
       console.error("Failed to parse stored user", err);
       return null;
@@ -77,7 +115,10 @@ function App() {
   const handleAuthSuccess = useCallback((userData) => {
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
-  }, []);
+    navigate(userData.role === "admin" ? "/admin/dashboard" : "/dashboard", {
+      replace: true,
+    });
+  }, [navigate]);
 
   return (
     <Routes>
@@ -85,17 +126,34 @@ function App() {
         path="/auth"
         element={
           user ? (
-            <Navigate to="/dashboard" replace />
+            <Navigate
+              to={user.role === "admin" ? "/admin/dashboard" : "/dashboard"}
+              replace
+            />
           ) : (
             <AuthPage onAuthSuccess={handleAuthSuccess} />
           )
         }
       />
+
+      <Route
+        path="/admin/*"
+        element={
+          user?.role === "admin" ? (
+            <AdminAppShell user={user} setUser={setUser} />
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
+      />
+
       <Route
         path="/*"
         element={
-          user ? (
+          user?.role === "student" ? (
             <AppShell user={user} setUser={setUser} />
+          ) : user ? (
+            <Navigate to="/admin/dashboard" replace />
           ) : (
             <Navigate to="/auth" replace />
           )
@@ -105,12 +163,213 @@ function App() {
   );
 }
 
+function AdminAppShell({ user, setUser }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+  const [loginMessages, setLoginMessages] = useState(user.loginMessages || []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPendingCount = async () => {
+      try {
+        const res = await API.get("/user/pending-users");
+        if (isMounted) setPendingApprovalCount(res.data.length);
+      } catch (err) {
+        console.error("Pending approval count failed:", err);
+      }
+    };
+
+    fetchPendingCount();
+    const intervalId = window.setInterval(fetchPendingCount, 10000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const handleNavigate = (path) => {
+    navigate(path);
+    if (window.matchMedia("(max-width: 860px)").matches) {
+      setSidebarOpen(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    navigate("/auth", { replace: true });
+  };
+
+  return (
+    <div className="app-shell admin-shell">
+      <button
+        type="button"
+        className="mobile-sidebar-button"
+        onClick={() => setSidebarOpen((prev) => !prev)}
+        aria-label={sidebarOpen ? "Close side panel" : "Open side panel"}
+      >
+        {sidebarOpen ? <FaTimes /> : <FaBars />}
+      </button>
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close side panel"
+        />
+      )}
+      <aside
+        className={`sidebar admin-sidebar ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}
+      >
+        <div className="sidebar-top">
+          <div className="sidebar-brand">
+            <p>ECAT CBT</p>
+            <h1>Admin</h1>
+          </div>
+
+          <div className="sidebar-links">
+            <div className="sidebar-section-label">Workspace</div>
+            <button
+              onClick={() => handleNavigate("/admin/dashboard")}
+              className={`nav-button ${location.pathname === "/admin/dashboard" ? "active" : ""}`}
+            >
+              <FaTachometerAlt /> Account Overview
+            </button>
+            <button
+              onClick={() => handleNavigate("/admin/approvals")}
+              className={`nav-button ${location.pathname === "/admin/approvals" ? "active" : ""}`}
+            >
+              <FaHourglassHalf /> Pending Approvals{" "}
+              <span className="nav-count">{pendingApprovalCount}</span>
+            </button>
+            <button
+              onClick={() => handleNavigate("/admin/students")}
+              className={`nav-button ${location.pathname === "/admin/students" ? "active" : ""}`}
+            >
+              <FaRegCheckCircle /> Approved Students
+            </button>
+            <button
+              onClick={() => handleNavigate("/admin/dashboard")}
+              className="nav-button"
+            >
+              <FaUsers /> Users Management <FaChevronDown className="nav-end-icon" />
+            </button>
+            <button
+              onClick={() => handleNavigate("/admin/messages")}
+              className={`nav-button ${location.pathname === "/admin/messages" ? "active" : ""}`}
+            >
+              <FaCommentDots /> Message Center
+            </button>
+            <button
+              onClick={() => handleNavigate("/admin/administration")}
+              className={`nav-button ${location.pathname === "/admin/administration" ? "active" : ""}`}
+            >
+              <FaKey /> Manage Administration
+            </button>
+            <button
+              onClick={() => handleNavigate("/admin/dashboard")}
+              className="nav-button"
+            >
+              <FaBook /> Content Library
+            </button>
+            <button
+              onClick={() => handleNavigate("/admin/dashboard")}
+              className="nav-button"
+            >
+              <FaChartBar /> Analytics
+            </button>
+            <button
+              onClick={() => handleNavigate("/admin/dashboard")}
+              className="nav-button"
+            >
+              <FaCog /> Settings
+            </button>
+          </div>
+        </div>
+
+        <div className="sidebar-bottom">
+          <div className="profile-card profile-card--stacked">
+            <div className="profile-avatar">{user.name?.charAt(0) || "A"}</div>
+            <div className="profile-info profile-info--centered">
+              <p className="name">{user.name}</p>
+              <span>{user.rank || "Admin"}</span>
+            </div>
+          </div>
+          <button type="button" className="support-button">
+            <FaHeadset /> Support
+          </button>
+          <button onClick={handleLogout} className="logout-button">
+            Logout <img src={logoutIcon} alt="Logout" className="logout-icon" />
+          </button>
+        </div>
+      </aside>
+
+      <main className="main-panel admin-main-panel">
+        <div className="main-content">
+          <LoginMessageBanner
+            user={user}
+            setUser={setUser}
+            messages={loginMessages}
+            setMessages={setLoginMessages}
+          />
+          <Routes>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route
+              path="dashboard"
+              element={
+                <AdminDashboard
+                  user={user}
+                  headerActions={
+                    <>
+                      <button type="button" className="admin-icon-button" aria-label="Notifications">
+                        <FaBell />
+                      </button>
+                      <button type="button" className="admin-icon-button" aria-label="Messages">
+                        <FaCommentDots />
+                      </button>
+                    </>
+                  }
+                />
+              }
+            />
+            <Route
+              path="approvals"
+              element={
+                <AdminApprovals
+                  onPendingCountChange={setPendingApprovalCount}
+                />
+              }
+            />
+            <Route
+              path="students"
+              element={
+                <AdminStudents
+                  onPendingCountChange={setPendingApprovalCount}
+                />
+              }
+            />
+            <Route path="messages" element={<AdminMessages />} />
+            <Route path="administration" element={<AdminAdministration />} />
+            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+          </Routes>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 function AppShell({ user, setUser }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [hintCount, setHintCount] = useState(0);
+  const [loginMessages, setLoginMessages] = useState(user.loginMessages || []);
   const closeTimer = useRef(null);
   const hintTimer = useRef(null);
 
@@ -297,12 +556,18 @@ function AppShell({ user, setUser }) {
         </div>
 
         <div className="main-content">
+          <LoginMessageBanner
+            user={user}
+            setUser={setUser}
+            messages={loginMessages}
+            setMessages={setLoginMessages}
+          />
           <Routes>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route
               path="dashboard"
               element={
-                <DashboardPage
+                <UserDashboard
                   user={user}
                   onStartTest={() => navigate("/test")}
                   onOpenAccount={() => navigate("/profile")}
@@ -328,6 +593,41 @@ function AppShell({ user, setUser }) {
           </Routes>
         </div>
       </main>
+    </div>
+  );
+}
+
+function LoginMessageBanner({ user, setUser, messages, setMessages }) {
+  if (!messages.length) return null;
+
+  const dismissMessage = (messageId) => {
+    const nextMessages = messages.filter((message) => message.id !== messageId);
+    setMessages(nextMessages);
+    const nextUser = { ...user, loginMessages: nextMessages };
+    setUser(nextUser);
+    localStorage.setItem("user", JSON.stringify(nextUser));
+  };
+
+  return (
+    <div className="login-message-stack">
+      {messages.map((message) => (
+        <article key={message.id} className="login-message-banner">
+          <div>
+            <strong>Admin Message</strong>
+            <p>{message.body}</p>
+            {message.showSenderEmail && message.senderEmail && (
+              <small>From: {message.senderEmail}</small>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => dismissMessage(message.id)}
+            aria-label="Dismiss admin message"
+          >
+            x
+          </button>
+        </article>
+      ))}
     </div>
   );
 }

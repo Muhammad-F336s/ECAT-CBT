@@ -20,13 +20,13 @@ const Dashboard = ({ userId }) => {
     if (userId) fetchMetrics();
   }, [userId]);
 
-  if (loading)
-    return (
-      <div className="dashboard-loading">
-        Loading historical evaluation metrics...
-      </div>
-    );
-  if (!analytics) return <div className="dashboard-error">Failed to load data.</div>;
+  if (loading) {
+    return <div className="dashboard-loading">Loading historical evaluation metrics...</div>;
+  }
+
+  if (!analytics) {
+    return <div className="dashboard-error">Failed to load data.</div>;
+  }
 
   return (
     <div className="dashboard-analytics-container">
@@ -66,7 +66,9 @@ const Dashboard = ({ userId }) => {
               {analytics.history.map((item) => (
                 <tr key={item.attemptId}>
                   <td>{item.attemptId.slice(0, 8)}...</td>
-                  <td>{item.score} / {item.totalMarks}</td>
+                  <td>
+                    {item.score} / {item.totalMarks}
+                  </td>
                   <td>{item.percentage}</td>
                 </tr>
               ))}

@@ -448,6 +448,57 @@ select {
   color: #8a2f2f;
 }
 
+.login-message-stack {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.login-message-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(76, 112, 82, 0.18);
+  border-radius: 16px;
+  background: #e8f5ed;
+  color: #17351f;
+  box-shadow: 0 16px 34px rgba(33, 67, 43, 0.08);
+}
+
+.login-message-banner strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.login-message-banner p {
+  margin: 0;
+  line-height: 1.55;
+  color: #274537;
+}
+
+.login-message-banner small {
+  display: block;
+  margin-top: 8px;
+  color: #587264;
+}
+
+.login-message-banner button {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(35, 81, 44, 0.12);
+  color: #17351f;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.login-message-banner button:hover {
+  background: rgba(35, 81, 44, 0.2);
+}
+
 @media (max-width: 1080px) {
   .sidebar {
     width: 280px;

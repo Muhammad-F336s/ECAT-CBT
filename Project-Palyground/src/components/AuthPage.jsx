@@ -72,13 +72,19 @@ const handleGithubAuth = (onSuccess) => {
 const AuthPage = ({ onAuthSuccess }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [role, setRole] = useState("student");
+  const [adminSecretCode, setAdminSecretCode] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showSecretCode, setShowSecretCode] = useState(false);
 
   useEffect(() => {
     const popupAuth = parsePopupAuth();
@@ -100,7 +106,14 @@ const AuthPage = ({ onAuthSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
     setLoading(true);
+
+    if (isSignUp && formData.password !== formData.confirmPassword) {
+      setError("Password and confirm password do not match.");
+      setLoading(false);
+      return;
+    }
 
     const endpoint = isSignUp ? "/auth/signup" : "/auth/login";
     const payload = isSignUp
@@ -110,10 +123,32 @@ const AuthPage = ({ onAuthSuccess }) => {
           password: formData.password,
           role,
         }
-      : { email: formData.email, password: formData.password, role };
+      : {
+          email: formData.email,
+          password: formData.password,
+          role,
+          secretCode: role === "admin" ? adminSecretCode : undefined,
+        };
 
     try {
       const res = await API.post(endpoint, payload);
+
+      if (isSignUp) {
+        if (role === "admin") {
+          setSuccessMessage(
+            "Admin registration submitted. Main admin will approve and allocate your secret key.",
+          );
+          setLoading(false);
+          return;
+        }
+
+        setSuccessMessage(
+          res.data.message || "Registration submitted successfully. Your account is pending approval by admin.",
+        );
+        setLoading(false);
+        return;
+      }
+
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
       onAuthSuccess(res.data.user);
@@ -195,6 +230,9 @@ const AuthPage = ({ onAuthSuccess }) => {
             </div>
 
             <p className="form-subtext">or use your account email</p>
+            {successMessage && (
+              <div className="auth-success-alert">{successMessage}</div>
+            )}
             {error && <div className="auth-error-alert">{error}</div>}
 
             {isSignUp && (
@@ -221,16 +259,60 @@ const AuthPage = ({ onAuthSuccess }) => {
               />
             </div>
 
-            <div className="input-field-group">
+            <div className="input-field-group input-field-group--with-action">
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 name="password"
                 placeholder="Password"
                 value={formData.password}
                 onChange={handleInputChange}
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
             </div>
+
+            {isSignUp && (
+              <div className="input-field-group input-field-group--with-action">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
+                  placeholder="Confirm Password"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((value) => !value)}
+                >
+                  {showConfirmPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+            )}
+
+            {!isSignUp && role === "admin" && (
+              <div className="input-field-group input-field-group--with-action">
+                <input
+                  type={showSecretCode ? "text" : "password"}
+                  name="adminSecretCode"
+                  placeholder="Admin Secret Code"
+                  value={adminSecretCode}
+                  onChange={(e) => setAdminSecretCode(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSecretCode((value) => !value)}
+                >
+                  {showSecretCode ? "Hide" : "Show"}
+                </button>
+              </div>
+            )}
 
             {!isSignUp && (
               <div className="forgot-password-link">
