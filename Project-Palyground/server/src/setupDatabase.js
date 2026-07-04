@@ -1,21 +1,67 @@
-import "dotenv/config"; // load environment variables from server/.env into process.env
-import { readFile } from "node:fs/promises"; // async file read utility
-import { fileURLToPath } from "node:url"; // convert import.meta.url to a file path
-import { dirname, resolve } from "node:path"; // path helpers to build file system paths
-import { getSql } from "./db.js"; // function that returns the Neon/Postgres client
+import "dotenv/config";
+import { neon } from "@neondatabase/serverless";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 
-const currentDir = dirname(fileURLToPath(import.meta.url)); // directory of this script file
-const schemaPath = resolve(currentDir, "../sql/schema.sql"); // path to the SQL schema file in server/sql
-const schema = await readFile(schemaPath, "utf8"); // read the whole SQL file as a UTF-8 string
-const statements = schema
-  .split(";") // split the file into semicolon-separated statements
-  .map((statement) => statement.trim()) // trim whitespace from each extracted statement
-  .filter(Boolean); // remove empty strings resulting from trailing semicolons or blank lines
+function splitSqlStatements(sqlText) {
+  const parts = [];
+  let buffer = "";
+  let i = 0;
 
-const sql = getSql(); // create or reuse the Neon client using DATABASE_URL
+  while (i < sqlText.length) {
+    if (sqlText[i] === "$" && sqlText.slice(i).match(/^\$[\w]*\$/)) {
+      const tag = sqlText.slice(i).match(/^\$[\w]*\$/)[0];
+      const end = sqlText.indexOf(tag, i + tag.length);
+      if (end === -1) {
+        buffer += sqlText.slice(i);
+        break;
+      }
+      buffer += sqlText.slice(i, end + tag.length);
+      i = end + tag.length;
+      continue;
+    }
 
-for (const statement of statements) { // iterate over each SQL statement
-  await sql.query(statement); // execute each statement separately against the DB
+    if (sqlText[i] === ";") {
+      const trimmed = buffer.trim();
+      if (trimmed && !trimmed.startsWith("--")) {
+        parts.push(trimmed);
+      }
+      buffer = "";
+      i += 1;
+      continue;
+    }
+
+    buffer += sqlText[i];
+    i += 1;
+  }
+
+  const tail = buffer.trim();
+  if (tail && !tail.startsWith("--")) {
+    parts.push(tail);
+  }
+
+  return parts;
 }
 
-console.log("Neon database schema is ready."); // confirm that schema setup finished successfully
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is missing. Add it to server/.env before running db:setup.");
+}
+
+const currentDir = dirname(fileURLToPath(import.meta.url));
+const schemaPath = resolve(currentDir, "../sql/schema.sql");
+const schema = await readFile(schemaPath, "utf8");
+const statements = splitSqlStatements(schema);
+const sql = neon(process.env.DATABASE_URL);
+
+for (const [index, statement] of statements.entries()) {
+  try {
+    await sql.query(statement);
+  } catch (error) {
+    console.error(`Failed on statement #${index}:`);
+    console.error(statement.slice(0, 300));
+    throw error;
+  }
+}
+
+console.log("Neon database schema is ready.");

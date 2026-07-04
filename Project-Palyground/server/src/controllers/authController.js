@@ -6,7 +6,7 @@ import prisma from "../db.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-const pullLoginMessages = async (email, role) => {
+export const pullLoginMessages = async (email, role) => {
   const recipientRole = role === "admin" ? "Admin" : "User";
   try {
     const loginMessages = await prisma.loginMessage.findMany({
