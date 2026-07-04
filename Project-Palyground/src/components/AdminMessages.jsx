@@ -59,7 +59,7 @@ export default function AdminMessages() {
 
   const sendMessage = async () => {
     if (!selectedRecipient || !messageBody.trim()) {
-      setNotice("Select a recipient and write a message first.");
+      setNotice("Please select a recipient from the dropdown and write your message.");
       return;
     }
 
@@ -77,6 +77,8 @@ export default function AdminMessages() {
       setSentMessages((messages) => [res.data.loginMessage, ...messages]);
       setNotice(`Message queued for ${selectedRecipient.name}.`);
       setMessageBody("");
+      setSelectedRecipientKey("");
+      setSearchTerm("");
     } catch (err) {
       console.error("Message queue failed:", err);
       setError(err.response?.data?.error || "Unable to queue message.");

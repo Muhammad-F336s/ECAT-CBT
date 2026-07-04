@@ -27,6 +27,7 @@ import {
 import AuthPage from "./components/AuthPage";
 import AdminAdministration from "./components/AdminAdministration";
 import AdminApprovals from "./components/AdminApprovals";
+import AdminContentLibrary from "./components/AdminContentLibrary";
 import AdminDashboard from "./components/AdminDashboard";
 import AdminMessages from "./components/AdminMessages";
 import AdminStudents from "./components/AdminStudents";
@@ -169,6 +170,7 @@ function AdminAppShell({ user, setUser }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [loginMessages, setLoginMessages] = useState(user.loginMessages || []);
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -254,25 +256,36 @@ function AdminAppShell({ user, setUser }) {
               <FaRegCheckCircle /> Approved Students
             </button>
             <button
-              onClick={() => handleNavigate("/admin/dashboard")}
+              onClick={() => setIsUserManagementOpen(!isUserManagementOpen)}
               className="nav-button"
             >
-              <FaUsers /> Users Management <FaChevronDown className="nav-end-icon" />
+              <FaUsers /> Users Management{" "}
+              <FaChevronDown
+                className={`nav-end-icon ${isUserManagementOpen ? "open" : ""}`}
+              />
             </button>
-            <button
-              onClick={() => handleNavigate("/admin/messages")}
-              className={`nav-button ${location.pathname === "/admin/messages" ? "active" : ""}`}
+            <div
+              className={`dropdown-menu ${isUserManagementOpen ? "open" : ""}`}
             >
-              <FaCommentDots /> Message Center
-            </button>
+              <button
+                onClick={() => handleNavigate("/admin/messages")}
+                className={`nav-button dropdown-item ${
+                  location.pathname === "/admin/messages" ? "active" : ""
+                }`}
+              >
+                <FaCommentDots /> Message Center
+              </button>
+              <button
+                onClick={() => handleNavigate("/admin/administration")}
+                className={`nav-button dropdown-item ${
+                  location.pathname === "/admin/administration" ? "active" : ""
+                }`}
+              >
+                <FaKey /> Manage Administration
+              </button>
+            </div>
             <button
-              onClick={() => handleNavigate("/admin/administration")}
-              className={`nav-button ${location.pathname === "/admin/administration" ? "active" : ""}`}
-            >
-              <FaKey /> Manage Administration
-            </button>
-            <button
-              onClick={() => handleNavigate("/admin/dashboard")}
+              onClick={() => handleNavigate("/admin/content-library")}
               className="nav-button"
             >
               <FaBook /> Content Library
@@ -355,6 +368,7 @@ function AdminAppShell({ user, setUser }) {
             />
             <Route path="messages" element={<AdminMessages />} />
             <Route path="administration" element={<AdminAdministration />} />
+            <Route path="content-library" element={<AdminContentLibrary />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
         </div>
