@@ -186,18 +186,28 @@ export const printFullPaper = ({ user, results }) => {
     </html>
   `;
 
-  const printWindow = window.open("", "_blank", "noopener,noreferrer");
-  if (!printWindow) {
-    window.alert("Pop-up blocked. Please allow pop-ups to print the full test paper.");
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("title", "ECAT Full Test Paper Print");
+  iframe.style.cssText =
+    "position:fixed;width:0;height:0;border:0;visibility:hidden;";
+  document.body.appendChild(iframe);
+
+  const frameDoc = iframe.contentWindow?.document;
+  if (!frameDoc) {
+    document.body.removeChild(iframe);
+    window.alert("Unable to prepare print view. Please try again.");
     return;
   }
 
-  printWindow.document.open();
-  printWindow.document.write(paperHtml);
-  printWindow.document.close();
+  frameDoc.open();
+  frameDoc.write(paperHtml);
+  frameDoc.close();
 
-  printWindow.focus();
+  iframe.contentWindow.focus();
   window.setTimeout(() => {
-    printWindow.print();
+    iframe.contentWindow.print();
+    window.setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
   }, 300);
 };

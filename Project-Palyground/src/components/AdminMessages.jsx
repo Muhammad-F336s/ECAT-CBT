@@ -25,7 +25,7 @@ export default function AdminMessages() {
       setError("");
     } catch (err) {
       console.error("Message center load failed:", err);
-      setError("Unable to load message center data. Run Prisma db push and restart backend.");
+      setError("Unable to load message center data. Check that the backend is running and you are logged in as admin.");
     }
   };
 
