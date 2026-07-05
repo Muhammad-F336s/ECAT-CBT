@@ -159,8 +159,6 @@ export const deleteAdmin = async (req, res) => {
 
 export const listRecipients = async (req, res) => {
   try {
-    if (!requireRootOwner(req, res)) return;
-
     const [users, admins] = await Promise.all([
       prisma.user.findMany({
         orderBy: { createdAt: "desc" },
@@ -184,8 +182,6 @@ export const listRecipients = async (req, res) => {
 
 export const createLoginMessage = async (req, res) => {
   try {
-    if (!requireRootOwner(req, res)) return;
-
     const {
       recipientEmail,
       recipientRole,
@@ -217,8 +213,6 @@ export const createLoginMessage = async (req, res) => {
 
 export const listLoginMessages = async (req, res) => {
   try {
-    if (!requireRootOwner(req, res)) return;
-
     const messages = await prisma.loginMessage.findMany({
       orderBy: { createdAt: "desc" },
     });

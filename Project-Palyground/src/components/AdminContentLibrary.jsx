@@ -1,6 +1,5 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
-  FaBook,
   FaPlus,
   FaEdit,
   FaTrash,
@@ -141,7 +140,6 @@ export default function AdminContentLibrary() {
 
   const [expandedGroup, setExpandedGroup] = useState(null);
   const [uploadingGroup, setUploadingGroup] = useState(null);
-  const fileInputRef = useRef({});
 
   const getFileIcon = (type) => {
     switch (type) {

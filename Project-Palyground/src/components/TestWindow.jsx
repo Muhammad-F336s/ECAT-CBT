@@ -7,7 +7,6 @@ const OPTION_LABELS = "ABCDE";
 const MAX_TIME_BOOSTS = 2;
 const MAX_PAUSES = 1;
 const TIME_BOOST_SECONDS = 60;
-const SECONDS_PER_QUESTION = 60;
 
 const formatTime = (totalSeconds) => {
   const mins = Math.floor(totalSeconds / 60);
@@ -21,9 +20,9 @@ const formatClock = (date) =>
 const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
   const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [savedAnswers, setSavedAnswers] = useState({});
+  const [answers, setAnswers] = useState({});
+  const [lockedIds, setLockedIds] = useState(new Set());
   const [skippedIds, setSkippedIds] = useState(new Set());
-  const [pendingSelection, setPendingSelection] = useState("");
   const [maxReachedIdx, setMaxReachedIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -37,12 +36,13 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
   const [timeBoostsUsed, setTimeBoostsUsed] = useState(0);
   const [pausesUsed, setPausesUsed] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [secondsPerQuestion, setSecondsPerQuestion] = useState(60);
   const [paperStartTime] = useState(() => new Date());
 
   const timerRef = useRef(null);
   const autoSubmittedRef = useRef(false);
 
-  const attemptedCount = Object.keys(savedAnswers).length;
+  const attemptedCount = lockedIds.size;
 
   const loadTest = useCallback(async () => {
     setLoading(true);
@@ -61,7 +61,10 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
       }
       setQuestions(loaded);
       setSubjectName(res.data.subjectName || "ECAT Practice");
-      setTimeLeft(loaded.length * SECONDS_PER_QUESTION);
+      // allocate exactly 1 minute (60 seconds) per question
+      const perQuestion = 60;
+      setSecondsPerQuestion(perQuestion);
+      setTimeLeft(loaded.length * perQuestion);
       setPhase("active");
     } catch (err) {
       setError(
@@ -75,7 +78,10 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
   }, [subjectId, userId]);
 
   useEffect(() => {
-    if (subjectId && userId) loadTest();
+    const timer = window.setTimeout(() => {
+      if (subjectId && userId) loadTest();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [subjectId, userId, loadTest]);
 
   useEffect(() => {
@@ -94,40 +100,43 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
     return () => window.clearInterval(timerRef.current);
   }, [phase, isPaused, timeLeft]);
 
+  // Track remaining time for the current question and auto-advance when its slice ends
   useEffect(() => {
-    if (
-      timeLeft === 0 &&
-      phase === "active" &&
-      questions.length > 0 &&
-      !autoSubmittedRef.current
-    ) {
-      autoSubmittedRef.current = true;
-      handleFinishExam(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeft, phase, questions.length]);
+    if (phase !== "active" || questions.length === 0) return undefined;
 
-  useEffect(() => {
-    const currentQuestion = questions[currentIdx];
-    if (!currentQuestion) return;
-    if (savedAnswers[currentQuestion.id]) {
-      setPendingSelection(savedAnswers[currentQuestion.id]);
-      return;
+    const totalAllocated = questions.length * secondsPerQuestion;
+    const elapsed = totalAllocated - timeLeft;
+    const currentEnd = (currentIdx + 1) * secondsPerQuestion;
+    const remainingInCurrent = Math.max(0, Math.ceil(currentEnd - elapsed));
+
+    if (remainingInCurrent === 0 && currentIdx < questions.length - 1 && !isPaused) {
+      const timer = window.setTimeout(() => {
+        setLockedIds((prev) => new Set(prev).add(questions[currentIdx].id));
+        const nextIdx = Math.min(currentIdx + 1, questions.length - 1);
+        setCurrentIdx(nextIdx);
+        setMaxReachedIdx((prev) => Math.max(prev, nextIdx));
+      }, 0);
+      return () => window.clearTimeout(timer);
     }
-    setPendingSelection("");
-  }, [currentIdx, questions, savedAnswers]);
+
+    return undefined;
+  }, [timeLeft, currentIdx, secondsPerQuestion, questions, phase, isPaused]);
 
   const getQuestionStatus = (idx) => {
     const question = questions[idx];
     if (!question) return "locked";
     if (idx === currentIdx) return "current";
-    if (savedAnswers[question.id]) return "attempted";
+    if (lockedIds.has(question.id)) return "attempted";
+    if (answers[question.id]) return "pending";
     if (skippedIds.has(question.id)) return "skipped";
     if (idx <= maxReachedIdx) return "pending";
     return "locked";
   };
 
   const canNavigateTo = (idx) => {
+    const question = questions[idx];
+    if (!question || lockedIds.has(question.id)) return false;
+
     const status = getQuestionStatus(idx);
     return status === "current" || status === "skipped" || status === "pending";
   };
@@ -137,14 +146,26 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
     setCurrentIdx(idx);
   };
 
+  const handleSelectOption = (optionText) => {
+    const question = questions[currentIdx];
+    if (!question || lockedIds.has(question.id) || isPaused) return;
+
+    setAnswers((prev) => ({
+      ...prev,
+      [question.id]: optionText,
+    }));
+    setSkippedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(question.id);
+      return next;
+    });
+  };
+
   const handleSaveAndNext = () => {
     const question = questions[currentIdx];
-    if (!question || !pendingSelection) return;
+    if (!question || !answers[question.id] || lockedIds.has(question.id)) return;
 
-    setSavedAnswers((prev) => ({
-      ...prev,
-      [question.id]: pendingSelection,
-    }));
+    setLockedIds((prev) => new Set(prev).add(question.id));
     setSkippedIds((prev) => {
       const next = new Set(prev);
       next.delete(question.id);
@@ -160,9 +181,11 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
 
   const handleSkipAndNext = () => {
     const question = questions[currentIdx];
-    if (!question || savedAnswers[question.id]) return;
+    if (!question || lockedIds.has(question.id)) return;
 
-    setSkippedIds((prev) => new Set(prev).add(question.id));
+    if (!answers[question.id]) {
+      setSkippedIds((prev) => new Set(prev).add(question.id));
+    }
 
     if (currentIdx < questions.length - 1) {
       const nextIdx = currentIdx + 1;
@@ -171,7 +194,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
     }
   };
 
-  const handleFinishExam = async (autoSubmit = false) => {
+  async function handleFinishExam(autoSubmit = false) {
     if (submitting) return;
 
     if (
@@ -187,10 +210,10 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
     try {
       const questionResponses = questions.map((q) => ({
         questionId: q.id,
-        selectedAnswerText: savedAnswers[q.id] || "",
+        selectedAnswerText: answers[q.id] || "",
       }));
 
-      const totalAllocated = questions.length * SECONDS_PER_QUESTION;
+      const totalAllocated = questions.length * secondsPerQuestion;
       const timeTakenSeconds = Math.max(0, totalAllocated - timeLeft);
 
       const res = await API.post("/test/submit", {
@@ -209,7 +232,20 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
     } finally {
       setSubmitting(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    if (
+      timeLeft === 0 &&
+      phase === "active" &&
+      questions.length > 0 &&
+      !autoSubmittedRef.current
+    ) {
+      autoSubmittedRef.current = true;
+      handleFinishExam(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, phase, questions.length]);
 
   const handleZoomIn = () =>
     setZoomLevel((prev) => Math.min(prev + 0.1, 1.4));
@@ -234,11 +270,11 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
 
   const handleStartNewSession = () => {
     autoSubmittedRef.current = false;
-    setSavedAnswers({});
+    setAnswers({});
+    setLockedIds(new Set());
     setSkippedIds(new Set());
     setCurrentIdx(0);
     setMaxReachedIdx(0);
-    setPendingSelection("");
     setResults(null);
     setError("");
     setSubmitting(false);
@@ -279,9 +315,15 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
   }
 
   const currentQuestion = questions[currentIdx];
-  const isCurrentLocked = Boolean(savedAnswers[currentQuestion?.id]);
+  const currentAnswer = answers[currentQuestion?.id] || "";
+  const isCurrentLocked = lockedIds.has(currentQuestion?.id);
   const isLastQuestion = currentIdx === questions.length - 1;
-  const allSaved = questions.every((q) => savedAnswers[q.id]);
+  const hasAnyAnswer = questions.some((q) => answers[q.id]);
+  const totalAllocated = questions.length * secondsPerQuestion;
+  const elapsed = Math.max(0, totalAllocated - timeLeft);
+  const currentQuestionRemaining = questions.length
+    ? Math.max(0, Math.ceil((currentIdx + 1) * secondsPerQuestion - elapsed))
+    : 0;
 
   return (
     <div className="cbt-exam">
@@ -314,6 +356,12 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
           >
             Increase Time ({timeBoostsUsed}/{MAX_TIME_BOOSTS})
           </button>
+          <div className="cbt-question-timer">
+            <small>
+              Per-question: <strong>{formatTime(secondsPerQuestion)}</strong>
+              {" "}• This Q: <strong>{formatTime(currentQuestionRemaining)}</strong>
+            </small>
+          </div>
           <button
             type="button"
             className="cbt-btn cbt-btn--tool"
@@ -369,7 +417,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
         <div className="cbt-options-list">
           {currentQuestion.options.map((option, index) => {
             const label = OPTION_LABELS[index] || String(index + 1);
-            const isSelected = pendingSelection === option.text;
+            const isSelected = currentAnswer === option.text;
             return (
               <label
                 key={option.id}
@@ -381,7 +429,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
                   value={option.text}
                   checked={isSelected}
                   disabled={isCurrentLocked || isPaused}
-                  onChange={() => setPendingSelection(option.text)}
+                  onChange={() => handleSelectOption(option.text)}
                 />
                 <span className="cbt-option-label">{label}.</span>
                 <span className="cbt-option-text">{option.text}</span>
@@ -396,7 +444,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
           type="button"
           className="cbt-btn cbt-btn--secondary"
           onClick={handleSkipAndNext}
-          disabled={isCurrentLocked || isLastQuestion || isPaused}
+          disabled={isCurrentLocked || isLastQuestion || isPaused || Boolean(currentAnswer)}
         >
           Skip and Next →
         </button>
@@ -433,7 +481,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
               type="button"
               className="cbt-btn cbt-btn--save"
               onClick={handleSaveAndNext}
-              disabled={!pendingSelection || isCurrentLocked || isPaused}
+              disabled={!currentAnswer || isCurrentLocked || isPaused}
             >
               Save and Next →
             </button>
@@ -441,22 +489,14 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
             <button
               type="button"
               className="cbt-btn cbt-btn--save"
-              onClick={() => {
-                if (pendingSelection && !isCurrentLocked) {
-                  setSavedAnswers((prev) => ({
-                    ...prev,
-                    [currentQuestion.id]: pendingSelection,
-                  }));
-                }
-                handleFinishExam(false);
-              }}
-              disabled={(!pendingSelection && !allSaved) || submitting || isPaused}
+              onClick={() => handleFinishExam(false)}
+              disabled={(!currentAnswer && !hasAnyAnswer) || submitting || isPaused}
             >
               {submitting ? "Submitting..." : "Save and Finish →"}
             </button>
           )}
           <p className="cbt-warning-note">
-            Note: Please select the option carefully, once you have selected the option you cannot change it.
+            Note: Please select the option carefully. Once you select an option you must Save and Next — you cannot skip that question, and after saving you cannot return to change the answer.
           </p>
         </div>
       </footer>

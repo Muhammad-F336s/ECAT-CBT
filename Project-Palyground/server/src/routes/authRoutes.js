@@ -5,7 +5,7 @@ import prisma from "../db.js";
 import { signup, login, googleAuth } from "../controllers/authController.js";
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "your_super_secret_jwt_key_123";
+const JWT_SECRET = process.env.JWT_SECRET || "super_secret_fallback_key_123";
 const DEFAULT_FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 const getSafeFrontendUrl = (url) => {

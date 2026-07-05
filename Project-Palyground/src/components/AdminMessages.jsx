@@ -25,7 +25,16 @@ export default function AdminMessages() {
       setError("");
     } catch (err) {
       console.error("Message center load failed:", err);
-      setError("Unable to load message center data. Check that the backend is running and you are logged in as admin.");
+      const apiError = err.response?.data?.error;
+      if (err.response?.status === 401) {
+        setError("Session expired. Please log out and sign in again as admin.");
+      } else if (err.response?.status === 403) {
+        setError(apiError || "You do not have permission to access the message center.");
+      } else if (!err.response) {
+        setError("Cannot reach the backend. Start the server with npm run dev:server.");
+      } else {
+        setError(apiError || "Unable to load message center data.");
+      }
     }
   };
 

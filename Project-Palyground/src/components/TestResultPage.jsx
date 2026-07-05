@@ -50,7 +50,8 @@ const TestResultPage = ({
   };
 
   const handlePrintFullPaper = () => {
-    printFullPaper({ user, results });
+    // Print only blank answer sheet
+    printFullPaper({ user, results, blank: true });
   };
 
   return (
@@ -71,6 +72,15 @@ const TestResultPage = ({
         <p className="ecat-result-date">
           Test Date: {formatTestDate(results.submittedAt)}
         </p>
+        <div style={{ position: "absolute", right: 24, top: 18 }}>
+          <button
+            type="button"
+            className="ecat-action-btn ecat-action-btn--muted"
+            onClick={onBackToDashboard}
+          >
+            Go to Dashboard
+          </button>
+        </div>
       </section>
 
       <section className="ecat-stats-grid">

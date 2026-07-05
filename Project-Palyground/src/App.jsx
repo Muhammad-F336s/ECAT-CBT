@@ -389,6 +389,7 @@ function AppShell({ user, setUser }) {
 
   const view = location.pathname.split("/")[1] || "dashboard";
   const pageCopy = PAGE_COPY[view] || PAGE_COPY.dashboard;
+  const isTestView = view === "test";
 
   const showSidebarHint = useCallback(() => {
     if (hintCount >= 3) return;
@@ -481,16 +482,18 @@ function AppShell({ user, setUser }) {
   };
 
   return (
-    <div className="app-shell">
-      <button
-        type="button"
-        className="mobile-sidebar-button"
-        onClick={toggleSidebar}
-        aria-label={sidebarOpen ? "Close side panel" : "Open side panel"}
-      >
-        {sidebarOpen ? <FaTimes /> : <FaBars />}
-      </button>
-      {sidebarOpen && (
+    <div className={`app-shell ${isTestView ? "test-shell" : ""}`}>
+      {!isTestView && (
+        <button
+          type="button"
+          className="mobile-sidebar-button"
+          onClick={toggleSidebar}
+          aria-label={sidebarOpen ? "Close side panel" : "Open side panel"}
+        >
+          {sidebarOpen ? <FaTimes /> : <FaBars />}
+        </button>
+      )}
+      {sidebarOpen && !isTestView && (
         <button
           type="button"
           className="sidebar-backdrop"
@@ -498,7 +501,8 @@ function AppShell({ user, setUser }) {
           aria-label="Close side panel"
         />
       )}
-      <aside
+      {!isTestView && (
+        <aside
         className={`sidebar ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
@@ -560,26 +564,27 @@ function AppShell({ user, setUser }) {
             <img src={logoutIcon} alt="Logout" className="logout-icon" />
           </button>
         </div>
-      </aside>
+        </aside>
+      )}
 
       <main className="main-panel">
-        <div className="page-header">
-          {view !== "test" && (
-            <>
-              <span>{pageCopy.label}</span>
-              <h2>{pageCopy.title}</h2>
-              <p>{pageCopy.copy}</p>
-            </>
-          )}
-        </div>
+        {!isTestView && (
+          <div className="page-header">
+            <span>{pageCopy.label}</span>
+            <h2>{pageCopy.title}</h2>
+            <p>{pageCopy.copy}</p>
+          </div>
+        )}
 
         <div className="main-content">
-          <LoginMessageBanner
-            user={user}
-            setUser={setUser}
-            messages={loginMessages}
-            setMessages={setLoginMessages}
-          />
+          {!isTestView && (
+            <LoginMessageBanner
+              user={user}
+              setUser={setUser}
+              messages={loginMessages}
+              setMessages={setLoginMessages}
+            />
+          )}
           <Routes>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route

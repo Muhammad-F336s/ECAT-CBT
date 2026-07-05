@@ -340,6 +340,29 @@ select {
   padding: 40px 52px;
 }
 
+.test-shell {
+  width: 100%;
+  height: auto;
+  min-height: 100dvh;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.test-shell .main-panel {
+  width: 100%;
+  height: auto;
+  padding: 0;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.test-shell .main-content {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
 .page-header {
   max-width: 840px;
   margin-bottom: 36px;

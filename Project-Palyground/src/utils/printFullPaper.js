@@ -7,11 +7,11 @@ const escapeHtml = (value) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-const buildQuestionBlock = (item) => {
+const buildQuestionBlock = (item, { blank } = {}) => {
   const optionsHtml = item.options
     .map((option, index) => {
       const label = OPTION_LABELS[index] || String(index + 1);
-      const isSelected = option.text === item.selectedAnswerText;
+      const isSelected = !blank && option.text === item.selectedAnswerText;
       const marker = isSelected ? "&#9679;" : "&#9675;";
       return `
         <div class="paper-option ${isSelected ? "selected" : ""}">
@@ -23,9 +23,7 @@ const buildQuestionBlock = (item) => {
     })
     .join("");
 
-  const answerNote = item.isSkipped
-    ? '<p class="paper-skipped">Not attempted / Skipped</p>'
-    : "";
+  const answerNote = item.isSkipped ? '<p class="paper-skipped">Not attempted / Skipped</p>' : "";
 
   return `
     <article class="paper-question">
@@ -36,7 +34,7 @@ const buildQuestionBlock = (item) => {
   `;
 };
 
-export const printFullPaper = ({ user, results }) => {
+export const printFullPaper = ({ user, results, blank = false }) => {
   const questions = [...(results.breakdown || [])].sort(
     (a, b) => a.questionNumber - b.questionNumber,
   );
@@ -112,31 +110,43 @@ export const printFullPaper = ({ user, results }) => {
           .paper-options {
             display: grid;
             gap: 0;
-            border: 1px solid #ccc;
+            border: none;
           }
           .paper-option {
             display: grid;
             grid-template-columns: auto auto 1fr;
-            gap: 10px;
-            align-items: start;
-            padding: 10px 12px;
-            border-bottom: 1px solid #ddd;
-            font-size: 0.95rem;
-            line-height: 1.45;
+            gap: 12px;
+            align-items: center;
+            padding: 12px 14px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.98rem;
+            line-height: 1.4;
           }
           .paper-option:last-child { border-bottom: none; }
           .paper-option.selected {
-            background: #eef7ef;
+            background: #eef4fb;
             font-weight: 600;
+            color: #0b3d91;
           }
           .paper-marker {
             font-size: 1rem;
             line-height: 1.2;
-            color: #2e6b35;
+            color: #8a8a8a;
+            margin-top: 2px;
+          }
+          .paper-option.selected .paper-marker {
+            color: #0b3d91;
           }
           .paper-option-label {
             font-weight: 700;
             min-width: 1.2rem;
+          }
+          .paper-blank-line {
+            display: inline-block;
+            min-width: 240px;
+            border-bottom: 1px solid #222;
+            padding: 2px 6px;
+            margin-left: 8px;
           }
           .paper-skipped {
             margin: 10px 0 0;
@@ -153,6 +163,7 @@ export const printFullPaper = ({ user, results }) => {
             color: #666;
           }
           @media print {
+            @page { margin: 0; }
             body { padding: 12mm; }
           }
         </style>
@@ -163,25 +174,29 @@ export const printFullPaper = ({ user, results }) => {
           <p>${escapeHtml(results.subjectName || "ECAT Practice")} | ${escapeHtml(results.track || "Pre-Engineering")}</p>
         </header>
 
+        ${!blank ? `
         <div class="paper-meta">
           <span><strong>Student:</strong> ${escapeHtml(user?.name || "Student")}</span>
           <span><strong>Email:</strong> ${escapeHtml(user?.email || "—")}</span>
           <span><strong>Test Date:</strong> ${escapeHtml(testDate)}</span>
           <span><strong>Total Questions:</strong> ${questions.length}</span>
         </div>
-
-        <div class="paper-instructions">
-          This document contains the complete test paper with all questions and your selected responses.
-          Filled circle (&#9679;) indicates your chosen answer. Empty circle (&#9675;) indicates unselected options.
+        ` : `
+        <div class="paper-meta">
+          <span><strong>Student:</strong> <span class="paper-blank-line">&nbsp;</span></span>
+          <span><strong>Email:</strong> <span class="paper-blank-line">&nbsp;</span></span>
+          <span><strong>Test Date:</strong> <span class="paper-blank-line">&nbsp;</span></span>
+          <span><strong>Total Questions:</strong> ${questions.length}</span>
         </div>
+        `}
+
+        ${!blank ? `<div class="paper-instructions">This document contains the complete test paper with all questions and your selected responses. Filled circle (&#9679;) indicates your chosen answer. Empty circle (&#9675;) indicates unselected options.</div>` : ``}
 
         <main>
-          ${questions.map(buildQuestionBlock).join("")}
+          ${questions.map((q) => buildQuestionBlock(q, { blank })).join("")}
         </main>
 
-        <footer class="paper-footer">
-          ECAT CBT Simulator — Printed on ${escapeHtml(new Date().toLocaleString())}
-        </footer>
+        ${!blank ? `<footer class="paper-footer">ECAT CBT Simulator — Printed on ${escapeHtml(new Date().toLocaleString())}</footer>` : ``}
       </body>
     </html>
   `;
