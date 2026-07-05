@@ -564,9 +564,13 @@ function AppShell({ user, setUser }) {
 
       <main className="main-panel">
         <div className="page-header">
-          <span>{pageCopy.label}</span>
-          <h2>{pageCopy.title}</h2>
-          <p>{pageCopy.copy}</p>
+          {view !== "test" && (
+            <>
+              <span>{pageCopy.label}</span>
+              <h2>{pageCopy.title}</h2>
+              <p>{pageCopy.copy}</p>
+            </>
+          )}
         </div>
 
         <div className="main-content">
@@ -595,6 +599,7 @@ function AppShell({ user, setUser }) {
                 <TestWindow
                   subjectId={ACTIVE_SUBJECT_ID}
                   userId={user.id}
+                  user={user}
                   onTestComplete={() => navigate("/dashboard")}
                 />
               }

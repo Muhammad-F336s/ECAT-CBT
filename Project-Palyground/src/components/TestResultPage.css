@@ -1,0 +1,361 @@
+.ecat-result {
+  --ecat-text: #16351f;
+  --ecat-muted: #536157;
+  --ecat-accent: #3c7a3d;
+  --ecat-accent-dark: #2e6b35;
+  --ecat-blue: #2f5f9e;
+  --ecat-danger: #b42318;
+  --ecat-good: #2e7d32;
+  --ecat-border: rgba(85, 122, 97, 0.16);
+  --ecat-card: #ffffff;
+
+  width: min(100%, 920px);
+  margin: 0 auto 32px;
+  color: var(--ecat-text);
+}
+
+.ecat-ai-banner {
+  border-radius: 18px;
+  padding: 28px 24px;
+  margin-bottom: 24px;
+  text-align: center;
+  border: 1px solid transparent;
+}
+
+.ecat-ai-banner--fail {
+  background: linear-gradient(180deg, #1a1a1a 0%, #2b2b2b 100%);
+  color: #fff;
+  border-color: #444;
+}
+
+.ecat-ai-banner--poor {
+  background: linear-gradient(180deg, #3d1515 0%, #5c1f1f 100%);
+  color: #fff;
+}
+
+.ecat-ai-banner--average {
+  background: linear-gradient(180deg, #3f3510 0%, #5a4a14 100%);
+  color: #fff;
+}
+
+.ecat-ai-banner--good {
+  background: linear-gradient(180deg, #1f4d2d 0%, #2d6a3e 100%);
+  color: #fff;
+}
+
+.ecat-ai-banner--excellent {
+  background: linear-gradient(180deg, #1a3f5c 0%, #245f88 100%);
+  color: #fff;
+}
+
+.ecat-ai-icons {
+  font-size: 1.6rem;
+  letter-spacing: 0.4rem;
+  margin-bottom: 10px;
+}
+
+.ecat-ai-title {
+  margin: 0 0 12px;
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+}
+
+.ecat-ai-banner--fail .ecat-ai-title {
+  color: #ff5a5a;
+}
+
+.ecat-ai-body {
+  margin: 0 auto;
+  max-width: 760px;
+  line-height: 1.7;
+  font-size: 0.98rem;
+}
+
+.ecat-ai-banner--fail .ecat-ai-body {
+  color: #ff8f8f;
+}
+
+.ecat-result-header {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.ecat-result-header h1 {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  color: var(--ecat-blue);
+}
+
+.ecat-result-student {
+  margin: 0;
+  color: var(--ecat-blue);
+  font-weight: 700;
+}
+
+.ecat-result-date {
+  margin: 8px 0 0;
+  color: var(--ecat-muted);
+  font-size: 0.92rem;
+}
+
+.ecat-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.ecat-stat-card {
+  background: #f7faf7;
+  border: 1px solid var(--ecat-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.ecat-stat-card span {
+  color: var(--ecat-muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.ecat-stat-card strong {
+  font-size: 1.35rem;
+  color: var(--ecat-blue);
+}
+
+.ecat-stat-card--wide {
+  grid-column: 1 / -1;
+}
+
+.ecat-stat-good {
+  color: var(--ecat-good) !important;
+}
+
+.ecat-stat-bad {
+  color: var(--ecat-danger) !important;
+}
+
+.ecat-stat-info {
+  color: var(--ecat-blue) !important;
+}
+
+.ecat-action-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.ecat-action-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ecat-action-btn--muted {
+  background: #e8ece8;
+  color: #3a433c;
+}
+
+.ecat-action-btn--primary {
+  background: #2f4f86;
+  color: #fff;
+}
+
+.ecat-action-btn--success {
+  background: var(--ecat-accent);
+  color: #fff;
+}
+
+.ecat-action-btn:hover {
+  filter: brightness(1.05);
+}
+
+.ecat-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.ecat-tab {
+  border: 2px solid #d7e2d8;
+  border-radius: 12px;
+  padding: 14px;
+  background: #f3f7f3;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ecat-tab.active.wrong {
+  background: #fff;
+  border-color: #e57373;
+  color: #c62828;
+}
+
+.ecat-tab.active.correct {
+  background: #fff;
+  border-color: #81c784;
+  color: #2e7d32;
+}
+
+.ecat-review-section {
+  background: var(--ecat-card);
+  border: 1px solid var(--ecat-border);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 18px 40px rgba(76, 120, 87, 0.06);
+}
+
+.ecat-review-heading {
+  margin: 0 0 18px;
+  font-size: 1.15rem;
+}
+
+.ecat-review-heading--wrong {
+  color: var(--ecat-danger);
+}
+
+.ecat-review-heading--correct {
+  color: var(--ecat-good);
+}
+
+.ecat-review-empty {
+  margin: 0;
+  color: var(--ecat-muted);
+  padding: 12px 0;
+}
+
+.ecat-review-card {
+  border: 1px solid #e3ebe4;
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 16px;
+  background: #fcfefc;
+}
+
+.ecat-review-card h4 {
+  margin: 0 0 14px;
+  line-height: 1.55;
+  font-size: 1rem;
+}
+
+.ecat-review-options {
+  margin-bottom: 14px;
+}
+
+.ecat-review-option {
+  margin: 0 0 6px;
+  color: #2f4034;
+  line-height: 1.5;
+}
+
+.ecat-review-option.correct {
+  color: var(--ecat-good);
+  font-weight: 600;
+}
+
+.ecat-review-option.wrong-selected {
+  color: var(--ecat-danger);
+  font-weight: 600;
+}
+
+.ecat-answer-lines {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.ecat-your-answer {
+  margin: 0;
+  color: var(--ecat-danger);
+  font-weight: 700;
+}
+
+.ecat-correct-answer {
+  margin: 0;
+  color: var(--ecat-good);
+  font-weight: 700;
+}
+
+.ecat-explanation {
+  background: #f3f6f3;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.ecat-explanation p {
+  margin: 8px 0 0;
+  line-height: 1.65;
+  color: #334539;
+}
+
+.ecat-pro-tip {
+  background: #fff9e8;
+  border: 1px solid #f0e2b7;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.ecat-pro-tip p {
+  margin: 8px 0 0;
+  line-height: 1.6;
+  color: #5c4a12;
+}
+
+.ecat-result-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+@media (max-width: 760px) {
+  .ecat-action-row,
+  .ecat-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .ecat-result-header h1 {
+    font-size: 1.6rem;
+  }
+}
+
+@media print {
+  body {
+    background: #fff !important;
+  }
+
+  body.ecat-printing-result .sidebar,
+  body.ecat-printing-result .mobile-sidebar-button,
+  body.ecat-printing-result .page-header,
+  body.ecat-printing-result .no-print-actions,
+  body.ecat-printing-result .login-message-stack {
+    display: none !important;
+  }
+
+  body.ecat-printing-result .main-panel,
+  body.ecat-printing-result .main-content,
+  body.ecat-printing-result .app-shell {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body.ecat-printing-result .ecat-result-page {
+    width: 100%;
+    margin: 0;
+  }
+
+  body.ecat-printing-result .ecat-ai-banner,
+  body.ecat-printing-result .ecat-review-card {
+    break-inside: avoid;
+  }
+}
