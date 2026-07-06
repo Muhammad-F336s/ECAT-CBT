@@ -316,6 +316,7 @@ export const login = async (req, res) => {
         email: user.email,
         role: user.role,
         isApproved: user.isApproved,
+        packageType: user.packageType ?? "STANDARD",
         testAttemptsLimit: user.testAttemptsLimit,
         loginMessages,
       },

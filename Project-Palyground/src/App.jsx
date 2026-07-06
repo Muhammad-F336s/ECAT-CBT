@@ -35,6 +35,8 @@ import UserDashboard from "./components/UserDashboard";
 import ProgressPage from "./components/ProgressPage";
 import ProfilePage from "./components/ProfilePage";
 import TestWindow from "./components/TestWindow";
+import TestModeSelection from "./components/TestModeSelection";
+import TestModeForm from "./components/TestModeForm";
 import API from "./utils/api";
 import logoutIcon from "./assets/logout-pypojw37dhfwhy26x2wxze.webp";
 import "./App.css";
@@ -600,6 +602,14 @@ function AppShell({ user, setUser }) {
             <Route path="progress" element={<ProgressPage userId={user.id} />} />
             <Route
               path="test"
+              element={<TestModeSelection user={user} />}
+            />
+            <Route
+              path="test/form"
+              element={<TestModeForm user={user} />}
+            />
+            <Route
+              path="test/cbt"
               element={
                 <TestWindow
                   subjectId={ACTIVE_SUBJECT_ID}

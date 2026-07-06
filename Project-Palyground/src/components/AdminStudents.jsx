@@ -12,7 +12,8 @@ import API from "../utils/api";
 import "./AdminApprovals.css";
 
 const DEFAULT_LIMIT = 5;
-const formatLimit = (limit) => (limit === -1 ? "Unlimited" : `${limit} tests`);
+const formatPackage = (packageType) => (packageType === "PREMIUM" ? "Premium" : "Standard");
+const formatLimitText = (limit) => (limit === -1 ? "Unlimited" : `${limit} tests`);
 const attemptsUsed = (user) => user?._count?.attempts ?? 0;
 const getStatus = (user) => {
   if (!user.isApproved && user.testAttemptsLimit === 0) return "Pending";
@@ -106,6 +107,7 @@ export default function AdminStudents({ onPendingCountChange }) {
     try {
       const res = await API.post(`/user/update-package/${student.id}`, {
         attemptsLimit: updates.attemptsLimit ?? student.testAttemptsLimit,
+        ...(typeof updates.packageType === "string" ? { packageType: updates.packageType } : {}),
         ...(typeof updates.isApproved === "boolean"
           ? { isApproved: updates.isApproved }
           : {}),
@@ -264,6 +266,7 @@ export default function AdminStudents({ onPendingCountChange }) {
               <tr>
                 <th>Student</th>
                 <th>Status</th>
+                <th>Package</th>
                 <th>Limit</th>
                 <th>Used</th>
                 <th>Joined</th>
@@ -285,7 +288,16 @@ export default function AdminStudents({ onPendingCountChange }) {
                         {status}
                       </span>
                     </td>
-                    <td>{formatLimit(student.testAttemptsLimit)}</td>
+                    <td>
+                      <span className={`approval-package-badge approval-package-badge--${student.packageType === "PREMIUM" ? "premium" : "standard"}`}>
+                        {formatPackage(student.packageType)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`approval-limit-badge approval-limit-badge--${student.testAttemptsLimit === -1 ? "unlimited" : "standard"}`}>
+                        {formatLimitText(student.testAttemptsLimit)}
+                      </span>
+                    </td>
                     <td>{attemptsUsed(student)}</td>
                     <td>{new Date(student.createdAt).toLocaleDateString()}</td>
                     <td>
@@ -300,23 +312,33 @@ export default function AdminStudents({ onPendingCountChange }) {
                           </button>
                         ) : (
                           <>
-                            <button type="button" onClick={() => editLimit(student)}>
-                              <FaEdit /> Edit Limit
+                            <button
+                              type="button"
+                              disabled={savingId === student.id || student.packageType === "PREMIUM"}
+                              onClick={() => updateStudent(student, { packageType: "PREMIUM" })}
+                            >
+                              Premium
                             </button>
                             <button
                               type="button"
-                              onClick={() => updateStudent(student, { attemptsLimit: -1 })}
+                              disabled={savingId === student.id || student.packageType === "STANDARD"}
+                              onClick={() => updateStudent(student, { packageType: "STANDARD" })}
                             >
-                              <FaInfinity /> Unlimited
+                              Standard
                             </button>
                             <button
                               type="button"
                               disabled={savingId === student.id}
-                              onClick={() =>
-                                updateStudent(student, { isApproved: !student.isApproved })
-                              }
+                              onClick={() => editLimit(student)}
                             >
-                              <FaBan /> {student.isApproved ? "Freeze" : "Unfreeze"}
+                              Set Limit
+                            </button>
+                            <button
+                              type="button"
+                              disabled={savingId === student.id}
+                              onClick={() => updateStudent(student, { isApproved: !student.isApproved })}
+                            >
+                              {student.isApproved ? "Freeze" : "Unfreeze"}
                             </button>
                           </>
                         )}
@@ -335,7 +357,7 @@ export default function AdminStudents({ onPendingCountChange }) {
               })}
               {!filteredStudents.length && (
                 <tr>
-                  <td colSpan="6" className="approval-empty-cell">
+                  <td colSpan="7" className="approval-empty-cell">
                     {loading ? "Loading students..." : "No students match your filters."}
                   </td>
                 </tr>
@@ -366,8 +388,8 @@ export default function AdminStudents({ onPendingCountChange }) {
             <span>Frozen Accounts</span>
           </div>
           <div className="approval-summary-card">
-            <strong>{students.filter((student) => student.testAttemptsLimit === -1).length}</strong>
-            <span>Unlimited Packages</span>
+            <strong>{students.filter((student) => student.packageType === "PREMIUM").length}</strong>
+            <span>Premium Packages</span>
           </div>
         </div>
       </section>

@@ -87,6 +87,7 @@ export const listPendingUsers = async (req, res) => {
         email: true,
         role: true,
         isApproved: true,
+        packageType: true,
         testAttemptsLimit: true,
         createdAt: true,
       },
@@ -116,6 +117,7 @@ export const listApprovedUsers = async (req, res) => {
         email: true,
         role: true,
         isApproved: true,
+        packageType: true,
         testAttemptsLimit: true,
         createdAt: true,
         _count: {
@@ -142,6 +144,7 @@ export const listStudents = async (req, res) => {
         email: true,
         role: true,
         isApproved: true,
+        packageType: true,
         testAttemptsLimit: true,
         createdAt: true,
         attempts: {
@@ -252,6 +255,8 @@ export const approveUser = async (req, res) => {
         email: true,
         role: true,
         isApproved: true,
+        packageType: true,
+        packageType: true,
         testAttemptsLimit: true,
         createdAt: true,
         _count: {
@@ -290,7 +295,7 @@ export const rejectUser = async (req, res) => {
 export const updateUserPackage = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { attemptsLimit, isApproved } = req.body;
+    const { attemptsLimit, packageType, isApproved } = req.body;
     const normalizedLimit =
       attemptsLimit === "unlimited" || attemptsLimit === -1
         ? -1
@@ -300,12 +305,14 @@ export const updateUserPackage = async (req, res) => {
       where: { id: userId },
       data: {
         testAttemptsLimit: normalizedLimit,
+        ...(packageType ? { packageType } : {}),
         ...(typeof isApproved === "boolean" ? { isApproved } : {}),
       },
       select: {
         id: true,
         name: true,
         email: true,
+        packageType: true,
         testAttemptsLimit: true,
         isApproved: true,
         createdAt: true,

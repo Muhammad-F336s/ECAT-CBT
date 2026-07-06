@@ -7,6 +7,11 @@ generator client {
 }
 
 // 1. User Table (Authentication & Identity)
+enum PackageType {
+  STANDARD
+  PREMIUM
+}
+
 model User {
   id                String        @id @default(uuid())
   name              String
@@ -14,6 +19,7 @@ model User {
   password          String
   role              String        @default("student")
   isApproved        Boolean       @default(false)
+  packageType       PackageType   @default(STANDARD)
   testAttemptsLimit Int           @default(0)
   attempts          TestAttempt[] // Relation: User ne kitne tests diye
   createdAt         DateTime      @default(now())
