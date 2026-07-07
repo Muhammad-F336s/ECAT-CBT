@@ -61,6 +61,7 @@ model Subject {
 model Chapter {
   id        String     @id @default(uuid())
   name      String
+  part      String?    // e.g., "part1" or "part2"
   subjectId String
   subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   questions Question[]
