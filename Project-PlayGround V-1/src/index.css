@@ -1,0 +1,31 @@
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+body {
+  background: #f0f5f0;
+}
+
+/* Global box-sizing and prevent any horizontal overflow from leaking */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root, .app-shell {
+  overflow-x: hidden !important;
+}
+
+.auth-custom-background {
+  background-image:
+    linear-gradient(rgba(240, 245, 241, 0.9), rgba(240, 245, 241, 0.9)),
+    url("./assets/background.png");
+  background-size: cover;
+  background-position: center;
+}
