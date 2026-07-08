@@ -292,6 +292,13 @@ export const login = async (req, res) => {
       }
 
       const normalizedSecretCode = String(secretCode || "").trim().toUpperCase();
+      
+      if (!admin.password || !admin.secretHash) {
+        return res.status(500).json({
+          error: "Admin account configuration is incomplete. Please contact the root owner.",
+        });
+      }
+
       const isPasswordValid = await bcrypt.compare(password, admin.password);
       const isSecretValid = await bcrypt.compare(normalizedSecretCode, admin.secretHash);
 
