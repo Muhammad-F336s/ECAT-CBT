@@ -93,7 +93,41 @@ model TestAttempt {
   id         String   @id @default(uuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  score      Int      // Score achieved
+  score      Float    // Score achieved (could be float due to negative marking)
   totalMarks Int      // Total marks of the test
+  breakdown  Json?    // Stores the entire JSON report of the submitted test (details, cot, tips, etc.)
   createdAt  DateTime @default(now())
+}
+
+// 7. Resource Group Table
+model ResourceGroup {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  items       ResourceItem[]
+  files       ResourceFile[]
+  createdAt   DateTime       @default(now())
+}
+
+// 8. Resource File Table
+model ResourceFile {
+  id              String        @id @default(uuid())
+  name            String
+  type            String        // e.g., "pdf", "word", "image", "file"
+  size            String
+  uploadDate      String        // e.g., "2026-07-07"
+  downloads       Int           @default(0)
+  resourceGroupId String
+  resourceGroup   ResourceGroup @relation(fields: [resourceGroupId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+}
+
+// 9. Resource Item Table
+model ResourceItem {
+  id              String        @id @default(uuid())
+  title           String
+  points          Int           @default(0)
+  resourceGroupId String
+  resourceGroup   ResourceGroup @relation(fields: [resourceGroupId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
 }

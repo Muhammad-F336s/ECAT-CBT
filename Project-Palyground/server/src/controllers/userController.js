@@ -8,6 +8,49 @@ const generateSecret = () =>
     .toUpperCase()}`;
 const MAIN_ADMIN_EMAIL = "muhammad.f336s@gmail.com";
 
+// ===== Profile Update Endpoint =====
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.auth.id;
+    const { name, password } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Name is required." });
+    }
+
+    const updateData = { name: name.trim() };
+
+    // Only update password if a new one is provided
+    if (password && password.length >= 6) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateData.password = hashedPassword;
+    } else if (password && password.length > 0 && password.length < 6) {
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 6 characters." });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isApproved: true,
+        packageType: true,
+        testAttemptsLimit: true,
+      },
+    });
+
+    res.status(200).json({ message: "Profile updated successfully.", user });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ error: "Failed to update profile." });
+  }
+};
+
 export const getUserAnalytics = async (req, res) => {
   try {
     const { userId } = req.params;

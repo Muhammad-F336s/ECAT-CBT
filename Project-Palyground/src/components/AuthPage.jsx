@@ -64,6 +64,7 @@ const handleGoogleAuth = (onSuccess) => {
   openAuthPopup(`${API_ORIGIN}/api/auth/google?returnTo=${returnTo}`, onSuccess);
 };
 
+
 const handleGithubAuth = (onSuccess) => {
   const returnTo = encodeURIComponent(window.location.origin);
   openAuthPopup(`${API_ORIGIN}/api/auth/github?returnTo=${returnTo}`, onSuccess);
@@ -71,6 +72,7 @@ const handleGithubAuth = (onSuccess) => {
 
 const AuthPage = ({ onAuthSuccess }) => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [role, setRole] = useState("student");
   const [adminSecretCode, setAdminSecretCode] = useState("");
   const [formData, setFormData] = useState({
@@ -131,6 +133,14 @@ const AuthPage = ({ onAuthSuccess }) => {
         };
 
     try {
+      // handle forgot password separately
+      if (isForgotPassword) {
+        const resetRes = await API.post("/auth/forgot-password", { email: formData.email });
+        setSuccessMessage(resetRes.data.message || "Reset link dispatched.");
+        setLoading(false);
+        return;
+      }
+
       const res = await API.post(endpoint, payload);
 
       if (isSignUp) {
@@ -171,65 +181,70 @@ const AuthPage = ({ onAuthSuccess }) => {
         <div className="form-panel-container">
           <form onSubmit={handleSubmit} className="auth-core-form">
             <h2 className="form-main-title">
-              {isSignUp ? "Create Account" : "Sign In"}
+              {isForgotPassword ? "Recover Password" : isSignUp ? "Create Account" : "Sign In"}
             </h2>
-            <div className="role-toggle-group">
-              <span
-                className="role-toggle-label"
-                style={{
-                  padding: "auto",
-                  margin: " 10px auto",
-                  fontSize: "0.9rem",
-                }}
-              >
-                Select Role
-              </span>
-              <div className="role-toggle-wrapper">
-                <button
-                  type="button"
-                  className={`role-toggle-btn ${role === "student" ? "active" : ""}`}
-                  onClick={() => setRole("student")}
-                >
-                  User
-                </button>
-                <button
-                  type="button"
-                  className={`role-toggle-btn ${role === "admin" ? "active" : ""}`}
-                  onClick={() => setRole("admin")}
-                >
-                  Admin
-                </button>
-                <div
-                  className="role-toggle-indicator"
+            {!isForgotPassword && (
+              <div className="role-toggle-group">
+                <span
+                  className="role-toggle-label"
                   style={{
-                    transform:
-                      role === "admin" ? "translateX(100%)" : "translateX(0)",
+                    padding: "auto",
+                    margin: " 10px auto",
+                    fontSize: "0.9rem",
                   }}
-                />
+                >
+                  Select Role
+                </span>
+                <div className="role-toggle-wrapper">
+                  <button
+                    type="button"
+                    className={`role-toggle-btn ${role === "student" ? "active" : ""}`}
+                    onClick={() => setRole("student")}
+                  >
+                    User
+                  </button>
+                  <button
+                    type="button"
+                    className={`role-toggle-btn ${role === "admin" ? "active" : ""}`}
+                    onClick={() => setRole("admin")}
+                  >
+                    Admin
+                  </button>
+                  <div
+                    className="role-toggle-indicator"
+                    style={{
+                      transform:
+                        role === "admin" ? "translateX(100%)" : "translateX(0)",
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="oauth-btn-row">
-              <button
-                type="button"
-                onClick={() => handleGoogleAuth(onAuthSuccess)}
-                className="oauth-circle-btn"
-              >
-                <img src={googleIcon} alt="Google" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleGithubAuth(onAuthSuccess)}
-                className="oauth-circle-btn"
-              >
-                <img
-                  src="https://www.svgrepo.com/show/512317/github-142.svg"
-                  alt="Github"
-                />
-              </button>
-            </div>
-
-            <p className="form-subtext">or use your account email</p>
+            {!isForgotPassword && (
+              <>
+                <div className="oauth-btn-row">
+                  <button
+                    type="button"
+                    onClick={() => handleGoogleAuth(onAuthSuccess)}
+                    className="oauth-circle-btn"
+                  >
+                    <img src={googleIcon} alt="Google" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleGithubAuth(onAuthSuccess)}
+                    className="oauth-circle-btn"
+                  >
+                    <img
+                      src="https://www.svgrepo.com/show/512317/github-142.svg"
+                      alt="Github"
+                    />
+                  </button>
+                </div>
+                <p className="form-subtext">or use your account email</p>
+              </>
+            )}
             {successMessage && (
               <div className="auth-success-alert">{successMessage}</div>
             )}
@@ -259,7 +274,8 @@ const AuthPage = ({ onAuthSuccess }) => {
               />
             </div>
 
-            <div className="input-field-group input-field-group--with-action">
+            {!isForgotPassword && (
+              <div className="input-field-group input-field-group--with-action">
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
@@ -275,6 +291,7 @@ const AuthPage = ({ onAuthSuccess }) => {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
+            )}
 
             {isSignUp && (
               <div className="input-field-group input-field-group--with-action">
@@ -295,7 +312,7 @@ const AuthPage = ({ onAuthSuccess }) => {
               </div>
             )}
 
-            {!isSignUp && role === "admin" && (
+            {!isSignUp && !isForgotPassword && role === "admin" && (
               <div className="input-field-group input-field-group--with-action">
                 <input
                   type={showSecretCode ? "text" : "password"}
@@ -316,7 +333,9 @@ const AuthPage = ({ onAuthSuccess }) => {
 
             {!isSignUp && (
               <div className="forgot-password-link">
-                <a href="#forgot">Forgot your password?</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); setIsForgotPassword(!isForgotPassword); }}>
+                  {isForgotPassword ? "Back to Login" : "Forgot your password?"}
+                </a>
               </div>
             )}
 
@@ -325,40 +344,44 @@ const AuthPage = ({ onAuthSuccess }) => {
               disabled={loading}
               className="auth-action-submit-btn"
             >
-              {loading ? "Processing..." : isSignUp ? "Sign Up" : "Sign In"}
+              {loading ? "Processing..." : isForgotPassword ? "Send Reset Link" : isSignUp ? "Sign Up" : "Sign In"}
             </button>
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="auth-mobile-toggle-btn"
-            >
-              {isSignUp
-                ? "Already have an account? Sign in"
-                : "Need an account? Sign up"}
-            </button>
+            {!isForgotPassword && (
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="auth-mobile-toggle-btn"
+              >
+                {isSignUp
+                  ? "Already have an account? Sign in"
+                  : "Need an account? Sign up"}
+              </button>
+            )}
           </form>
         </div>
 
         {/* SIDE TOGGLE PANEL (The Green Overlay Panel) */}
-        <div className="overlay-side-panel">
-          <div className="overlay-inner-content">
-            <h2 className="overlay-heading">
-              {isSignUp ? "Welcome Back!" : "Create Account"}
-            </h2>
-            <p className="overlay-paragraph">
-              {isSignUp
-                ? "To keep connected with us please login with your personal info"
-                : "Join our green workspace and start collaborating right away"}
-            </p>
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="overlay-toggle-action-btn"
-            >
-              {isSignUp ? "Sign In" : "Sign Up"}
-            </button>
+        {!isForgotPassword && (
+          <div className="overlay-side-panel">
+            <div className="overlay-inner-content">
+              <h2 className="overlay-heading">
+                {isSignUp ? "Welcome Back!" : "Create Account"}
+              </h2>
+              <p className="overlay-paragraph">
+                {isSignUp
+                  ? "To keep connected with us please login with your personal info"
+                  : "Join our green workspace and start collaborating right away"}
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="overlay-toggle-action-btn"
+              >
+                {isSignUp ? "Sign In" : "Sign Up"}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

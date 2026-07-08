@@ -29,6 +29,7 @@ import AdminAdministration from "./components/AdminAdministration";
 import AdminApprovals from "./components/AdminApprovals";
 import AdminContentLibrary from "./components/AdminContentLibrary";
 import AdminDashboard from "./components/AdminDashboard";
+import AdminQuestions from "./components/AdminQuestions";
 import AdminMessages from "./components/AdminMessages";
 import AdminStudents from "./components/AdminStudents";
 import UserDashboard from "./components/UserDashboard";
@@ -37,6 +38,8 @@ import ProfilePage from "./components/ProfilePage";
 import TestWindow from "./components/TestWindow";
 import TestModeSelection from "./components/TestModeSelection";
 import TestModeForm from "./components/TestModeForm";
+import HistoricalResultViewer from "./components/HistoricalResultViewer";
+import ResetPassword from "./components/ResetPassword";
 import API from "./utils/api";
 import logoutIcon from "./assets/logout-pypojw37dhfwhy26x2wxze.webp";
 import "./App.css";
@@ -138,6 +141,7 @@ function App() {
           )
         }
       />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route
         path="/admin/*"
@@ -288,9 +292,15 @@ function AdminAppShell({ user, setUser }) {
             </div>
             <button
               onClick={() => handleNavigate("/admin/content-library")}
-              className="nav-button"
+              className={`nav-button ${location.pathname === "/admin/content-library" ? "active" : ""}`}
             >
               <FaBook /> Content Library
+            </button>
+            <button
+              onClick={() => handleNavigate("/admin/questions")}
+              className={`nav-button ${location.pathname === "/admin/questions" ? "active" : ""}`}
+            >
+              <FaList /> Question Bank
             </button>
             <button
               onClick={() => handleNavigate("/admin/dashboard")}
@@ -371,6 +381,7 @@ function AdminAppShell({ user, setUser }) {
             <Route path="messages" element={<AdminMessages />} />
             <Route path="administration" element={<AdminAdministration />} />
             <Route path="content-library" element={<AdminContentLibrary />} />
+            <Route path="questions" element={<AdminQuestions />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
         </div>
@@ -618,6 +629,10 @@ function AppShell({ user, setUser }) {
                   onTestComplete={() => navigate("/dashboard")}
                 />
               }
+            />
+            <Route
+              path="test/result/:attemptId"
+              element={<HistoricalResultViewer user={user} />}
             />
             <Route
               path="profile"

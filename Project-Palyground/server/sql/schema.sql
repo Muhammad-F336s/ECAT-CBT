@@ -39,8 +39,9 @@ create table if not exists "LoginMessage" (
 create table if not exists "TestAttempt" (
   id text primary key default gen_random_uuid()::text,
   "userId" text not null references "User"(id) on delete cascade,
-  score integer not null,
+  score real not null,
   "totalMarks" integer not null,
+  breakdown jsonb,
   "createdAt" timestamptz not null default now()
 );
 
@@ -79,3 +80,55 @@ create table if not exists "Option" (
 create index if not exists "Chapter_subjectId_idx" on "Chapter"("subjectId");
 create index if not exists "Question_chapterId_idx" on "Question"("chapterId");
 create index if not exists "Option_questionId_idx" on "Option"("questionId");
+
+-- Resource Library tables
+create table if not exists "ResourceGroup" (
+  id text primary key default gen_random_uuid()::text,
+  name text not null,
+  description text,
+  "createdAt" timestamptz not null default now()
+);
+
+create table if not exists "ResourceFile" (
+  id text primary key default gen_random_uuid()::text,
+  name text not null,
+  type text not null,
+  size text not null,
+  "uploadDate" text not null,
+  downloads integer not null default 0,
+  "resourceGroupId" text not null references "ResourceGroup"(id) on delete cascade,
+  "createdAt" timestamptz not null default now()
+);
+
+create table if not exists "ResourceItem" (
+  id text primary key default gen_random_uuid()::text,
+  title text not null,
+  points integer not null default 0,
+  "resourceGroupId" text not null references "ResourceGroup"(id) on delete cascade,
+  "createdAt" timestamptz not null default now()
+);
+
+create index if not exists "ResourceFile_resourceGroupId_idx" on "ResourceFile"("resourceGroupId");
+create index if not exists "ResourceItem_resourceGroupId_idx" on "ResourceItem"("resourceGroupId");
+
+-- Migration: Add breakdown column to existing TestAttempt table if missing
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'TestAttempt' AND column_name = 'breakdown'
+  ) THEN
+    ALTER TABLE "TestAttempt" ADD COLUMN breakdown jsonb;
+  END IF;
+END $$;
+
+-- Migration: Change score column from integer to real (float) for negative marking support
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'TestAttempt' AND column_name = 'score' AND data_type = 'integer'
+  ) THEN
+    ALTER TABLE "TestAttempt" ALTER COLUMN score TYPE real;
+  END IF;
+END $$;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import API from "../utils/api";
 import TestResultPage from "./TestResultPage";
 import "./TestWindow.css";
@@ -18,6 +19,10 @@ const formatClock = (date) =>
   date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const formData = location.state?.formData || {};
+
   const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -25,6 +30,8 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
   const [skippedIds, setSkippedIds] = useState(new Set());
   const [maxReachedIdx, setMaxReachedIdx] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [loadStepName, setLoadStepName] = useState("Initializing generator...");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [phase, setPhase] = useState("loading");
@@ -42,48 +49,106 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
   const timerRef = useRef(null);
   const autoSubmittedRef = useRef(false);
 
+  // Smooth loader state simulator to provide premium UX feedback
+  useEffect(() => {
+    if (!loading) {
+      setLoadProgress(0);
+      return;
+    }
+
+    const steps = [
+      { pct: 15, text: "Configuring syllabus layout..." },
+      { pct: 35, text: "Assembling Groq AI prompt context..." },
+      { pct: 60, text: "Structuring step-by-step mathematical reasoning..." },
+      { pct: 85, text: "Inserting customized AI pro tips & shortcuts..." },
+      { pct: 95, text: "Building simulator window interface..." },
+    ];
+
+    setLoadProgress(5);
+    setLoadStepName("Initializing test configuration...");
+
+    let active = true;
+    let index = 0;
+
+    const interval = setInterval(() => {
+      if (!active) return;
+      if (index < steps.length) {
+        setLoadProgress(steps[index].pct);
+        setLoadStepName(steps[index].text);
+        index++;
+      } else {
+        setLoadProgress((p) => Math.min(99, p + 1));
+      }
+    }, 1500);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [loading]);
+
   const attemptedCount = lockedIds.size;
 
+  // ===== FIXED: Use API.post (axios) instead of EventSource (GET) =====
   const loadTest = useCallback(async () => {
     setLoading(true);
     setError("");
+    setPhase("loading");
+
     try {
       const res = await API.post("/test/generate", {
-        subjectId,
-        userId,
-        totalQuestions: 5,
+        field: formData.field,
+        questionCount: formData.questionCount || 10,
+        difficulty: formData.difficulty || 5,
+        syllabusType: formData.syllabusType || "mixed",
+        newSyllabusPercentage: formData.newSyllabusPercentage || 50,
+        negativeMarking: formData.negativeMarking || false,
+        subjects: formData.subjects || [],
+        chapters: formData.chapters || [],
+        topicBatches: formData.topicBatches || [],
+        useAI: true,
       });
-      const loaded = res.data.questions || [];
+
+      const data = res.data;
+      const loaded = data.questions || [];
+
       if (!loaded.length) {
         setError("No questions returned from system.");
         setPhase("error");
+        setLoading(false);
         return;
       }
+
       setQuestions(loaded);
-      setSubjectName(res.data.subjectName || "ECAT Practice");
-      // allocate exactly 1 minute (60 seconds) per question
+      setSubjectName(data.subjectName || "ECAT Practice");
       const perQuestion = 60;
       setSecondsPerQuestion(perQuestion);
       setTimeLeft(loaded.length * perQuestion);
       setPhase("active");
+      setLoading(false);
     } catch (err) {
+      console.error("Test generation failed:", err);
       setError(
-        err.response?.data?.error ||
-          "Unable to load the practice test. Please try again.",
+        err.response?.data?.error || "Failed to generate test. Please retry."
       );
       setPhase("error");
-    } finally {
       setLoading(false);
     }
-  }, [subjectId, userId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // Auto-invoke test generation on mount
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (subjectId && userId) loadTest();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [subjectId, userId, loadTest]);
+    if (!formData || !formData.field) {
+      // No form data — redirect back to the test form
+      navigate("/test/form", { replace: true });
+      return;
+    }
+    loadTest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // Timer countdown
   useEffect(() => {
     if (phase !== "active" || isPaused || timeLeft <= 0) return undefined;
 
@@ -121,6 +186,16 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
 
     return undefined;
   }, [timeLeft, currentIdx, secondsPerQuestion, questions, phase, isPaused]);
+
+  // MathJax latex typesetting trigger
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise().catch((err) => console.log("MathJax error:", err));
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [currentIdx, questions]);
 
   const getQuestionStatus = (idx) => {
     const question = questions[idx];
@@ -234,6 +309,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
     }
   }
 
+  // Auto-submit when time runs out
   useEffect(() => {
     if (
       timeLeft === 0 &&
@@ -268,27 +344,26 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
     setPausesUsed((prev) => prev + 1);
   };
 
+  // ===== FIXED: Properly close function & add phase renders =====
   const handleStartNewSession = () => {
-    autoSubmittedRef.current = false;
-    setAnswers({});
-    setLockedIds(new Set());
-    setSkippedIds(new Set());
-    setCurrentIdx(0);
-    setMaxReachedIdx(0);
-    setResults(null);
-    setError("");
-    setSubmitting(false);
-    setIsPaused(false);
-    setTimeBoostsUsed(0);
-    setPausesUsed(0);
-    setZoomLevel(1);
-    setPhase("loading");
-    loadTest();
+    navigate("/test");
   };
 
-  if (loading) {
+  // ===== Phase-based conditional renders =====
+  if (phase === "loading" || loading) {
     return (
-      <div className="cbt-state-message">Loading CBT Simulator...</div>
+      <div className="cbt-state-message" style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "40px" }}>
+        <h2 style={{ margin: 0, fontSize: "1.35rem", color: "var(--ecat-blue)" }}>🚀 Generating your AI-powered test... Please wait.</h2>
+        <div className="cbt-progress-wrapper" style={{ width: "100%", maxWidth: "480px", margin: "15px auto 0" }}>
+          <div className="cbt-progress-step-text">
+            <span>{loadStepName}</span>
+            <span>{loadProgress}%</span>
+          </div>
+          <div className="cbt-progress-track">
+            <div className="cbt-progress-bar" style={{ width: `${loadProgress}%` }} />
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -405,39 +480,73 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
         <span><i className="cbt-dot cbt-dot--locked" /> Locked question</span>
       </section>
 
-      <main
-        className="cbt-question-panel"
-        style={{ fontSize: `${zoomLevel}rem` }}
-      >
-        <h3 className="cbt-question-title">
-          Question {currentIdx + 1} of {questions.length}
-        </h3>
-        <p className="cbt-question-text">{currentQuestion.statement}</p>
+      {(() => {
+        const parseStatement = (stmt) => {
+          if (!stmt) return { passageText: "", questionText: "" };
+          if (stmt.startsWith("[PASSAGE]\n")) {
+            const parts = stmt.split("\n\n");
+            const passageText = parts[0].replace("[PASSAGE]\n", "").trim();
+            const questionText = parts.slice(1).join("\n\n").trim();
+            return { passageText, questionText };
+          }
+          return { passageText: "", questionText: stmt };
+        };
 
-        <div className="cbt-options-list">
-          {currentQuestion.options.map((option, index) => {
-            const label = OPTION_LABELS[index] || String(index + 1);
-            const isSelected = currentAnswer === option.text;
-            return (
-              <label
-                key={option.id}
-                className={`cbt-option-row ${isSelected ? "selected" : ""} ${isCurrentLocked ? "locked" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name={`question-${currentQuestion.id}`}
-                  value={option.text}
-                  checked={isSelected}
-                  disabled={isCurrentLocked || isPaused}
-                  onChange={() => handleSelectOption(option.text)}
-                />
-                <span className="cbt-option-label">{label}.</span>
-                <span className="cbt-option-text">{option.text}</span>
-              </label>
-            );
-          })}
-        </div>
-      </main>
+        const { passageText, questionText } = parseStatement(currentQuestion?.statement);
+
+        const renderQuestionBody = () => (
+          <>
+            <h3 className="cbt-question-title">
+              Question {currentIdx + 1} of {questions.length}
+            </h3>
+            <p className="cbt-question-text">{questionText}</p>
+
+            <div className="cbt-options-list">
+              {currentQuestion.options.map((option, index) => {
+                const label = OPTION_LABELS[index] || String(index + 1);
+                const isSelected = currentAnswer === option.text;
+                return (
+                  <label
+                    key={option.id}
+                    className={`cbt-option-row ${isSelected ? "selected" : ""} ${isCurrentLocked ? "locked" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name={`question-${currentQuestion.id}`}
+                      value={option.text}
+                      checked={isSelected}
+                      disabled={isCurrentLocked || isPaused}
+                      onChange={() => handleSelectOption(option.text)}
+                    />
+                    <span className="cbt-option-label">{label}.</span>
+                    <span className="cbt-option-text">{option.text}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </>
+        );
+
+        if (passageText) {
+          return (
+            <main className="cbt-question-panel cbt-split-container" style={{ fontSize: `${zoomLevel}rem` }}>
+              <div className="cbt-passage-panel">
+                <h4 className="cbt-passage-title">Reading Comprehension Passage</h4>
+                <div className="cbt-passage-body">{passageText}</div>
+              </div>
+              <div className="cbt-question-content">
+                {renderQuestionBody()}
+              </div>
+            </main>
+          );
+        }
+
+        return (
+          <main className="cbt-question-panel" style={{ fontSize: `${zoomLevel}rem` }}>
+            {renderQuestionBody()}
+          </main>
+        );
+      })()}
 
       <footer className="cbt-bottombar">
         <button

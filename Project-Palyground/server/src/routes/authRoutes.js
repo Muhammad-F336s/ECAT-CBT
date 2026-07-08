@@ -2,7 +2,7 @@ import express from "express";
 import axios from "axios";
 import jwt from "jsonwebtoken";
 import prisma from "../db.js";
-import { signup, login, googleAuth } from "../controllers/authController.js";
+import { signup, login, googleAuth, forgotPassword, resetPassword } from "../controllers/authController.js";
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_fallback_key_123";
@@ -178,5 +178,7 @@ router.get("/github/callback", async (req, res) => {
 router.post("/signup", signup);
 router.post("/login", login);
 router.post("/google", googleAuth);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 export default router;

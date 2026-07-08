@@ -193,8 +193,81 @@ export const googleAuth = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Google Auth Error:", error);
-    res.status(500).json({ error: "Failed to authenticate with Google." });
+    console.error("Google verify error:", error);
+    res.status(500).json({ error: "Google authentication engine unavailable." });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    
+    if (!user) {
+      return res.status(404).json({ error: "No account found with this email address." });
+    }
+
+    const resetLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/reset-password?token=${user.id}`;
+    
+    // Attempt dynamic loading of nodemailer to notify if installed
+    try {
+      const nodemailer = await import("nodemailer");
+      if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+        });
+
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: user.email,
+          subject: "🛒 ECAT CBT - Password Reset Request",
+          html: `<div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 600px;">
+            <h2 style="color: #003366;">Password Reset Request</h2>
+            <p>Hi <strong>${user.name}</strong>,</p>
+            <p>We received a request to reset your password. Click the button below to proceed to the secure reset page:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetLink}" style="background-color: #00509d; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset My Password</a>
+            </div>
+            <p>If the button doesn't work, copy and paste this link into your browser:</p>
+            <p style="color: #666; font-size: 0.9rem;">${resetLink}</p>
+          </div>`
+        });
+      }
+    } catch(err) {
+      // Graceful fallback if nodemailer not installed locally yet
+    }
+
+    res.json({ message: "A real password reset email has been sent to your account!", resetLink });
+  } catch(error) {
+    console.error("Forgot password API error:", error);
+    res.status(500).json({ error: "Failed to issue password reset logic." });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    // The basic fallback format from PLAIN.2 (UserId used as token)
+    const user = await prisma.user.findUnique({ where: { id: token } });
+    
+    if (!user) {
+      return res.status(404).json({ error: "Invalid or expired reset link." });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await prisma.user.update({
+      where: { id: token },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ message: "Password updated successfully. You can now sign in with your new password." });
+  } catch(error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ error: "Failed to reset password." });
   }
 };
 

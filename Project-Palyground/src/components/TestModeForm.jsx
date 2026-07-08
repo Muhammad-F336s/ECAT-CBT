@@ -243,18 +243,31 @@ const SYLLABUS_OPTIONS = [
   "Mixed Syllabus (Custom %)",
 ];
 
+const getSavedScheme = () => {
+  const saved = localStorage.getItem("savedPaperScheme");
+  if (saved) {
+    try {
+      return JSON.parse(saved);
+    } catch (e) {}
+  }
+  return null;
+};
+
 export default function TestModeForm({ user }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode") || "practice";
-  const [studentName, setStudentName] = useState(user?.name || "");
-  const [selectedField, setSelectedField] = useState(FIELDS[0]);
-  const [syllabusVersion, setSyllabusVersion] = useState(SYLLABUS_OPTIONS[2]);
-  const [newSyllabusPercent, setNewSyllabusPercent] = useState(50);
-  const [numberOfQuestions, setNumberOfQuestions] = useState(100);
-  const [selectedSubjects, setSelectedSubjects] = useState(getDefaultSelectedSubjects(FIELDS[0]));
-  const [subjectQuestions, setSubjectQuestions] = useState(getDefaultSubjectQuestions(FIELDS[0], 100));
-  const [difficultyLevel, setDifficultyLevel] = useState(5);
+  
+  const savedScheme = getSavedScheme();
+
+  const [studentName, setStudentName] = useState(() => localStorage.getItem("studentName") || user?.name || "");
+  const [selectedField, setSelectedField] = useState(() => savedScheme?.selectedField || localStorage.getItem("field") || FIELDS[0]);
+  const [syllabusVersion, setSyllabusVersion] = useState(() => savedScheme?.syllabusVersion || SYLLABUS_OPTIONS[2]);
+  const [newSyllabusPercent, setNewSyllabusPercent] = useState(() => savedScheme?.newSyllabusPercent || 50);
+  const [numberOfQuestions, setNumberOfQuestions] = useState(() => savedScheme?.numberOfQuestions || 100);
+  const [selectedSubjects, setSelectedSubjects] = useState(() => savedScheme?.selectedSubjects || getDefaultSelectedSubjects(savedScheme?.selectedField || localStorage.getItem("field") || FIELDS[0]));
+  const [subjectQuestions, setSubjectQuestions] = useState(() => savedScheme?.subjectQuestions || getDefaultSubjectQuestions(savedScheme?.selectedField || localStorage.getItem("field") || FIELDS[0], savedScheme?.numberOfQuestions || 100));
+  const [difficultyLevel, setDifficultyLevel] = useState(() => savedScheme?.difficultyLevel || 5);
   const [chapterSearch, setChapterSearch] = useState("");
   const [expandedSubjects, setExpandedSubjects] = useState(
     SUBJECTS.reduce((acc, subject) => {
@@ -262,9 +275,9 @@ export default function TestModeForm({ user }) {
       return acc;
     }, {}),
   );
-  const [selectedChapters, setSelectedChapters] = useState({});
+  const [selectedChapters, setSelectedChapters] = useState(() => savedScheme?.selectedChapters || {});
   const [expandedParts, setExpandedParts] = useState({});
-  const [negativeMarking, setNegativeMarking] = useState(false);
+  const [negativeMarking, setNegativeMarking] = useState(() => savedScheme?.negativeMarking || false);
 
   const currentDist = FIELD_DISTRIBUTIONS[selectedField] || {};
   const visibleSubjects = SUBJECTS.filter((s) => (currentDist[s.id] || 0) > 0);
@@ -315,28 +328,87 @@ export default function TestModeForm({ user }) {
     }));
   };
 
+  // Trigger default distributions only on field/total change when user isn't overriding from saved scheme
   useEffect(() => {
+    const saved = getSavedScheme();
+    if (saved && saved.selectedField === selectedField && saved.numberOfQuestions === numberOfQuestions) {
+      return; // Use saved values
+    }
     setSelectedSubjects(getDefaultSelectedSubjects(selectedField));
     setSubjectQuestions(getDefaultSubjectQuestions(selectedField, numberOfQuestions));
   }, [selectedField, numberOfQuestions]);
+
+  // Persist selections on change (Paper Scheme Persistency)
+  useEffect(() => {
+    const scheme = {
+      selectedField,
+      syllabusVersion,
+      newSyllabusPercent,
+      numberOfQuestions,
+      selectedSubjects,
+      subjectQuestions,
+      difficultyLevel,
+      selectedChapters,
+      negativeMarking
+    };
+    localStorage.setItem("savedPaperScheme", JSON.stringify(scheme));
+  }, [
+    selectedField,
+    syllabusVersion,
+    newSyllabusPercent,
+    numberOfQuestions,
+    selectedSubjects,
+    subjectQuestions,
+    difficultyLevel,
+    selectedChapters,
+    negativeMarking
+  ]);
 
   const accessStatus = getAccessStatus(user);
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const selectedSubjectIds = SUBJECTS.filter((subject) => selectedSubjects[subject.id])
-      .map((subject) => subject.id);
+    
+    // Persist Student Name & Field directly
+    localStorage.setItem("studentName", studentName);
+    localStorage.setItem("field", selectedField);
+
+    // Map UI values to exact API Payload specification
+    let syllabusType = "mixed";
+    if (syllabusVersion.includes("Old")) syllabusType = "old";
+    else if (syllabusVersion.includes("New")) syllabusType = "new";
+
+    const subjectsPayload = visibleSubjects
+      .filter((s) => selectedSubjects[s.id])
+      .map((s) => ({
+        name: s.label,
+        count: subjectQuestions[s.id] || 0
+      }));
+
+    const chaptersPayload = [];
+    Object.keys(selectedChapters).forEach((subjectId) => {
+      const subjectLabel = SUBJECTS.find(s => s.id === subjectId)?.label || subjectId;
+      Object.keys(selectedChapters[subjectId] || {}).forEach((chapterName) => {
+        if (selectedChapters[subjectId][chapterName]) {
+          chaptersPayload.push({
+            subject: subjectLabel,
+            name: chapterName,
+            topics: []
+          });
+        }
+      });
+    });
 
     const formData = {
-      studentName,
-      selectedField,
-      syllabusVersion,
-      newSyllabusPercent,
-      selectedSubjects: selectedSubjectIds,
-      subjectQuestions,
-      numberOfQuestions,
-      difficultyLevel,
-      selectedChapters,
+      name: studentName,
+      field: selectedField,
+      syllabusType,
+      newSyllabusPercentage: newSyllabusPercent,
+      subjects: subjectsPayload,
+      questionCount: numberOfQuestions,
+      difficulty: difficultyLevel,
+      chapters: chaptersPayload,
+      topicBatches: [],
       negativeMarking,
       mode,
     };

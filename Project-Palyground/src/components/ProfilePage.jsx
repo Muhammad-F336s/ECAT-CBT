@@ -1,12 +1,13 @@
 import { useState } from "react";
+import API from "../utils/api";
 
 const ProfilePage = ({ user, onSave }) => {
   const [formData, setFormData] = useState({
     name: user.name || "",
     email: user.email || "",
     password: "",
-    profileImage: "",
   });
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -21,18 +22,29 @@ const ProfilePage = ({ user, onSave }) => {
     event.preventDefault();
     setError("");
     setMessage("");
+    setSaving(true);
 
     try {
-      // In a real application, submit updated profile data to the backend.
-      // This placeholder simulates a successful update.
-      const updates = {
-        name: formData.name,
-      };
-      onSave(updates);
-      setMessage("Profile updated successfully.");
+      const payload = { name: formData.name };
+      if (formData.password.trim()) {
+        payload.password = formData.password;
+      }
+
+      const res = await API.patch("/user/profile", payload);
+      const updatedUser = res.data.user;
+
+      // Sync local state and localStorage
+      onSave({ name: updatedUser.name });
+      setMessage(res.data.message || "Profile updated successfully.");
+      setFormData((prev) => ({ ...prev, password: "" }));
     } catch (err) {
       console.error("Profile save failed:", err);
-      setError("Unable to save profile details. Please try again.");
+      setError(
+        err.response?.data?.error ||
+          "Unable to save profile details. Please try again.",
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -41,7 +53,7 @@ const ProfilePage = ({ user, onSave }) => {
       <div className="profile-settings-header">
         <div>
           <p className="section-tag">Account</p>
-          <h2>Profile & security settings</h2>
+          <h2>Profile &amp; security settings</h2>
           <p className="section-note">
             Use this panel to keep your account secure and your profile current.
           </p>
@@ -76,25 +88,19 @@ const ProfilePage = ({ user, onSave }) => {
             type="password"
             value={formData.password}
             onChange={handleChange("password")}
-            placeholder="Enter a new password"
-          />
-        </div>
-
-        <div className="profile-form-row">
-          <label>Profile image URL</label>
-          <input
-            type="text"
-            value={formData.profileImage}
-            onChange={handleChange("profileImage")}
-            placeholder="Paste an image URL"
+            placeholder="Enter a new password (min 6 characters)"
           />
         </div>
 
         <div className="profile-actions">
-          <button type="submit" className="action-primary">
-            Save changes
+          <button type="submit" className="action-primary" disabled={saving}>
+            {saving ? "Saving..." : "Save changes"}
           </button>
-          <button type="button" className="action-secondary" onClick={() => setFormData({ ...formData, password: "" })}>
+          <button
+            type="button"
+            className="action-secondary"
+            onClick={() => setFormData({ ...formData, password: "" })}
+          >
             Reset password field
           </button>
         </div>

@@ -150,8 +150,8 @@
 }
 
 .ecat-action-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -163,6 +163,8 @@
   font-size: 0.92rem;
   font-weight: 700;
   cursor: pointer;
+  flex: 1 1 180px;
+  text-align: center;
 }
 
 .ecat-action-btn--muted {
@@ -177,6 +179,11 @@
 
 .ecat-action-btn--success {
   background: var(--ecat-accent);
+  color: #fff;
+}
+
+.ecat-action-btn--info {
+  background: #026cb6;
   color: #fff;
 }
 

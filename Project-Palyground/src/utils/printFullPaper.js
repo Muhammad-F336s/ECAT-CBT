@@ -25,11 +25,26 @@ const buildQuestionBlock = (item, { blank } = {}) => {
 
   const answerNote = item.isSkipped ? '<p class="paper-skipped">Not attempted / Skipped</p>' : "";
 
+  let solvedInfo = "";
+  if (!blank) {
+    const parts = (item.explanation || "").split("===TRICK===");
+    const explanationText = parts[0] || "";
+    const customTrick = parts[1] || "";
+    const displayAnswerText = item.correctAnswerText || (item.correctAnswerLabel ? `Option ${item.correctAnswerLabel}` : "");
+
+    solvedInfo = `
+      <p class="paper-correct-answer">Correct Answer: ${escapeHtml(displayAnswerText)}</p>
+      ${explanationText.trim() ? `<div class="paper-explanation"><strong>Explanation:</strong> ${escapeHtml(explanationText)}</div>` : ""}
+      ${customTrick.trim() ? `<div class="paper-trick"><strong>💡 Pro Tip / Trick:</strong> ${escapeHtml(customTrick)}</div>` : ""}
+    `;
+  }
+
   return `
     <article class="paper-question">
       <h3>Q${item.questionNumber}: ${escapeHtml(item.statement)}</h3>
       <div class="paper-options">${optionsHtml}</div>
       ${answerNote}
+      ${solvedInfo}
     </article>
   `;
 };
@@ -49,6 +64,22 @@ export const printFullPaper = ({ user, results, blank = false }) => {
       <head>
         <meta charset="UTF-8" />
         <title>ECAT Full Test Paper</title>
+        <script>
+          window.MathJax = {
+            tex: {
+              inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+              displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']]
+            },
+            startup: {
+              pageReady: () => {
+                return MathJax.startup.defaultPageReady().then(() => {
+                  window.dispatchEvent(new Event('mathjax-ready'));
+                });
+              }
+            }
+          };
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" id="MathJax-script" async></script>
         <style>
           * { box-sizing: border-box; }
           body {
@@ -155,6 +186,33 @@ export const printFullPaper = ({ user, results, blank = false }) => {
             color: #9a6700;
             font-style: italic;
           }
+          .paper-correct-answer {
+            margin: 12px 0 6px;
+            font-family: Arial, sans-serif;
+            font-size: 0.94rem;
+            color: #2e6b35;
+            font-weight: bold;
+          }
+          .paper-explanation {
+            margin: 8px 0;
+            padding: 10px 14px;
+            background: #fdfdfd;
+            border-left: 3px solid #2f5f9e;
+            font-family: Georgia, serif;
+            font-size: 0.96rem;
+            color: #333;
+            line-height: 1.48;
+          }
+          .paper-trick {
+            margin: 8px 0 0;
+            padding: 10px 14px;
+            background: #fffbef;
+            border-left: 3px solid #e5a93b;
+            font-family: Arial, sans-serif;
+            font-size: 0.92rem;
+            color: #725002;
+            line-height: 1.45;
+          }
           .paper-footer {
             margin-top: 30px;
             text-align: center;
@@ -214,15 +272,29 @@ export const printFullPaper = ({ user, results, blank = false }) => {
     return;
   }
 
+  let printed = false;
+  let fallbackTimer;
+
+  const printAction = () => {
+    if (printed) return;
+    printed = true;
+    window.clearTimeout(fallbackTimer);
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    window.setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 1000);
+  };
+
+  // Listen to MathJax load & typeset completion event inside the iframe
+  iframe.contentWindow.addEventListener("mathjax-ready", printAction);
+
+  // Fallback in case MathJax library fails to load within 3.5 seconds
+  fallbackTimer = window.setTimeout(printAction, 3500);
+
   frameDoc.open();
   frameDoc.write(paperHtml);
   frameDoc.close();
-
-  iframe.contentWindow.focus();
-  window.setTimeout(() => {
-    iframe.contentWindow.print();
-    window.setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 1000);
-  }, 300);
 };

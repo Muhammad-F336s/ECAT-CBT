@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getAiFeedback, getProTip } from "../utils/aiFeedback";
 import { printFullPaper } from "../utils/printFullPaper";
 import "./TestResultPage.css";
@@ -41,6 +41,17 @@ const TestResultPage = ({
   );
   const visibleItems = activeTab === "wrong" ? wrongAndSkipped : correctItems;
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise().catch((err) =>
+          console.log("MathJax typesetting error on results page:", err)
+        );
+      }
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [activeTab, results]);
+
   const handlePrintResult = () => {
     document.body.classList.add("ecat-printing-result");
     window.print();
@@ -52,6 +63,11 @@ const TestResultPage = ({
   const handlePrintFullPaper = () => {
     // Print only blank answer sheet
     printFullPaper({ user, results, blank: true });
+  };
+
+  const handlePrintSolvedPaper = () => {
+    // Print full paper containing all correct answers, explanations, and dynamic AI tips
+    printFullPaper({ user, results, blank: false });
   };
 
   return (
@@ -133,14 +149,21 @@ const TestResultPage = ({
           className="ecat-action-btn ecat-action-btn--primary"
           onClick={handlePrintResult}
         >
-          Print Result / Save PDF
+          Print Result
         </button>
         <button
           type="button"
           className="ecat-action-btn ecat-action-btn--success"
           onClick={handlePrintFullPaper}
         >
-          Print Full Paper (PDF)
+          Print Blank Paper
+        </button>
+        <button
+          type="button"
+          className="ecat-action-btn ecat-action-btn--info"
+          onClick={handlePrintSolvedPaper}
+        >
+          Print Solved Paper
         </button>
       </section>
 
@@ -219,17 +242,25 @@ const TestResultPage = ({
                 </p>
               </div>
 
-              {item.explanation && (
-                <div className="ecat-explanation">
-                  <strong>Explanation:</strong>
-                  <p>{item.explanation}</p>
-                </div>
-              )}
-
-              <div className="ecat-pro-tip">
-                <strong>💡 Pro Tip / Trick:</strong>
-                <p>{getProTip(item.status)}</p>
-              </div>
+              {(() => {
+                const parts = (item.explanation || "").split("===TRICK===");
+                const explanationText = parts[0] || "";
+                const customTrick = parts[1] || "";
+                return (
+                  <>
+                    {explanationText.trim() && (
+                      <div className="ecat-explanation">
+                        <strong>Explanation:</strong>
+                        <p>{explanationText}</p>
+                      </div>
+                    )}
+                    <div className="ecat-pro-tip">
+                      <strong>💡 Pro Tip / Trick:</strong>
+                      <p>{customTrick.trim() || getProTip(item.status)}</p>
+                    </div>
+                  </>
+                );
+              })()}
             </article>
           ))
         )}

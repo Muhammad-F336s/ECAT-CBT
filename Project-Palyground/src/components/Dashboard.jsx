@@ -64,12 +64,22 @@ const Dashboard = ({ userId }) => {
             </thead>
             <tbody>
               {analytics.history.map((item) => (
-                <tr key={item.attemptId}>
-                  <td>{item.attemptId.slice(0, 8)}...</td>
+                <tr 
+                  key={item.attemptId} 
+                  onClick={() => window.location.href = `/test/result/${item.attemptId}`}
+                  style={{ cursor: "pointer" }}
+                  className="analytics-table-row--interactive"
+                  title="View detailed test review"
+                >
+                  <td>
+                    <span style={{ color: "var(--ecat-blue)", fontWeight: "500" }}>{item.attemptId.slice(0, 8)}</span>...
+                  </td>
                   <td>
                     {item.score} / {item.totalMarks}
                   </td>
-                  <td>{item.percentage}</td>
+                  <td>
+                    <span className={`approval-limit-badge approval-limit-badge--${item.percentage >= 50 ? "unlimited" : "standard"}`}>{item.percentage}</span>
+                  </td>
                 </tr>
               ))}
             </tbody>

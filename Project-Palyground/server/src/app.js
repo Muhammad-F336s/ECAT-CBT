@@ -4,7 +4,8 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import testRoutes from "./routes/testRoutes.js";
-import userRoutes from "./routes/userRoutes.js"; // Added profile user route
+import userRoutes from "./routes/userRoutes.js";
+import resourceRoutes from "./routes/resourceRoutes.js";
 
 dotenv.config();
 
@@ -17,7 +18,8 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/test", testRoutes);
-app.use("/api/user", userRoutes); // Mounted user paths
+app.use("/api/user", userRoutes);
+app.use("/api/resources", resourceRoutes);
 
 app.get("/api/health", (req, res) => {
   res

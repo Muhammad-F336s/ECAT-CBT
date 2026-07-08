@@ -27,6 +27,7 @@ const runStep = (label, command, args) =>
 
 try {
   await runStep("Applying database schema", "node", ["src/setupDatabase.js"]);
+  await runStep("Synchronizing Prisma DB schema changes", "npm", ["run", "prisma:push"]);
   await runStep("Generating Prisma client", "npm", ["run", "prisma:generate"]);
   console.log("Database ready.\n");
 } catch (error) {

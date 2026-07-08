@@ -66,20 +66,20 @@ export default function UserDashboard({ user, onStartTest, onOpenAccount }) {
           </p>
 
           <div className="status-metrics-grid">
-              <div className="status-metric">
-                <span className="metric-value">{metrics.totalTests}</span>
-                <span className="metric-label">Practice tests</span>
-              </div>
-              <div className="status-metric">
-                <span className="metric-value">{metrics.averagePercentage}</span>
-                <span className="metric-label">Average score</span>
-              </div>
             <div className="status-metric">
-              <span className="metric-value">3</span>
+              <span className="metric-value">{metrics.totalTests}</span>
+              <span className="metric-label">Practice tests</span>
+            </div>
+            <div className="status-metric">
+              <span className="metric-value">{metrics.averagePercentage}</span>
+              <span className="metric-label">Average score</span>
+            </div>
+            <div className="status-metric">
+              <span className="metric-value">—</span>
               <span className="metric-label">Subjects covered</span>
             </div>
             <div className="status-metric">
-              <span className="metric-value">2h</span>
+              <span className="metric-value">—</span>
               <span className="metric-label">Study time</span>
             </div>
           </div>
