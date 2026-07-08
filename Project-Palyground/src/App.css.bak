@@ -1,4 +1,4 @@
-body {
+﻿body {
   margin: 0;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #eef7ef;
@@ -709,45 +709,3 @@ select {
     border-radius: 18px;
   }
 }
-
-.app-loading-screen {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #f5faf5;
-  z-index: 9999;
-  font-family: Inter, sans-serif;
-}
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  text-align: center;
-}
-
-.loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid rgba(85, 122, 97, 0.1);
-  border-top: 4px solid #3c7a3d;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.loading-text {
-  color: #557a61;
-  font-size: 1.1rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-}
-

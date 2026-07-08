@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getAiFeedback, getProTip } from "../utils/aiFeedback";
 import { printFullPaper } from "../utils/printFullPaper";
+import { convertMathPlaceholders } from "../utils/mathUtils";
 import "./TestResultPage.css";
 
 const OPTION_LABELS = "ABCDE";
@@ -207,7 +208,7 @@ const TestResultPage = ({
           visibleItems.map((item) => (
             <article key={item.questionId} className="ecat-review-card">
               <h4>
-                Q{item.questionNumber}: {item.statement}
+                Q{item.questionNumber}: {convertMathPlaceholders(item.statement)}
               </h4>
 
               <div className="ecat-review-options">
@@ -224,7 +225,7 @@ const TestResultPage = ({
                         isCorrect ? "correct" : ""
                       } ${isSelected && !isCorrect ? "wrong-selected" : ""}`}
                     >
-                      <strong>{label}.</strong> {option.text}
+                      <strong>{label}.</strong> {convertMathPlaceholders(option.text)}
                     </p>
                   );
                 })}

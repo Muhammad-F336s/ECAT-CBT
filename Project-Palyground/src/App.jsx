@@ -92,31 +92,47 @@ const parseAuthFromUrl = () => {
 function App() {
   const navigate = useNavigate();
 
-  const [user, setUser] = useState(() => {
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const verifyUserSession = useCallback(async (initialUser = null) => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
+      const res = await API.get("/user/me");
+      const verifiedUser = res.data;
+
+      setUser(verifiedUser);
+      localStorage.setItem("user", JSON.stringify(verifiedUser));
+    } catch (err) {
+      console.error("Session verification failed:", err);
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const initAuth = async () => {
       const authFromUrl = parseAuthFromUrl();
       if (authFromUrl) {
         localStorage.setItem("token", authFromUrl.token);
         localStorage.setItem("user", JSON.stringify(authFromUrl.user));
-        window.history.replaceState(
-          {},
-          "",
-          authFromUrl.user.role === "admin" ? "/admin/dashboard" : "/dashboard",
-        );
-        return authFromUrl.user;
+        window.history.replaceState({}, "", authFromUrl.user.role === "admin" ? "/admin/dashboard" : "/dashboard");
+        await verifyUserSession(authFromUrl.user);
+      } else {
+        await verifyUserSession();
       }
-
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        return JSON.parse(storedUser);
-      }
-
-      return null;
-    } catch (err) {
-      console.error("Failed to parse stored user", err);
-      return null;
-    }
-  });
+    };
+    initAuth();
+  }, [verifyUserSession]);
 
   const handleAuthSuccess = useCallback((userData) => {
     localStorage.setItem("user", JSON.stringify(userData));
@@ -125,6 +141,15 @@ function App() {
       replace: true,
     });
   }, [navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="app-loading-screen">
+        <div className="loading-spinner"></div>
+        <p>Verifying session...</p>
+      </div>
+    );
+  }
 
   return (
     <Routes>
@@ -180,7 +205,6 @@ function AdminAppShell({ user, setUser }) {
 
   useEffect(() => {
     let isMounted = true;
-
     const fetchPendingCount = async () => {
       try {
         const res = await API.get("/user/pending-users");
@@ -189,10 +213,8 @@ function AdminAppShell({ user, setUser }) {
         console.error("Pending approval count failed:", err);
       }
     };
-
     fetchPendingCount();
     const intervalId = window.setInterval(fetchPendingCount, 10000);
-
     return () => {
       isMounted = false;
       window.clearInterval(intervalId);
@@ -239,7 +261,6 @@ function AdminAppShell({ user, setUser }) {
             <p>ECAT CBT</p>
             <h1>Admin</h1>
           </div>
-
           <div className="sidebar-links">
             <div className="sidebar-section-label">Workspace</div>
             <button
@@ -316,7 +337,6 @@ function AdminAppShell({ user, setUser }) {
             </button>
           </div>
         </div>
-
         <div className="sidebar-bottom">
           <div className="profile-card profile-card--stacked">
             <div className="profile-avatar">{user.name?.charAt(0) || "A"}</div>
@@ -333,7 +353,6 @@ function AdminAppShell({ user, setUser }) {
           </button>
         </div>
       </aside>
-
       <main className="main-panel admin-main-panel">
         <div className="main-content">
           <LoginMessageBanner
@@ -407,9 +426,7 @@ function AppShell({ user, setUser }) {
   const showSidebarHint = useCallback(() => {
     if (hintCount >= 3) return;
     setShowHint(true);
-    if (hintTimer.current) {
-      window.clearTimeout(hintTimer.current);
-    }
+    if (hintTimer.current) window.clearTimeout(hintTimer.current);
     hintTimer.current = window.setTimeout(() => {
       setShowHint(false);
       setHintCount((count) => count + 1);
@@ -418,10 +435,7 @@ function AppShell({ user, setUser }) {
   }, [hintCount]);
 
   const hideSidebarHint = useCallback(() => {
-    if (hintTimer.current) {
-      window.clearTimeout(hintTimer.current);
-      hintTimer.current = null;
-    }
+    if (hintTimer.current) window.clearTimeout(hintTimer.current);
     setShowHint(false);
   }, []);
 
@@ -430,7 +444,6 @@ function AppShell({ user, setUser }) {
       setSidebarOpen(false);
       showSidebarHint();
     }, 2200);
-
     return () => {
       window.clearTimeout(timer);
       if (closeTimer.current) window.clearTimeout(closeTimer.current);
@@ -451,28 +464,20 @@ function AppShell({ user, setUser }) {
   const toggleSidebar = () => {
     setSidebarOpen((prev) => {
       const next = !prev;
-      if (!next) {
-        showSidebarHint();
-      } else {
-        hideSidebarHint();
-      }
+      if (!next) showSidebarHint(); else hideSidebarHint();
       return next;
     });
   };
 
   const handleSidebarMouseEnter = () => {
-    if (closeTimer.current) {
-      window.clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    closeTimer.current = null;
     setSidebarOpen(true);
     hideSidebarHint();
   };
 
   const handleSidebarMouseLeave = () => {
-    if (closeTimer.current) {
-      window.clearTimeout(closeTimer.current);
-    }
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
     closeTimer.current = window.setTimeout(() => {
       setSidebarOpen(false);
       showSidebarHint();
@@ -516,70 +521,69 @@ function AppShell({ user, setUser }) {
       )}
       {!isTestView && (
         <aside
-        className={`sidebar ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}
-        onMouseEnter={handleSidebarMouseEnter}
-        onMouseLeave={handleSidebarMouseLeave}
-      >
-        {!sidebarOpen && showHint && (
-          <div className="sidebar-hint-banner">
-            Hover your mouse here to access side panel
-          </div>
-        )}
-
-        <div className="sidebar-top">
-          <div className="sidebar-brand">
-            <p>ECAT CBT</p>
-            <h1>Simulator</h1>
-          </div>
-
-          <button className="sidebar-toggle-button" onClick={toggleSidebar}>
-            {sidebarOpen ? <FaChevronLeft /> : <FaChevronRight />}
-          </button>
-
-          <div className="sidebar-links">
-            <div className="sidebar-section-label">Workspace</div>
-            <button
-              onClick={() => handleNavigate("/dashboard")}
-              className={`nav-button ${view === "dashboard" ? "active" : ""}`}
-            >
-              Overview
+          className={`sidebar ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}
+          onMouseEnter={handleSidebarMouseEnter}
+          onMouseLeave={handleSidebarMouseLeave}
+        >
+          {!sidebarOpen && showHint && (
+            <div className="sidebar-hint-banner">
+              Hover your mouse here to access side panel
+            </div>
+          )}
+          <div className="sidebar-top">
+            <div className="sidebar-brand">
+              <p>ECAT CBT</p>
+              <h1>Simulator</h1>
+            </div>
+            <button className="sidebar-toggle-button" onClick={toggleSidebar}>
+              {sidebarOpen ? <FaChevronLeft /> : <FaChevronRight />}
             </button>
-            <button
-              onClick={() => handleNavigate("/test")}
-              className={`nav-button ${view === "test" ? "active" : ""}`}
-            >
-              Practice
-            </button>
-            <button
-              onClick={() => handleNavigate("/progress")}
-              className={`nav-button ${view === "progress" ? "active" : ""}`}
-            >
-              Progress
-            </button>
-            <button
-              onClick={() => handleNavigate("/profile")}
-              className={`nav-button ${view === "profile" ? "active" : ""}`}
-            >
-              Account
-            </button>
-          </div>
-        </div>
-
-        <div className="sidebar-bottom">
-          <div className="profile-card profile-card--stacked">
-            <div className="profile-avatar">{user.name?.charAt(0) || "U"}</div>
-            <div className="profile-info profile-info--centered">
-              <p className="name">{user.name}</p>
+            <div className="sidebar-links">
+              <div className="sidebar-section-label">Workspace</div>
+              <button
+                onClick={() => handleNavigate("/dashboard")}
+                className={`nav-button ${view === "dashboard" ? "active" : ""}`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => handleNavigate("/test")}
+                className={`nav-button ${view === "test" ? "active" : ""}`}
+              >
+                Practice
+              </button>
+              <button
+                onClick={() => handleNavigate("/progress")}
+                className={`nav-button ${view === "progress" ? "active" : ""}`}
+              >
+                Progress
+              </button>
+              <button
+                onClick={() => handleNavigate("/profile")}
+                className={`nav-button ${view === "profile" ? "active" : ""}`}
+              >
+                Account
+              </button>
             </div>
           </div>
-          <button onClick={handleLogout} className="logout-button">
-            Logout
-            <img src={logoutIcon} alt="Logout" className="logout-icon" />
-          </button>
-        </div>
+          <div className="sidebar-bottom">
+            <div className="profile-card profile-card--stacked">
+              <div className="profile-avatar">{user.name?.charAt(0) || "A"}</div>
+              <div className="profile-info profile-info--centered">
+                <p className="name">{user.name}</p>
+                <span>{user.rank || "Student"}</span>
+              </div>
+            </div>
+            <button type="button" className="support-button">
+              <FaHeadset /> Support
+            </button>
+            <button onClick={handleLogout} className="logout-button">
+              Logout
+              <img src={logoutIcon} alt="Logout" className="logout-icon" />
+            </button>
+          </div>
         </aside>
       )}
-
       <main className="main-panel">
         {!isTestView && (
           <div className="page-header">
@@ -588,7 +592,6 @@ function AppShell({ user, setUser }) {
             <p>{pageCopy.copy}</p>
           </div>
         )}
-
         <div className="main-content">
           {!isTestView && (
             <LoginMessageBanner
@@ -613,11 +616,15 @@ function AppShell({ user, setUser }) {
             <Route path="progress" element={<ProgressPage userId={user.id} />} />
             <Route
               path="test"
-              element={<TestModeSelection user={user} />}
+              element={
+                <TestModeSelection user={user} />
+              }
             />
             <Route
               path="test/form"
-              element={<TestModeForm user={user} />}
+              element={
+                <TestModeForm user={user} />
+              }
             />
             <Route
               path="test/cbt"
@@ -632,11 +639,15 @@ function AppShell({ user, setUser }) {
             />
             <Route
               path="test/result/:attemptId"
-              element={<HistoricalResultViewer user={user} />}
+              element={
+                <HistoricalResultViewer user={user} />
+              }
             />
             <Route
               path="profile"
-              element={<ProfilePage user={user} onSave={handleProfileSave} />}
+              element={
+                <ProfilePage user={user} onSave={handleProfileSave} />
+              }
             />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
@@ -648,7 +659,6 @@ function AppShell({ user, setUser }) {
 
 function LoginMessageBanner({ user, setUser, messages, setMessages }) {
   if (!messages.length) return null;
-
   const dismissMessage = (messageId) => {
     const nextMessages = messages.filter((message) => message.id !== messageId);
     setMessages(nextMessages);
@@ -656,7 +666,6 @@ function LoginMessageBanner({ user, setUser, messages, setMessages }) {
     setUser(nextUser);
     localStorage.setItem("user", JSON.stringify(nextUser));
   };
-
   return (
     <div className="login-message-stack">
       {messages.map((message) => (

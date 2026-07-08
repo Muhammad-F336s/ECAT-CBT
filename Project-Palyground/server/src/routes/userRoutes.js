@@ -8,6 +8,7 @@ import {
   approveUser,
   rejectUser,
   updateUserPackage,
+  getMe,
 } from "../controllers/userController.js";
 import { requireAdminAuth } from "../middleware/adminAuth.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -15,6 +16,7 @@ import { requireAuth } from "../middleware/auth.js";
 const router = express.Router();
 
 // Dynamic route tracking parametric endpoint
+router.get("/me", requireAuth, getMe);
 router.get("/analytics/:userId", getUserAnalytics);
 router.patch("/profile", requireAuth, updateProfile);
 router.get("/pending-users", requireAdminAuth, listPendingUsers);

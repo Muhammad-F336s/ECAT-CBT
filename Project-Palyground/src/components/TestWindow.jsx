@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import API from "../utils/api";
+import { convertMathPlaceholders } from "../utils/mathUtils";
 import TestResultPage from "./TestResultPage";
 import "./TestWindow.css";
 
@@ -493,18 +494,21 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
         };
 
         const { passageText, questionText } = parseStatement(currentQuestion?.statement);
+        const renderedQuestionText = convertMathPlaceholders(questionText);
+        const renderedPassageText = convertMathPlaceholders(passageText);
 
         const renderQuestionBody = () => (
           <>
             <h3 className="cbt-question-title">
               Question {currentIdx + 1} of {questions.length}
             </h3>
-            <p className="cbt-question-text">{questionText}</p>
+            <p className="cbt-question-text">{renderedQuestionText}</p>
 
             <div className="cbt-options-list">
               {currentQuestion.options.map((option, index) => {
                 const label = OPTION_LABELS[index] || String(index + 1);
                 const isSelected = currentAnswer === option.text;
+                const renderedOptionText = convertMathPlaceholders(option.text);
                 return (
                   <label
                     key={option.id}
@@ -519,7 +523,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
                       onChange={() => handleSelectOption(option.text)}
                     />
                     <span className="cbt-option-label">{label}.</span>
-                    <span className="cbt-option-text">{option.text}</span>
+                    <span className="cbt-option-text">{renderedOptionText}</span>
                   </label>
                 );
               })}
@@ -532,7 +536,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
             <main className="cbt-question-panel cbt-split-container" style={{ fontSize: `${zoomLevel}rem` }}>
               <div className="cbt-passage-panel">
                 <h4 className="cbt-passage-title">Reading Comprehension Passage</h4>
-                <div className="cbt-passage-body">{passageText}</div>
+                <div className="cbt-passage-body">{renderedPassageText}</div>
               </div>
               <div className="cbt-question-content">
                 {renderQuestionBody()}
