@@ -436,7 +436,7 @@ export const generateChapterPractice = async (req, res) => {
     // 3. Augment with AI if pool is too small
     if (existingQuestions.length < requestedCount) {
       console.log(`[ChapterPractice] Pool small (${existingQuestions.length}/${requestedCount}). Augmenting...`);
-      
+
       const needed = requestedCount - existingQuestions.length + 15;
       const aiGenerated = await generateAllQuestions(
         chapter.subject.name,
@@ -448,7 +448,7 @@ export const generateChapterPractice = async (req, res) => {
         newSyllabusPercentage,
         chapterId
       );
-      
+
       // Fetch all again to include new ones
       finalPool = await prisma.question.findMany({
         where: { chapterId },
@@ -475,7 +475,39 @@ export const generateChapterPractice = async (req, res) => {
     });
   } catch (error) {
     console.error("Chapter Practice Engine Error:", error);
-    res.status(500).json({ error: "Chapter practice generation failed." });
+    res
+      .status(500)
+      .json({ error: "Chapter practice generation failed." });
+  }
+};
+
+export const getRecentAttempts = async (req, res) => {
+  try {
+    const userId = req.auth.id;
+
+    const attempts = await prisma.testAttempt.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+
+    if (!attempts || attempts.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    const formattedAttempts = attempts.map((att) => ({
+      attemptId: att.id,
+      score: att.score,
+      totalMarks: att.totalMarks,
+      percentage: ((att.score / att.totalMarks) * 100).toFixed(1),
+      submittedAt: att.createdAt,
+      questions: att.breakdown || [],
+    }));
+
+    res.status(200).json(formattedAttempts);
+  } catch (error) {
+    console.error("Fetch recent attempts error:", error);
+    res.status(500).json({ error: "Failed to retrieve recent attempts." });
   }
 };
 

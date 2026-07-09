@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef } from "react";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+import { Doughnut } from "react-chartjs-2";
 import { getAiFeedback, getProTip } from "../utils/aiFeedback";
 import { printFullPaper } from "../utils/printFullPaper";
 import { convertMathPlaceholders } from "../utils/mathUtils";
 import "./TestResultPage.css";
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 const OPTION_LABELS = "ABCDE";
 
@@ -134,6 +138,57 @@ const TestResultPage = ({
           <strong className="ecat-stat-info">
             {formatDuration(results.timeTakenSeconds)}
           </strong>
+        </div>
+      </section>
+
+      <section className="ecat-visual-analytics no-print-actions">
+        <div className="ecat-visual-card ecat-visual-card--chart">
+          <h3>Performance Breakdown</h3>
+          <div className="ecat-chart-container">
+            <Doughnut
+              data={{
+                labels: ["Correct", "Wrong", "Skipped"],
+                datasets: [
+                  {
+                    data: [results.correctCount, results.wrongCount, results.skippedCount],
+                    backgroundColor: ["#2ecc71", "#e74c3c", "#f1c40f"],
+                    borderWidth: 2,
+                    borderColor: "#fff",
+                    hoverOffset: 4,
+                  },
+                ],
+              }}
+              options={{
+                plugins: {
+                  legend: {
+                    position: "bottom",
+                    labels: { color: "#444", font: { size: 14, weight: "500" } },
+                  },
+                },
+                maintainAspectRatio: false,
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="ecat-visual-card ecat-visual-card--gauge">
+          <h3>Overall Score</h3>
+          <div className="ecat-gauge-container">
+            <div className="ecat-gauge-track">
+              <div 
+                className="ecat-gauge-fill" 
+                style={{ width: `${results.percentage}%` }}
+              />
+            </div>
+            <div className="ecat-gauge-value">
+              {results.percentage}%
+            </div>
+          </div>
+          <p className="ecat-gauge-label">
+            {results.percentage >= 80 ? "Exceptional" : 
+             results.percentage >= 60 ? "Proficient" : 
+             results.percentage >= 40 ? "Developing" : "Needs Focus"}
+          </p>
         </div>
       </section>
 

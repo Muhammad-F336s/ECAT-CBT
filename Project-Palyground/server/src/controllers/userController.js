@@ -102,9 +102,9 @@ export const getUserAnalytics = async (req, res) => {
     const history = attempts.map((attempt) => {
       totalScoreObtained += attempt.score;
       totalPossibleMarks += attempt.totalMarks;
-      return { attemptId: attempt.id, score: attempt.score, totalMarks: attempt.totalMarks, percentage: ((attempt.score / attempt.totalMarks) * 100).toFixed(2) + "%", date: attempt.createdAt };
+      return { attemptId: attempt.id, score: attempt.score, totalMarks: attempt.totalMarks, percentage: parseFloat(((attempt.score / attempt.totalMarks) * 100).toFixed(2)), date: attempt.createdAt };
     });
-    const averagePercentage = ((totalScoreObtained / totalPossibleMarks) * 100).toFixed(2) + "%";
+    const averagePercentage = parseFloat(((totalScoreObtained / totalPossibleMarks) * 100).toFixed(2));
     res.status(200).json({ userId, totalTests, averagePercentage, totalScoreObtained, totalPossibleMarks, history });
   } catch (error) {
     console.error("Analytics error:", error);

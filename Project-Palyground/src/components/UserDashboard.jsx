@@ -5,7 +5,7 @@ import "./UserDashboard.css";
 
 export default function UserDashboard({ user, onStartTest, onOpenAccount }) {
   const initials = user?.name?.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "U";
-  const [metrics, setMetrics] = useState({ totalTests: 0, averagePercentage: "0%" });
+  const [metrics, setMetrics] = useState({ totalTests: 0, averagePercentage: 0 });
 
   useEffect(() => {
     let mounted = true;
@@ -16,7 +16,7 @@ export default function UserDashboard({ user, onStartTest, onOpenAccount }) {
         if (!mounted) return;
         setMetrics({
           totalTests: res.data.totalTests || 0,
-          averagePercentage: res.data.averagePercentage || "0%",
+          averagePercentage: res.data.averagePercentage || 0,
         });
       } catch {
         // ignore and keep defaults
@@ -71,7 +71,7 @@ export default function UserDashboard({ user, onStartTest, onOpenAccount }) {
               <span className="metric-label">Practice tests</span>
             </div>
             <div className="status-metric">
-              <span className="metric-value">{metrics.averagePercentage}</span>
+              <span className="metric-value">{metrics.averagePercentage}%</span>
               <span className="metric-label">Average score</span>
             </div>
             <div className="status-metric">

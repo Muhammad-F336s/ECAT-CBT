@@ -7,6 +7,8 @@
   --dashboard-muted: #536157;
   --dashboard-accent: #3c7a3d;
   --dashboard-accent-dark: #2e6b35;
+  --ecat-blue: #2f5f9e;
+  --ecat-blue-dark: #1b3d6c;
 }
 
 .dashboard-page-container {
@@ -200,9 +202,225 @@
   color: #172b1d;
 }
 
+/* Dashboard Analytics Container Styles */
+.dashboard-analytics-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+.analytics-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.analytics-card {
+  border: 1px solid var(--dashboard-border);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.analytics-card--accent {
+  background: #f0f7ff;
+  border-color: rgba(0, 123, 255, 0.15);
+}
+
+.analytics-card--accent .analytics-value {
+  color: var(--ecat-blue);
+}
+
+.analytics-card--soft {
+  background: var(--dashboard-soft);
+}
+
+.analytics-label {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--dashboard-muted);
+  font-weight: 600;
+}
+
+.analytics-value {
+  margin: 8px 0 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--dashboard-text);
+  line-height: 1.1;
+}
+
+.analytics-subtext {
+  font-size: 0.8rem;
+  color: var(--dashboard-muted);
+  margin-top: 4px;
+}
+
+/* Chart Card */
+.analytics-chart-card {
+  background: #fff;
+  border: 1px solid var(--dashboard-border);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+}
+
+.analytics-chart-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--dashboard-text);
+  font-weight: 700;
+}
+
+.analytics-chart-header p {
+  margin: 4px 0 16px;
+  font-size: 0.9rem;
+  color: var(--dashboard-muted);
+}
+
+.chart-wrapper {
+  width: 100%;
+  height: 280px;
+}
+
+/* Previous Performance Card */
+.previous-performance-card {
+  background: #fff;
+  border: 1px solid var(--dashboard-border);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+}
+
+.performance-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--dashboard-text);
+  font-weight: 700;
+}
+
+.performance-header p {
+  margin: 4px 0 20px;
+  font-size: 0.9rem;
+  color: var(--dashboard-muted);
+}
+
+.performance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.performance-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  background: #fafafa;
+  transition: all 0.2s ease;
+}
+
+.performance-item:hover {
+  border-color: var(--ecat-blue-dark);
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item-date {
+  font-size: 0.85rem;
+  color: var(--dashboard-muted);
+  font-weight: 500;
+}
+
+.item-score {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--dashboard-text);
+}
+
+.item-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.perf-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.perf-btn--review {
+  background: #eef3fa;
+  color: var(--ecat-blue);
+}
+
+.perf-btn--review:hover {
+  background: #dde8f5;
+}
+
+.perf-btn--retry {
+  background: var(--ecat-blue);
+  color: #fff;
+}
+
+.perf-btn--retry:hover {
+  background: var(--ecat-blue-dark);
+}
+
+.performance-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--dashboard-muted);
+  font-size: 1rem;
+}
+
+.dashboard-loading {
+  text-align: center;
+  padding: 40px;
+  font-weight: 600;
+  color: var(--dashboard-muted);
+}
+
+.dashboard-error {
+  text-align: center;
+  padding: 40px;
+  color: #e74c3c;
+  font-weight: 600;
+}
+
 @media (max-width: 980px) {
   .dashboard-top-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .analytics-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .performance-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .item-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 
