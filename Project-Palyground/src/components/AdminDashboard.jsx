@@ -17,6 +17,8 @@ const getStudentStatus = (student) => {
   return "Approved";
 };
 
+const attemptsUsed = (student) => student._count?.attempts ?? 0;
+
 const getLatestScore = (student) => {
   const latestAttempt = student.attempts?.[0];
   if (!latestAttempt) return "-";
@@ -318,5 +320,3 @@ export default function AdminDashboard({ user, headerActions }) {
     </div>
   );
 }
-
-const attemptsUsed = (student) => student?._count?.attempts ?? 0;

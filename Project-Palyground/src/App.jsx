@@ -23,6 +23,7 @@ import {
   FaTachometerAlt,
   FaTimes,
   FaUsers,
+  FaList,
 } from "react-icons/fa";
 import AuthPage from "./components/AuthPage";
 import AdminAdministration from "./components/AdminAdministration";
@@ -95,26 +96,44 @@ function App() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const normalizeRole = (role) =>
+    typeof role === "string" ? role.toLowerCase() : "";
+
+  const isAdminUser = (userPayload) =>
+    normalizeRole(userPayload?.role) === "admin";
+
   const verifyUserSession = useCallback(async (initialUser = null) => {
+    console.log("[AuthDebug] verifyUserSession started. InitialUser provided:", !!initialUser);
     try {
+      if (initialUser) {
+        setUser({ ...initialUser, role: normalizeRole(initialUser.role) });
+        setIsLoading(false);
+        return;
+      }
+
       const token = localStorage.getItem("token");
+      console.log("[AuthDebug] Token found in storage:", !!token);
       if (!token) {
+        console.log("[AuthDebug] No token found. Setting user to null.");
         setUser(null);
         setIsLoading(false);
         return;
       }
 
+      console.log("[AuthDebug] Calling /user/me for session verification...");
       const res = await API.get("/user/me");
       const verifiedUser = res.data;
+      console.log("[AuthDebug] Session verified successfully. User:", verifiedUser);
 
       setUser(verifiedUser);
       localStorage.setItem("user", JSON.stringify(verifiedUser));
     } catch (err) {
-      console.error("Session verification failed:", err);
+      console.error("[AuthDebug] Session verification failed:", err);
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       setUser(null);
     } finally {
+      console.log("[AuthDebug] Verification process finished. Setting isLoading to false.");
       setIsLoading(false);
     }
   }, []);
@@ -135,9 +154,10 @@ function App() {
   }, [verifyUserSession]);
 
   const handleAuthSuccess = useCallback((userData) => {
-    localStorage.setItem("user", JSON.stringify(userData));
-    setUser(userData);
-    navigate(userData.role === "admin" ? "/admin/dashboard" : "/dashboard", {
+    const normalizedUser = { ...userData, role: normalizeRole(userData.role) };
+    localStorage.setItem("user", JSON.stringify(normalizedUser));
+    setUser(normalizedUser);
+    navigate(isAdminUser(normalizedUser) ? "/admin/dashboard" : "/dashboard", {
       replace: true,
     });
   }, [navigate]);
@@ -158,7 +178,7 @@ function App() {
         element={
           user ? (
             <Navigate
-              to={user.role === "admin" ? "/admin/dashboard" : "/dashboard"}
+              to={isAdminUser(user) ? "/admin/dashboard" : "/dashboard"}
               replace
             />
           ) : (
@@ -171,7 +191,7 @@ function App() {
       <Route
         path="/admin/*"
         element={
-          user?.role === "admin" ? (
+          isAdminUser(user) ? (
             <AdminAppShell user={user} setUser={setUser} />
           ) : (
             <Navigate to="/auth" replace />
