@@ -8,12 +8,13 @@ The following core architectural gaps have been resolved:
 - [x] Multi-Subject & Chapter Test Generation
 - [x] Admin Content Library Persistence (DB Schema & CRUD)
 - [x] AI-Driven Pedagogy (Chain of Thought & Exam Tricks)
+- [x] Static Question API (Implemented via chapter practice endpoints)
+- [x] Student Content Library UX & Flow (Fixed redirection, UI contrast, and subject switching)
 
 ## 🟡 Pending / Potential Improvements
 Based on a codebase audit, the following areas could be improved or are partially implemented:
 
 ### 1. Backend & Database
-- [ ] **Static Question API:** While `adminQuestionController` handles CRUD, there isn't a dedicated public-facing API to fetch specific static questions for non-test purposes (if needed).
 - [ ] **Migration Strategy:** The project currently relies on `db:setup` (running a raw SQL file). Implementing a proper migration tool (like Prisma Migrate) would be safer for production.
 - [ ] **Advanced Analytics:** The current `getUserAnalytics` provides a basic history. Adding subject-wise strength/weakness analysis would be a high-value addition.
 

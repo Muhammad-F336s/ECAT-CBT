@@ -46,7 +46,7 @@
   background: #fff;
   border-radius: 15px;
   padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   border: 1px solid #eee;
 }
 
@@ -76,15 +76,46 @@
   color: #444;
 }
 
+.subject-name-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selection-indicator {
+  color: #fff;
+  font-weight: bold;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.3);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
 .subject-item:hover {
   background: #f0f7ff;
   border-color: var(--ecat-blue);
 }
 
 .subject-item.active {
-  background: var(--ecat-blue);
-  color: #fff;
+  background: var(--ecat-blue-soft);
+  color: var(--ecat-blue-dark);
   border-color: var(--ecat-blue);
+  box-shadow: 0 4px 10px rgba(47, 95, 158, 0.18);
+  transform: scale(1.02);
+  font-weight: 700;
+}
+
+.subject-item.active .subject-name-wrapper span,
+.subject-item.active .selection-indicator {
+  color: var(--ecat-blue-dark);
+}
+
+.subjects-list:has(.subject-item.active) .subject-item:not(.active) {
+  opacity: 0.7;
 }
 
 .count-badge {
@@ -96,8 +127,13 @@
 }
 
 .subject-item.active .count-badge {
-  background: rgba(255,255,255,0.2);
-  color: #fff;
+  background: #fff;
+  color: var(--ecat-blue-dark);
+  font-weight: 700;
+}
+
+.subject-item.active .selection-indicator {
+  background: rgba(255, 255, 255, 0.85);
 }
 
 /* Chapters Panel */
@@ -105,7 +141,7 @@
   background: #fff;
   border-radius: 15px;
   padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   border: 1px solid #eee;
   min-height: 500px;
 }
@@ -138,7 +174,7 @@
 
 .chapter-card:hover {
   border-color: var(--ecat-blue);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
 .chapter-card.active {
@@ -173,20 +209,29 @@
 
 /* Practice Settings Panel */
 .practice-settings-panel {
-  background: var(--ecat-blue-dark);
-  color: #fff;
+  background: #fff;
+  color: #333;
+  border: 1px solid #eee;
   border-radius: 15px;
   padding: 2rem;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   animation: slideInRight 0.3s ease;
+  /* Keep the panel visible while scrolling */
+  position: sticky;
+  top: 24px;
+  /* ensure this floats above toolbars/overlays */
+  z-index: 9999;
+  /* extra bottom padding so the button doesn't sit flush to viewport edge */
+  padding-bottom: 3rem;
 }
 
 .practice-settings-panel h3 {
   font-size: 1.5rem;
   margin-bottom: 0;
+  color: var(--ecat-blue-dark);
 }
 
 .setting-row {
@@ -197,33 +242,59 @@
 
 .setting-row label {
   font-size: 0.95rem;
-  opacity: 0.9;
+  color: #666;
 }
 
 .setting-row input {
   padding: 0.8rem;
   border-radius: 8px;
-  border: none;
+  border: 1px solid #ddd;
   font-size: 1.1rem;
   text-align: center;
   font-weight: bold;
+  color: #333;
 }
 
 .start-practice-btn {
   padding: 1rem;
   border-radius: 10px;
   border: none;
-  background: #fff;
-  color: var(--ecat-blue-dark);
+  background: var(--ecat-blue-dark, #2f5f9e);
+  color: #fff !important;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.125rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: block;
+  width: 100%;
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-text-fill-color: #fff;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  /* make sure the button itself sits above small overlays */
+  position: relative;
+  z-index: 10000;
+  box-shadow: 0 6px 18px rgba(47, 95, 158, 0.12);
 }
 
 .start-practice-btn:hover {
-  background: #f0f0f0;
+  background: var(--ecat-blue);
   transform: translateY(-2px);
+}
+
+.start-practice-btn:focus-visible {
+  outline: 3px solid rgba(47, 95, 158, 0.12);
+  outline-offset: 2px;
+}
+
+.start-practice-btn::selection {
+  background: transparent;
+  color: inherit;
 }
 
 .start-practice-btn:disabled {
@@ -241,13 +312,23 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @media (max-width: 1100px) {

@@ -4,17 +4,38 @@ import API from "../utils/api";
 import "./ContentLibrary.css";
 
 const FIELD_DISTRIBUTIONS = {
-  "Pre-Engineering": { math: 0.3, physics: 0.3, chemistry: 0.3, english: 0.1, biology: 0, computer: 0 },
-  "Pre-Medical":     { biology: 0.3, physics: 0.3, chemistry: 0.3, english: 0.1, math: 0, computer: 0 },
-  "ICS":             { computer: 0.3, math: 0.3, physics: 0.3, english: 0.1, chemistry: 0, biology: 0 },
+  "Pre-Engineering": {
+    math: 0.3,
+    physics: 0.3,
+    chemistry: 0.3,
+    english: 0.1,
+    biology: 0,
+    computer: 0,
+  },
+  "Pre-Medical": {
+    biology: 0.3,
+    physics: 0.3,
+    chemistry: 0.3,
+    english: 0.1,
+    math: 0,
+    computer: 0,
+  },
+  ICS: {
+    computer: 0.3,
+    math: 0.3,
+    physics: 0.3,
+    english: 0.1,
+    chemistry: 0,
+    biology: 0,
+  },
 };
 
 const SUBJECT_MAP = {
-  "Mathematics": "math",
-  "Physics": "physics",
-  "Chemistry": "chemistry",
-  "Biology": "biology",
-  "English": "english",
+  Mathematics: "math",
+  Physics: "physics",
+  Chemistry: "chemistry",
+  Biology: "biology",
+  English: "english",
   "Computer Science": "computer",
 };
 
@@ -44,8 +65,9 @@ export default function ContentLibrary({ user }) {
   }, []);
 
   const filterLibraryByField = () => {
-    const dist = FIELD_DISTRIBUTIONS[userField] || FIELD_DISTRIBUTIONS["Pre-Engineering"];
-    return library.filter(subject => {
+    const dist =
+      FIELD_DISTRIBUTIONS[userField] || FIELD_DISTRIBUTIONS["Pre-Engineering"];
+    return library.filter((subject) => {
       const subId = SUBJECT_MAP[subject.name];
       return subId && dist[subId] > 0;
     });
@@ -82,7 +104,10 @@ export default function ContentLibrary({ user }) {
     }
   };
 
-  if (loading) return <div className="library-loading">Loading your content library...</div>;
+  if (loading)
+    return (
+      <div className="library-loading">Loading your content library...</div>
+    );
 
   const filteredLibrary = filterLibraryByField();
 
@@ -98,8 +123,8 @@ export default function ContentLibrary({ user }) {
         <div className="subjects-panel">
           <h3>Your Subjects</h3>
           <div className="subjects-list">
-            {filteredLibrary.map(subject => (
-              <button 
+            {filteredLibrary.map((subject) => (
+              <button
                 key={subject.id}
                 className={`subject-item ${selectedSubject?.id === subject.id ? "active" : ""}`}
                 onClick={() => {
@@ -107,35 +132,52 @@ export default function ContentLibrary({ user }) {
                   setSelectedChapter(null);
                 }}
               >
-                <span>{subject.name}</span>
+                <div className="subject-name-wrapper">
+                  <span>{subject.name}</span>
+                </div>
                 <span className="count-badge">
-                  {subject.chapters.reduce((acc, ch) => acc + ch._count.questions, 0)} Qs
+                  {subject.chapters.reduce(
+                    (acc, ch) => acc + ch._count.questions,
+                    0,
+                  )}{" "}
+                  Qs
                 </span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="chapters-panel">
+        <div className="chapters-panel" key={selectedSubject?.id || "empty"}>
           {selectedSubject ? (
             <>
               <div className="chapter-header">
                 <h3>{selectedSubject.name} Chapters</h3>
               </div>
               <div className="chapters-grid">
-                {selectedSubject.chapters.map(chapter => (
-                  <div 
-                    key={chapter.id} 
-                    className={`chapter-card ${selectedChapter?.id === chapter.id ? "active" : ""}`}
-                    onClick={() => setSelectedChapter(chapter)}
-                  >
-                    <div className="chapter-info">
-                      <span className="chapter-name">{chapter.name}</span>
-                      <span className="chapter-q-count">{chapter._count.questions} Questions</span>
+                {selectedSubject.chapters &&
+                selectedSubject.chapters.length > 0 ? (
+                  selectedSubject.chapters.map((chapter) => (
+                    <div
+                      key={chapter.id}
+                      className={`chapter-card ${selectedChapter?.id === chapter.id ? "active" : ""}`}
+                      onClick={() => setSelectedChapter(chapter)}
+                    >
+                      <div className="chapter-info">
+                        <span className="chapter-name">{chapter.name}</span>
+                        <span className="chapter-q-count">
+                          {chapter._count.questions} Questions
+                        </span>
+                      </div>
+                      {selectedChapter?.id === chapter.id && (
+                        <div className="selection-indicator">✓</div>
+                      )}
                     </div>
-                    {selectedChapter?.id === chapter.id && <div className="selection-indicator">✓</div>}
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <p>No chapters available for this subject</p>
                   </div>
-                ))}
+                )}
               </div>
             </>
           ) : (
@@ -148,20 +190,24 @@ export default function ContentLibrary({ user }) {
         {selectedChapter && (
           <div className="practice-settings-panel">
             <h3>Start Practice</h3>
-            <p>Ready to tackle <strong>{selectedChapter.name}</strong>?</p>
-            
+            <p>
+              Ready to tackle <strong>{selectedChapter.name}</strong>?
+            </p>
+
             <div className="setting-row">
               <label>Number of Questions</label>
-              <input 
-                type="number" 
-                value={questionCount} 
-                onChange={(e) => setQuestionCount(Math.max(1, Number(e.target.value)))}
+              <input
+                type="number"
+                value={questionCount}
+                onChange={(e) =>
+                  setQuestionCount(Math.max(1, Number(e.target.value)))
+                }
                 min="1"
               />
             </div>
 
-            <button 
-              className="start-practice-btn" 
+            <button
+              className="start-practice-btn"
               onClick={handleStartPractice}
               disabled={isGenerating}
             >

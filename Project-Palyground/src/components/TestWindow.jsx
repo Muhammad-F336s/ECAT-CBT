@@ -152,7 +152,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
 
   // Auto-invoke test generation on mount
   useEffect(() => {
-    if (!formData || !formData.field) {
+    if (!formData || (!formData.field && !formData.questions)) {
       // No form data — redirect back to the test form
       navigate("/test/form", { replace: true });
       return;
