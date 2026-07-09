@@ -413,6 +413,8 @@ export default function TestModeForm({ user }) {
       mode,
     };
 
+    localStorage.removeItem("ecat_active_test_session");
+
     navigate("/test/cbt", {
       state: { formData },
     });

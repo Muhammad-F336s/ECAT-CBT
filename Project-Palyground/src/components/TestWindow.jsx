@@ -45,7 +45,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
   const [pausesUsed, setPausesUsed] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [secondsPerQuestion, setSecondsPerQuestion] = useState(60);
-  const [paperStartTime] = useState(() => new Date());
+  const [paperStartTime, setPaperStartTime] = useState(() => new Date());
 
   const timerRef = useRef(null);
   const autoSubmittedRef = useRef(false);
@@ -150,8 +150,37 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-invoke test generation on mount
+  // Auto-invoke test generation on mount, with localStorage session recovery
   useEffect(() => {
+    const savedSessionRaw = localStorage.getItem("ecat_active_test_session");
+    if (savedSessionRaw) {
+      try {
+        const saved = JSON.parse(savedSessionRaw);
+        if (saved && saved.userId === userId && saved.questions && saved.questions.length > 0) {
+          console.log("[CBT] Restoring active test session from page refresh...");
+          setQuestions(saved.questions);
+          setAnswers(saved.answers || {});
+          setLockedIds(new Set(saved.lockedIds || []));
+          setSkippedIds(new Set(saved.skippedIds || []));
+          setMaxReachedIdx(saved.maxReachedIdx || 0);
+          setCurrentIdx(saved.currentIdx || 0);
+          setTimeLeft(saved.timeLeft || 0);
+          setSubjectName(saved.subjectName || "ECAT Practice");
+          setTimeBoostsUsed(saved.timeBoostsUsed || 0);
+          setPausesUsed(saved.pausesUsed || 0);
+          setIsPaused(saved.isPaused || false);
+          if (saved.paperStartTime) {
+            setPaperStartTime(new Date(saved.paperStartTime));
+          }
+          setPhase("active");
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to parse saved session", err);
+      }
+    }
+
     if (!formData || (!formData.field && !formData.questions)) {
       // No form data — redirect back to the test form
       navigate("/test/form", { replace: true });
@@ -159,7 +188,47 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
     }
     loadTest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [userId]);
+
+  // Save active test state to localStorage to protect against page refreshes
+  useEffect(() => {
+    if (phase === "active" && questions.length > 0) {
+      const session = {
+        userId,
+        questions,
+        answers,
+        lockedIds: Array.from(lockedIds),
+        skippedIds: Array.from(skippedIds),
+        maxReachedIdx,
+        currentIdx,
+        timeLeft,
+        subjectName,
+        formData,
+        timeBoostsUsed,
+        pausesUsed,
+        isPaused,
+        paperStartTime: paperStartTime.toISOString(),
+        savedAt: Date.now()
+      };
+      localStorage.setItem("ecat_active_test_session", JSON.stringify(session));
+    }
+  }, [
+    phase,
+    questions,
+    answers,
+    lockedIds,
+    skippedIds,
+    maxReachedIdx,
+    currentIdx,
+    timeLeft,
+    subjectName,
+    formData,
+    timeBoostsUsed,
+    pausesUsed,
+    isPaused,
+    paperStartTime,
+    userId
+  ]);
 
   // Timer countdown
   useEffect(() => {
@@ -311,6 +380,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
       });
       setResults(res.data);
       setPhase("results");
+      localStorage.removeItem("ecat_active_test_session");
       if (timerRef.current) window.clearInterval(timerRef.current);
     } catch (err) {
       setError(

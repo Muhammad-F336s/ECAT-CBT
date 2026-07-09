@@ -84,6 +84,8 @@ export default function ContentLibrary({ user }) {
 
       const { questions, subjectName, marksPerQuestion } = res.data;
 
+      localStorage.removeItem("ecat_active_test_session");
+
       navigate("/test/cbt", {
         state: {
           formData: {
@@ -134,6 +136,9 @@ export default function ContentLibrary({ user }) {
               >
                 <div className="subject-name-wrapper">
                   <span>{subject.name}</span>
+                  {selectedSubject?.id === subject.id && (
+                    <span className="selection-indicator">✓</span>
+                  )}
                 </div>
                 <span className="count-badge">
                   {subject.chapters.reduce(
