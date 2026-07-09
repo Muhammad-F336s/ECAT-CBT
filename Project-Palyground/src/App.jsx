@@ -39,9 +39,11 @@ import ProfilePage from "./components/ProfilePage";
 import TestWindow from "./components/TestWindow";
 import TestModeSelection from "./components/TestModeSelection";
 import TestModeForm from "./components/TestModeForm";
+import ContentLibrary from "./components/ContentLibrary";
 import HistoricalResultViewer from "./components/HistoricalResultViewer";
 import ResetPassword from "./components/ResetPassword";
 import API from "./utils/api";
+
 import logoutIcon from "./assets/logout-pypojw37dhfwhy26x2wxze.webp";
 import "./App.css";
 
@@ -573,6 +575,12 @@ function AppShell({ user, setUser }) {
                 Practice
               </button>
               <button
+                onClick={() => handleNavigate("/library")}
+                className={`nav-button ${view === "library" ? "active" : ""}`}
+              >
+                <FaBook /> Content Library
+              </button>
+              <button
                 onClick={() => handleNavigate("/progress")}
                 className={`nav-button ${view === "progress" ? "active" : ""}`}
               >
@@ -634,6 +642,7 @@ function AppShell({ user, setUser }) {
               }
             />
             <Route path="progress" element={<ProgressPage userId={user.id} />} />
+            <Route path="library" element={<ContentLibrary user={user} />} />
             <Route
               path="test"
               element={

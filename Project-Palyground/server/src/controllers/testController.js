@@ -379,3 +379,103 @@ export const getTestResult = async (req, res) => {
     res.status(500).json({ error: "Failed to retrieve historic test breakdown." });
   }
 };
+
+export const getContentLibrary = async (req, res) => {
+  try {
+    const subjects = await prisma.subject.findMany({
+      include: {
+        chapters: {
+          include: {
+            _count: {
+              select: { questions: true },
+            },
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+    });
+    res.status(200).json(subjects);
+  } catch (error) {
+    console.error("Content Library Fetch Error:", error);
+    res.status(500).json({ error: "Failed to retrieve content library structure." });
+  }
+};
+
+export const generateChapterPractice = async (req, res) => {
+  try {
+    const userId = req.auth.id;
+    const { chapterId, requestedCount = 10, difficulty = 5, syllabusType = "mixed", newSyllabusPercentage = 50 } = req.body;
+
+    if (!chapterId) {
+      return res.status(400).json({ error: "chapterId is required." });
+    }
+
+    const access = await loadStudentAccess(userId);
+    if (access.error) {
+      return res.status(access.error.status).json({ error: access.error.message });
+    }
+
+    // 1. Fetch the chapter to get its name and subject for AI generation if needed
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: chapterId },
+      include: { subject: true },
+    });
+
+    if (!chapter) {
+      return res.status(404).json({ error: "Chapter not found." });
+    }
+
+    // 2. Check existing questions in DB
+    const existingQuestions = await prisma.question.findMany({
+      where: { chapterId },
+      include: { options: true },
+    });
+
+    let finalPool = existingQuestions;
+
+    // 3. Augment with AI if pool is too small
+    if (existingQuestions.length < requestedCount) {
+      console.log(`[ChapterPractice] Pool small (${existingQuestions.length}/${requestedCount}). Augmenting...`);
+      
+      const needed = requestedCount - existingQuestions.length + 15;
+      const aiGenerated = await generateAllQuestions(
+        chapter.subject.name,
+        [chapter.subject.name],
+        needed,
+        [{ subject: chapter.subject.name, name: chapter.name }],
+        difficulty,
+        syllabusType,
+        newSyllabusPercentage,
+        chapterId
+      );
+      
+      // Fetch all again to include new ones
+      finalPool = await prisma.question.findMany({
+        where: { chapterId },
+        include: { options: true },
+      });
+    }
+
+    // 4. Strip and shuffle
+    const stripped = finalPool.map(q => ({
+      id: q.id,
+      statement: q.statement,
+      chapterId: q.chapterId,
+      options: q.options,
+    }));
+
+    const shuffled = stripped.sort(() => Math.random() - 0.5).slice(0, requestedCount);
+
+    res.status(200).json({
+      message: "Chapter practice test generated",
+      count: shuffled.length,
+      subjectName: chapter.subject.name,
+      marksPerQuestion: MARKS_PER_QUESTION,
+      questions: shuffled,
+    });
+  } catch (error) {
+    console.error("Chapter Practice Engine Error:", error);
+    res.status(500).json({ error: "Chapter practice generation failed." });
+  }
+};
+

@@ -97,21 +97,33 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
     setPhase("loading");
 
     try {
-      const res = await API.post("/test/generate", {
-        field: formData.field,
-        questionCount: formData.questionCount || 10,
-        difficulty: formData.difficulty || 5,
-        syllabusType: formData.syllabusType || "mixed",
-        newSyllabusPercentage: formData.newSyllabusPercentage || 50,
-        negativeMarking: formData.negativeMarking || false,
-        subjects: formData.subjects || [],
-        chapters: formData.chapters || [],
-        topicBatches: formData.topicBatches || [],
-        useAI: true,
-      });
+      let loaded = [];
+      let currentSubjectName = "ECAT Practice";
 
-      const data = res.data;
-      const loaded = data.questions || [];
+      if (formData.questions && Array.isArray(formData.questions)) {
+        // Chapter Practice Flow: Questions are already provided in state
+        console.log("[CBT] Loading pre-provided questions from Content Library...");
+        loaded = formData.questions;
+        currentSubjectName = formData.subjectName || "Chapter Practice";
+      } else {
+        // Standard Flow: Generate test via API
+        const res = await API.post("/test/generate", {
+          field: formData.field,
+          questionCount: formData.questionCount || 10,
+          difficulty: formData.difficulty || 5,
+          syllabusType: formData.syllabusType || "mixed",
+          newSyllabusPercentage: formData.newSyllabusPercentage || 50,
+          negativeMarking: formData.negativeMarking || false,
+          subjects: formData.subjects || [],
+          chapters: formData.chapters || [],
+          topicBatches: formData.topicBatches || [],
+          useAI: true,
+        });
+
+        const data = res.data;
+        loaded = data.questions || [];
+        currentSubjectName = data.subjectName || "ECAT Practice";
+      }
 
       if (!loaded.length) {
         setError("No questions returned from system.");
@@ -121,7 +133,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
       }
 
       setQuestions(loaded);
-      setSubjectName(data.subjectName || "ECAT Practice");
+      setSubjectName(currentSubjectName);
       const perQuestion = 60;
       setSecondsPerQuestion(perQuestion);
       setTimeLeft(loaded.length * perQuestion);

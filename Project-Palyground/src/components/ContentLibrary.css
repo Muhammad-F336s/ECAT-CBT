@@ -1,0 +1,266 @@
+.content-library-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1rem;
+  animation: fadeIn 0.4s ease;
+}
+
+.library-header {
+  text-align: left;
+  border-bottom: 2px solid var(--ecat-blue-soft);
+  padding-bottom: 1.5rem;
+}
+
+.library-header h1 {
+  font-size: 2.2rem;
+  color: var(--ecat-blue-dark);
+  margin-bottom: 0.5rem;
+}
+
+.library-header p {
+  font-size: 1.1rem;
+  color: #666;
+}
+
+.field-badge {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.4rem 1rem;
+  background: var(--ecat-blue-soft);
+  color: var(--ecat-blue-dark);
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.library-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr 350px;
+  gap: 2rem;
+  align-items: start;
+}
+
+/* Subjects Panel */
+.subjects-panel {
+  background: #fff;
+  border-radius: 15px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border: 1px solid #eee;
+}
+
+.subjects-panel h3 {
+  margin-bottom: 1.5rem;
+  color: var(--ecat-blue-dark);
+  font-size: 1.3rem;
+}
+
+.subjects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.subject-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid #eee;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  color: #444;
+}
+
+.subject-item:hover {
+  background: #f0f7ff;
+  border-color: var(--ecat-blue);
+}
+
+.subject-item.active {
+  background: var(--ecat-blue);
+  color: #fff;
+  border-color: var(--ecat-blue);
+}
+
+.count-badge {
+  font-size: 0.8rem;
+  background: #ddd;
+  padding: 0.2rem 0.6rem;
+  border-radius: 10px;
+  color: #666;
+}
+
+.subject-item.active .count-badge {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+}
+
+/* Chapters Panel */
+.chapters-panel {
+  background: #fff;
+  border-radius: 15px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border: 1px solid #eee;
+  min-height: 500px;
+}
+
+.chapter-header h3 {
+  margin-bottom: 1.5rem;
+  color: var(--ecat-blue-dark);
+  font-size: 1.3rem;
+}
+
+.chapters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.chapter-card {
+  padding: 1.2rem;
+  border-radius: 12px;
+  border: 1px solid #eee;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.chapter-card:hover {
+  border-color: var(--ecat-blue);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+.chapter-card.active {
+  background: var(--ecat-blue-soft);
+  border-color: var(--ecat-blue);
+}
+
+.chapter-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.chapter-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 1rem;
+}
+
+.chapter-q-count {
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.selection-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: var(--ecat-blue);
+  font-weight: bold;
+}
+
+/* Practice Settings Panel */
+.practice-settings-panel {
+  background: var(--ecat-blue-dark);
+  color: #fff;
+  border-radius: 15px;
+  padding: 2rem;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: slideInRight 0.3s ease;
+}
+
+.practice-settings-panel h3 {
+  font-size: 1.5rem;
+  margin-bottom: 0;
+}
+
+.setting-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.setting-row label {
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.setting-row input {
+  padding: 0.8rem;
+  border-radius: 8px;
+  border: none;
+  font-size: 1.1rem;
+  text-align: center;
+  font-weight: bold;
+}
+
+.start-practice-btn {
+  padding: 1rem;
+  border-radius: 10px;
+  border: none;
+  background: #fff;
+  color: var(--ecat-blue-dark);
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.start-practice-btn:hover {
+  background: #f0f0f0;
+  transform: translateY(-2px);
+}
+
+.start-practice-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #999;
+  font-style: italic;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (max-width: 1100px) {
+  .library-layout {
+    grid-template-columns: 1fr;
+  }
+  .subjects-panel {
+    order: 1;
+  }
+  .chapters-panel {
+    order: 2;
+  }
+  .practice-settings-panel {
+    order: 3;
+  }
+}

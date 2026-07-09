@@ -289,6 +289,7 @@ export async function generateAllQuestions(
   difficulty,
   syllabusType,
   newSyllabusPercentage,
+  targetChapterId = null,
 ) {
   const totalQuestions = parseInt(targetCount) || 10;
   const batchSize = 10;
@@ -361,7 +362,7 @@ export async function generateAllQuestions(
   const formattedQuestions = [];
   for (const q of allQuestions) {
     const subjectName = q.subject || subjects[0] || field;
-    const chapterId = await getOrCreateChapterId(subjectName);
+    const chapterId = targetChapterId || await getOrCreateChapterId(subjectName);
 
     // Create the question with options
     try {
@@ -394,11 +395,11 @@ export async function generateAllQuestions(
     }
   }
 
-  // Enforce the 500 questions compute limit rule across the whole questions table
+  // Enforce the 1500 questions compute limit rule across the whole questions table
   try {
     const totalCount = await prisma.question.count();
-    if (totalCount > 500) {
-      const questionsToDeleteCount = totalCount - 500;
+    if (totalCount > 1500) {
+      const questionsToDeleteCount = totalCount - 1500;
       const oldestQuestions = await prisma.question.findMany({
         orderBy: { createdAt: "asc" },
         take: questionsToDeleteCount,
