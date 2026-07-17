@@ -9,6 +9,9 @@
     "dev:watch": "nodemon src/app.js",
     "db:setup": "node src/setupDatabase.js",
     "prisma:push": "prisma db push --config=./prisma.config.js",
+    "prisma:migrate": "prisma migrate dev --config=./prisma.config.js",
+    "prisma:deploy": "prisma migrate deploy --config=./prisma.config.js",
+    "prisma:status": "prisma migrate status --config=./prisma.config.js",
     "prisma:generate": "prisma generate --config=./prisma.config.js",
     "prisma:validate": "prisma validate --config=./prisma.config.js",
     "prisma:seed": "prisma db seed --config=./prisma.config.js"
