@@ -171,18 +171,19 @@ export async function generateQuestions(
             ]
           }
           
-          RULES:
-          1. Use MATH[equation] for math (e.g. MATH[x^2], MATH[sqrt(x)]).
-          2. ALWAYS provide EXACTLY 5 options per question.
-          3. CHAIN OF THOUGHT: In the "explanation" field, ALWAYS output a structured, step-by-step mathematical/conceptual derivation of the solution.
-          4. ABSOLUTE ACCURACY: The "correctAnswer" index (0-4) MUST point to the option that EXACTLY matches the final result calculated in your "explanation".
-          5. NO REDUNDANCY: No two options should be mathematically equivalent.
-          6. MATH NOTATION: Use standard algebraic notation. Write "2x" NOT "2 \\times x". Write "ab" NOT "a \\times b". Write "3a^2" NOT "3 \\times a^{2}". The \\times symbol should ONLY be used for cross products in physics vectors. For multiplication, just concatenate variables (e.g. MATH[2x + 5 = 11], MATH[a^2 + 2a - 6 = 0], MATH[(x+2)(x-2)]).
-          7. SPECIFIC EXAM TRICK: In the "trick" field, ALWAYS provide a concrete short-cut, mnemonic, dimensional analysis check, estimation technique, or quick rule of thumb specifically helpful for solving this type of question quickly under exam stress. Do NOT use generic advice.`,
+          SYSTEM RULES:
+          1. CHAIN OF THOUGHT: FOR EVERY QUESTION, first calculate the final numeric answer step-by-step internally in the "explanation" field. 
+          2. ACCURACY: DO NOT generate options before calculating the correct answer. 
+          3. VALIDATION: Once the answer is calculated, create 5 options. ONE MUST BE the correct answer. 
+          4. CONSISTENCY: The "correctAnswer" (0-4) MUST match the index of the calculated answer.
+          5. FORMAT: Use MATH[...] for ALL mathematical expressions, formulas, and numbers.
+          6. STRICT OUTPUT: ALWAYS return exactly 5 options. If you cannot produce a mathematically sound question with 5 distinct options, do not return the question.
+          7. EXPLANATION: The explanation MUST conclude with: "Therefore, the correct answer is option [X]". This ensures your answer index logic is sound.
+          8. STRUCTURE: Output valid JSON only.`,
         },
         { role: "user", content: prompt },
       ],
-      temperature: Math.min(0.1 + attemptNumber * 0.05, 0.7),
+      temperature: 0.1, // Fixed to low temperature for maximum determinism
       response_format: { type: "json_object" },
     });
 
@@ -281,6 +282,15 @@ async function getOrCreateChapterId(subjectName) {
   return chapter.id;
 }
 
+
+function validateQuestion(q) {
+  if (!q.questionText || typeof q.questionText !== 'string' || q.questionText.trim().length === 0) return false;
+  if (!Array.isArray(q.options) || q.options.length !== 5) return false;
+  if (typeof q.correctAnswer !== 'number' || q.correctAnswer < 0 || q.correctAnswer > 4) return false;
+  if (!q.explanation || typeof q.explanation !== 'string' || q.explanation.trim().length === 0) return false;
+  return true;
+}
+
 export async function generateAllQuestions(
   field,
   subjects,
@@ -293,7 +303,7 @@ export async function generateAllQuestions(
 ) {
   const totalQuestions = parseInt(targetCount) || 10;
   const batchSize = 10;
-  const maxTotalAttempts = totalQuestions * 3;
+  const maxTotalAttempts = totalQuestions * 5; // Increased attempts
   let allQuestions = [];
   const seenTexts = new Set();
   let totalAttempts = 0;
@@ -323,18 +333,22 @@ export async function generateAllQuestions(
 
       if (batch && batch.length > 0) {
         batch.forEach((q) => {
-          const normalized = q.questionText.replace(/\s+/g, "").toLowerCase();
-          if (
-            allQuestions.length < totalQuestions &&
-            !seenTexts.has(normalized)
-          ) {
-            seenTexts.add(normalized);
-            allQuestions.push(q);
-            newlyAdded++;
+          if (validateQuestion(q)) {
+            const normalized = q.questionText.replace(/\s+/g, "").toLowerCase();
+            if (
+              allQuestions.length < totalQuestions &&
+              !seenTexts.has(normalized)
+            ) {
+              seenTexts.add(normalized);
+              allQuestions.push(q);
+              newlyAdded++;
+            }
+          } else {
+            console.warn("[Groq] Generated invalid question, discarding.");
           }
         });
         console.log(
-          `[Groq] ${allQuestions.length}/${totalQuestions} unique ${subjects.join(", ")} questions collected.`,
+          `[Groq] ${allQuestions.length}/${totalQuestions} valid unique ${subjects.join(", ")} questions collected.`,
         );
       }
     } catch (err) {
@@ -344,10 +358,8 @@ export async function generateAllQuestions(
 
     if (newlyAdded === 0) {
       consecutiveFailures++;
-      if (consecutiveFailures >= 5) {
-        console.warn(
-          `[Groq] Failed to generate any new valid questions after 5 attempts. Waiting...`,
-        );
+      if (consecutiveFailures >= 3) { // Reduced failure tolerance
+        console.warn(`[Groq] Failed to generate valid questions. Waiting...`);
         await delay(3000);
       }
     } else {
@@ -357,6 +369,7 @@ export async function generateAllQuestions(
     totalAttempts++;
     await delay(500);
   }
+
 
   // Formatting and Saving to Prisma Database
   const formattedQuestions = [];

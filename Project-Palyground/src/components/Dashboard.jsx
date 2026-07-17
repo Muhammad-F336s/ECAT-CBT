@@ -6,11 +6,12 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
 } from "chart.js";
-import { Line } from "react-chartjs-2";
+import { Line, Bar } from "react-chartjs-2";
 import API from "../utils/api";
 
 ChartJS.register(
@@ -18,6 +19,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend
@@ -49,7 +51,6 @@ const Dashboard = ({ userId }) => {
   }, [userId]);
 
   const handleRetryTest = (attempt) => {
-    // Navigate to CBT with original questions to allow retrying the same paper
     navigate("/test/cbt", {
       state: {
         formData: {
@@ -90,6 +91,24 @@ const Dashboard = ({ userId }) => {
     ],
   };
 
+  // Prepare data for Subject-wise Bar Chart
+  const subjects = Object.keys(analytics.subjectAnalytics || {});
+  const barChartData = {
+    labels: subjects,
+    datasets: [
+      {
+        label: "Subject Strength (%)",
+        data: subjects.map(sub => {
+          const s = analytics.subjectAnalytics[sub];
+          return s.total > 0 ? ((s.correct / s.total) * 100).toFixed(1) : 0;
+        }),
+        backgroundColor: "rgba(75, 192, 192, 0.6)",
+        borderColor: "rgba(75, 192, 192, 1)",
+        borderWidth: 1,
+      },
+    ],
+  };
+
   return (
     <div className="dashboard-analytics-container">
       <div className="analytics-summary-grid">
@@ -108,62 +127,46 @@ const Dashboard = ({ userId }) => {
         </div>
       </div>
 
-      <div className="analytics-chart-card">
-        <div className="analytics-chart-header">
-          <h3>Performance Progress</h3>
-          <p>Your score trajectory over recent attempts.</p>
+      <div className="analytics-charts-grid">
+        <div className="analytics-chart-card">
+          <div className="analytics-chart-header">
+            <h3>Performance Progress</h3>
+          </div>
+          <div className="chart-wrapper">
+            <Line 
+              data={chartData} 
+              options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }} 
+            />
+          </div>
         </div>
-        <div className="chart-wrapper">
-          <Line 
-            data={chartData} 
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { display: false },
-                tooltip: { mode: "index", intersect: false },
-              },
-              scales: {
-                y: { beginAtZero: true, max: 100, ticks: { stepSize: 20 } },
-                x: { grid: { display: false } },
-              },
-            }} 
-          />
+
+        <div className="analytics-chart-card">
+          <div className="analytics-chart-header">
+            <h3>Subject Strengths</h3>
+          </div>
+          <div className="chart-wrapper">
+            <Bar 
+              data={barChartData} 
+              options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }} 
+            />
+          </div>
         </div>
       </div>
 
       <div className="previous-performance-card">
-        <div className="performance-header">
-          <h3>Previous Performance</h3>
-          <p>Your last 5 test attempts.</p>
-        </div>
+        <h3>Previous Performance</h3>
         <div className="performance-list">
           {recentAttempts.length === 0 ? (
             <div className="performance-empty">No previous tests found.</div>
           ) : (
-            recentAttempts.map((attempt, index) => (
+            recentAttempts.map((attempt) => (
               <div key={attempt.attemptId} className="performance-item">
                 <div className="item-info">
-                  <span className="item-date">{
-                    new Date(attempt.submittedAt).toLocaleDateString()
-                  }</span>
-                  <span className="item-score">
-                    {attempt.score} / {attempt.totalMarks} ({attempt.percentage}%)
-                  </span>
+                  <span className="item-date">{new Date(attempt.submittedAt).toLocaleDateString()}</span>
+                  <span className="item-score">{attempt.score} / {attempt.totalMarks} ({attempt.percentage}%)</span>
                 </div>
                 <div className="item-actions">
-                  <button 
-                    className="perf-btn perf-btn--review" 
-                    onClick={() => window.location.href = `/test/result/${attempt.attemptId}`}
-                  >
-                    Review
-                  </button>
-                  <button 
-                    className="perf-btn perf-btn--retry" 
-                    onClick={() => handleRetryTest(attempt)}
-                  >
-                    Retry Test
-                  </button>
+                  <button className="perf-btn perf-btn--review" onClick={() => window.location.href = `/test/result/${attempt.attemptId}`}>Review</button>
                 </div>
               </div>
             ))

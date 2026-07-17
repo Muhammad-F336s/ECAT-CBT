@@ -94,18 +94,75 @@ export const getUserAnalytics = async (req, res) => {
   try {
     const { userId } = req.params;
     if (!userId) return res.status(400).json({ error: "User ID parameter is required." });
-    const attempts = await prisma.testAttempt.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
-    if (attempts.length === 0) return res.status(200).json({ message: "No tests taken yet.", totalTests: 0, averagePercentage: 0, history: [] });
+
+    const attempts = await prisma.testAttempt.findMany({ 
+      where: { userId }, 
+      orderBy: { createdAt: "desc" } 
+    });
+
+    if (attempts.length === 0) {
+      return res.status(200).json({ 
+        message: "No tests taken yet.", 
+        totalTests: 0, 
+        averagePercentage: 0, 
+        history: [],
+        subjectAnalytics: {} 
+      });
+    }
+
     const totalTests = attempts.length;
     let totalScoreObtained = 0;
     let totalPossibleMarks = 0;
+    
+    // Aggregation maps
+    const analytics = {}; // { [subjectName]: { total: 0, correct: 0, chapters: { [chapterId]: { total: 0, correct: 0 } } } }
+
     const history = attempts.map((attempt) => {
       totalScoreObtained += attempt.score;
       totalPossibleMarks += attempt.totalMarks;
-      return { attemptId: attempt.id, score: attempt.score, totalMarks: attempt.totalMarks, percentage: parseFloat(((attempt.score / attempt.totalMarks) * 100).toFixed(2)), date: attempt.createdAt };
+
+      // Process breakdown for subject/chapter analytics
+      const breakdown = attempt.breakdown?.breakdown || [];
+      const subjectName = attempt.breakdown?.subjectName || "Unknown";
+
+      if (!analytics[subjectName]) {
+        analytics[subjectName] = { total: 0, correct: 0, chapters: {} };
+      }
+
+      breakdown.forEach(q => {
+        // Update subject stats
+        analytics[subjectName].total++;
+        if (q.isCorrect) analytics[subjectName].correct++;
+
+        // Update chapter stats
+        const cid = q.chapterId || "Unknown";
+        if (!analytics[subjectName].chapters[cid]) {
+          analytics[subjectName].chapters[cid] = { total: 0, correct: 0 };
+        }
+        analytics[subjectName].chapters[cid].total++;
+        if (q.isCorrect) analytics[subjectName].chapters[cid].correct++;
+      });
+
+      return { 
+        attemptId: attempt.id, 
+        score: attempt.score, 
+        totalMarks: attempt.totalMarks, 
+        percentage: parseFloat(((attempt.score / attempt.totalMarks) * 100).toFixed(2)), 
+        date: attempt.createdAt 
+      };
     });
+
     const averagePercentage = parseFloat(((totalScoreObtained / totalPossibleMarks) * 100).toFixed(2));
-    res.status(200).json({ userId, totalTests, averagePercentage, totalScoreObtained, totalPossibleMarks, history });
+    
+    res.status(200).json({ 
+      userId, 
+      totalTests, 
+      averagePercentage, 
+      totalScoreObtained, 
+      totalPossibleMarks, 
+      history,
+      subjectAnalytics: analytics
+    });
   } catch (error) {
     console.error("Analytics error:", error);
     res.status(500).json({ error: "Failed to compile metrics." });

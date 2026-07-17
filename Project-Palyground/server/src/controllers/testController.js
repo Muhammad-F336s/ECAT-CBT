@@ -292,6 +292,7 @@ export const submitTest = async (req, res) => {
       breakdown.push({
         questionNumber: index + 1,
         questionId: question.id,
+        chapterId: question.chapterId, // Added for analytics
         statement: question.statement,
         options: question.options,
         selectedAnswerText: selected || null,
