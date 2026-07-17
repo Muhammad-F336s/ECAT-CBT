@@ -27,16 +27,13 @@ const runStep = (label, command, args) =>
 
 const bootstrap = async () => {
   try {
-    await runStep("Applying database schema", "node", ["src/setupDatabase.js"]);
-    await runStep("Synchronizing Prisma DB schema changes", "npm", [
-      "run",
-      "prisma:push",
-    ]);
+    // We removed 'setupDatabase.js' and 'prisma:push' because we now use Prisma Migrate
+    // for a more robust and professional database evolution workflow.
     await runStep("Generating Prisma client", "npm", [
       "run",
       "prisma:generate",
     ]);
-    console.log("\n✅ Database ready. Starting API server...\n");
+    console.log("\n✅ Database client ready. Starting API server...\n");
   } catch (error) {
     console.error("\n❌ Startup database step failed:", error.message);
     console.error("Fix DATABASE_URL in server/.env, then restart.\n");
