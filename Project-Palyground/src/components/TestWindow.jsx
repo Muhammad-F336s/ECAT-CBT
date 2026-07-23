@@ -28,6 +28,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState({});
   const [lockedIds, setLockedIds] = useState(new Set());
+  const [checkedIds, setCheckedIds] = useState(new Set()); // Revealed in Study Mode
   const [skippedIds, setSkippedIds] = useState(new Set());
   const [maxReachedIdx, setMaxReachedIdx] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -47,6 +48,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
   const [secondsPerQuestion, setSecondsPerQuestion] = useState(60);
   const [paperStartTime, setPaperStartTime] = useState(() => new Date());
 
+  const isStudyMode = formData.mode === "study";
   const timerRef = useRef(null);
   const autoSubmittedRef = useRef(false);
 
@@ -305,7 +307,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
 
   const handleSelectOption = (optionText) => {
     const question = questions[currentIdx];
-    if (!question || lockedIds.has(question.id) || isPaused) return;
+    if (!question || lockedIds.has(question.id) || checkedIds.has(question.id) || isPaused) return;
 
     setAnswers((prev) => ({
       ...prev,
@@ -316,6 +318,12 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
       next.delete(question.id);
       return next;
     });
+  };
+
+  const handleCheckAnswer = () => {
+    const question = questions[currentIdx];
+    if (!question || !answers[question.id]) return;
+    setCheckedIds((prev) => new Set(prev).add(question.id));
   };
 
   const handleSaveAndNext = () => {
@@ -671,14 +679,29 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
         </div>
 
         <div className="cbt-bottom-right">
+          {isStudyMode && !checkedIds.has(currentQuestion?.id) && (
+            <button
+              type="button"
+              className="cbt-btn cbt-btn--primary"
+              onClick={handleCheckAnswer}
+              disabled={!currentAnswer || isPaused}
+            >
+              Check Answer
+            </button>
+          )}
+
           {!isLastQuestion ? (
             <button
               type="button"
               className="cbt-btn cbt-btn--save"
               onClick={handleSaveAndNext}
-              disabled={!currentAnswer || isCurrentLocked || isPaused}
+              disabled={
+                (!isStudyMode && (!currentAnswer || isCurrentLocked)) || 
+                (isStudyMode && !checkedIds.has(currentQuestion?.id)) || 
+                isPaused
+              }
             >
-              Save and Next →
+              Next →
             </button>
           ) : (
             <button
@@ -690,6 +713,24 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
               {submitting ? "Submitting..." : "Save and Finish →"}
             </button>
           )}
+        </div>
+      </footer>
+
+      {isStudyMode && checkedIds.has(currentQuestion?.id) && (
+        <div className="cbt-study-feedback">
+          <div className={currentAnswer === currentQuestion.correctAnswer ? "feedback-correct" : "feedback-wrong"}>
+            <strong>{currentAnswer === currentQuestion.correctAnswer ? "Correct!" : "Incorrect."}</strong>
+            <p>Correct Answer: {currentQuestion.correctAnswer}</p>
+            <div className="explanation-box">
+              <strong>Explanation:</strong>
+              <p>{currentQuestion.explanation?.split("===TRICK===")[0]}</p>
+              {currentQuestion.explanation?.includes("===TRICK===") && (
+                <p><strong>💡 Trick:</strong> {currentQuestion.explanation.split("===TRICK===")[1]}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
           <p className="cbt-warning-note">
             Note: Please select the option carefully. Once you select an option you must Save and Next — you cannot skip that question, and after saving you cannot return to change the answer.
           </p>

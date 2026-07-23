@@ -167,6 +167,7 @@ export const generateTest = async (req, res) => {
     } else {
       // Fallback to static DB questions
       let whereClause = {
+        isApproved: true, // Only serve approved questions to students
         chapter: {
           subjectId,
         },
@@ -428,7 +429,7 @@ export const generateChapterPractice = async (req, res) => {
 
     // 2. Check existing questions in DB
     const existingQuestions = await prisma.question.findMany({
-      where: { chapterId },
+      where: { chapterId, isApproved: true },
       include: { options: true },
     });
 

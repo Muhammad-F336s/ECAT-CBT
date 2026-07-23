@@ -49,6 +49,7 @@ export default function AdminDashboard({ user, headerActions }) {
   const [statusFilter, setStatusFilter] = useState("All");
   const [students, setStudents] = useState([]);
   const [pendingUsers, setPendingUsers] = useState([]);
+  const [pendingQuestionsCount, setPendingQuestionsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const adminName = user?.name || "Administrator";
   const initial = adminName.charAt(0).toUpperCase();
@@ -58,14 +59,16 @@ export default function AdminDashboard({ user, headerActions }) {
 
     const loadDashboardData = async () => {
       try {
-        const [studentsRes, pendingRes] = await Promise.all([
+        const [studentsRes, pendingRes, questionsRes] = await Promise.all([
           API.get("/user/students"),
           API.get("/user/pending-users"),
+          API.get("/admin/questions/pending"),
         ]);
 
         if (!isMounted) return;
         setStudents(studentsRes.data);
         setPendingUsers(pendingRes.data);
+        setPendingQuestionsCount(questionsRes.data.length);
       } catch (err) {
         console.error("Admin dashboard data load failed:", err);
       } finally {
@@ -184,6 +187,25 @@ export default function AdminDashboard({ user, headerActions }) {
             onClick={() => navigate("/admin/approvals")}
           >
             Review pending approvals
+          </button>
+        </article>
+
+        <article className="admin-card admin-approval-card" style={{ borderLeftColor: "var(--ecat-blue-primary)" }}>
+          <h2>AI REVIEW QUEUE</h2>
+          <div className="admin-big-stat-row">
+            <strong>{pendingQuestionsCount}</strong>
+            <span>Pending Questions</span>
+          </div>
+          <p>AI questions needing audit</p>
+          <div className="admin-soft-strip">
+            Ensure quality before students see them.
+          </div>
+          <button
+            type="button"
+            className="admin-card-action"
+            onClick={() => navigate("/admin/review-queue")}
+          >
+            Go to Review Queue
           </button>
         </article>
 

@@ -1,30 +1,38 @@
 # Project Target List
 
-This document consolidates the remaining technical debt and potential feature enhancements for the ECAT-CBT project. 
+This document tracks the current development state of the ECAT-CBT platform after a deep codebase audit.
 
-## 🟢 Completed (from UNIMPLEMENTED_FEATURES.md)
-The following core architectural gaps and features have been resolved:
-- [x] Dynamic Test Configuration (Routing & Form Data)
-- [x] Multi-Subject & Chapter Test Generation
-- [x] Admin Content Library Persistence (DB Schema & CRUD)
-- [x] AI-Driven Pedagogy (Chain of Thought & Exam Tricks)
-- [x] Static Question API (Implemented via chapter practice endpoints)
-- [x] Student Content Library UX & Flow (Fixed redirection, UI contrast, and subject switching)
-- [x] **Test Window Robustness:** Implemented complete answer, skipped/locked question, and timing state recovery from `localStorage` in `TestWindow.jsx` across page refreshes.
-- [x] **Result Visualization:** Integrated `react-chartjs-2` and `chart.js` with interactive performance breakdowns (Correct, Wrong, Skipped) displayed as a visual `Doughnut` chart in `TestResultPage.jsx`.
-- [x] **Admin UX:** Fully integrated multi-level search and status filtering (All, Approved, Pending, Frozen) across student directory, admin directories, recipient selections, and question banks.
+## 🟢 Verified Existing Features
+- [x] **CBT Persistence:** `TestWindow.jsx` automatically saves and restores sessions via `localStorage` on page refresh.
+- [x] **Admin Review Queue:** `AdminReviewQueue.jsx` handles auditing of unapproved AI-generated content.
+- [x] **Performance Charts:** `Dashboard.jsx` (User Analytics) and `TestResultPage.jsx` (Test Feedback) already utilize Chart.js for data visualization.
+- [x] **Targeted Practice Engine:** Students can select specific chapters and question counts for practice.
 
-## 🟡 Pending / Potential Improvements
-Based on a codebase audit, the following areas could be improved or are partially implemented:
+## 🟡 Real Remaining Gaps (High Priority)
 
-### 1. Backend & Database
-- [ ] **Migration Strategy:** The project currently relies on `db:setup` (running a raw SQL file) and Prisma db push. Implementing a proper migration tool (like Prisma Migrate) would be safer for production.
-- [ ] **Advanced Analytics:** The current `getUserAnalytics` provides a basic history. Adding subject-wise strength/weakness analysis would be a high-value addition.
+### 1. Visual Mastery Tracking
+- [ ] **Frontend Integration:** Update `ContentLibrary.jsx` to fetch student analytics and display a "Mastery Percentage" progress bar for every chapter (currently only shows total question counts).
+- [ ] **Subject Overview:** Show an aggregate mastery score for the entire subject in the sidebar.
 
-### 2. AI Integration
-- [ ] **AI-Generated Content Review:** Implement a "Review & Approve" workflow where admins can audit AI-generated questions before they enter the permanent question pool (e.g. by setting an `isApproved` flag on questions or staging them).
-- [ ] **Dynamic Difficulty Tuning:** Implementing a system where the AI adjusts difficulty based on the student's previous attempt scores.
+### 2. Study Mode (Instant Feedback)
+- [ ] **Mode Selection:** Add a "Study Mode" toggle in the Content Library start panel.
+- [ ] **Interactive Feedback:** Update `TestWindow.jsx` logic:
+    - In Study Mode, hide the "Save and Next" button initially.
+    - Show a "Check Answer" button.
+    - Upon clicking, reveal the correct answer, explanation, and pro-tips immediately.
+    - Then show the "Next" button.
 
-## 🛠️ Technical Debt
-- [ ] **Error Handling:** Standardizing API error responses across all controllers.
-- [ ] **Type Safety:** Transitioning critical paths (e.g., API schemas, service layers, components) to TypeScript to prevent runtime errors.
+### 3. AI Staging Logic Refinement
+- [ ] **Instant Use of Generated Qs:** Currently, `groqService.js` marks new questions as `isApproved: false`, preventing them from being used in the session that triggered their generation.
+- [ ] **Logic Fix:** Modify `generateChapterPractice` to allow the current session to include newly generated (unapproved) questions, or auto-approve them for practice sessions while keeping them unapproved for "Standard Exam" modes.
+
+## 🔵 Future Enhancements
+
+### 🚀 UX & Features
+- [ ] **Iconography:** Add descriptive icons (FontAwesome/React Icons) to the sidebar and dashboard buttons for better accessibility.
+- [ ] **Global Leaderboard:** Implement a "Top Scorers" board to encourage competition.
+- [ ] **Daily Challenge:** A system-generated 10-question daily test for consistency.
+
+### 🛠️ Technical Debt
+- [ ] **TypeScript Migration:** Transition the `TestWindow` and `groqService` to TypeScript.
+- [ ] **Error Boundaries:** Add React Error Boundaries to prevent total page crashes on API failures.

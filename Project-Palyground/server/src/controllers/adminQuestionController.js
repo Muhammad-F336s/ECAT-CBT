@@ -71,7 +71,7 @@ export const listQuestions = async (req, res) => {
   try {
     const { subjectId, chapterId, search } = req.query;
 
-    const where = {};
+    const where = { isApproved: true }; // Only return approved questions in the main list
     if (chapterId) {
       where.chapterId = chapterId;
     } else if (subjectId) {
@@ -224,5 +224,70 @@ export const deleteQuestion = async (req, res) => {
   } catch (error) {
     console.error("Delete question error:", error);
     res.status(500).json({ error: "Failed to delete question." });
+  }
+};
+
+// 8. List all pending/unapproved AI-generated questions
+export const listPendingQuestions = async (req, res) => {
+  try {
+    const questions = await prisma.question.findMany({
+      where: { isApproved: false },
+      include: {
+        options: true,
+        chapter: {
+          include: {
+            subject: true,
+          },
+        },
+      },
+      orderBy: [
+        { isFlagged: "desc" }, // Flagged questions first
+        { createdAt: "desc" }
+      ],
+    });
+    res.status(200).json(questions);
+  } catch (error) {
+    console.error("List pending questions error:", error);
+    res.status(500).json({ error: "Failed to fetch pending AI questions." });
+  }
+};
+
+// 9. Approve a single pending AI-generated question
+export const approveQuestion = async (req, res) => {
+  try {
+    const { questionId } = req.params;
+    const updated = await prisma.question.update({
+      where: { id: questionId },
+      data: { isApproved: true },
+      include: {
+        options: true,
+      },
+    });
+    res.status(200).json({ message: "Question approved successfully.", question: updated });
+  } catch (error) {
+    console.error("Approve question error:", error);
+    res.status(500).json({ error: "Failed to approve the question." });
+  }
+};
+
+// 10. Approve all non-flagged pending questions in one go
+export const approveAllVerifiedQuestions = async (req, res) => {
+  try {
+    const result = await prisma.question.updateMany({
+      where: {
+        isApproved: false,
+        isFlagged: false,
+      },
+      data: {
+        isApproved: true,
+      },
+    });
+    res.status(200).json({
+      message: `${result.count} verified questions approved successfully.`,
+      count: result.count,
+    });
+  } catch (error) {
+    console.error("Batch approve error:", error);
+    res.status(500).json({ error: "Failed to batch approve questions." });
   }
 };

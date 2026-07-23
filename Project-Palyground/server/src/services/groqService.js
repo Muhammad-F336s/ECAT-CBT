@@ -68,6 +68,47 @@ function formatMathToLaTeX(text) {
   return result;
 }
 
+// --- Groq (AI) QUESTION AUDITOR ---
+export async function auditQuestions(questions) {
+  if (!questions || questions.length === 0) return [];
+
+  const auditPrompt = `You are a Senior Quality Auditor for ECAT exams. Review the following questions for accuracy.
+    For each question, check:
+    1. Mathematical accuracy of the question and solution.
+    2. Does the "correctAnswer" index (0-4) truly point to the mathematically correct option?
+    3. Are options distinct and not redundant?
+    
+    QUESTIONS TO AUDIT:
+    ${JSON.stringify(questions, null, 2)}
+    
+    Return a JSON object with an "audits" array. Each entry must have:
+    - index: (Number)
+    - status: "passed" or "flagged"
+    - notes: (String) Why it was flagged, or "Verified accurate" if passed.`;
+
+  try {
+    const response = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content: "You are a strict technical auditor. Identify even minor errors in MCQs. Return valid JSON only.",
+        },
+        { role: "user", content: auditPrompt },
+      ],
+      temperature: 0.0, // Absolute determinism for auditing
+      response_format: { type: "json_object" },
+    });
+
+    const content = JSON.parse(response.choices[0].message.content);
+    return content.audits || [];
+  } catch (error) {
+    console.error("[Groq Auditor] Audit pass failed:", error.message);
+    // If auditor fails, we flag them all as "Audit Failed" to be safe
+    return questions.map((_, i) => ({ index: i, status: "flagged", notes: "AI Audit service unavailable/timed out." }));
+  }
+}
+
 // --- Groq (AI) QUESTION GENERATOR ---
 export async function generateQuestions(
   field,
@@ -372,8 +413,14 @@ export async function generateAllQuestions(
 
 
   // Formatting and Saving to Prisma Database
+  console.log(`[Groq] All ${allQuestions.length} questions collected. Starting AI Audit pass...`);
+  const auditResults = await auditQuestions(allQuestions);
+  
   const formattedQuestions = [];
-  for (const q of allQuestions) {
+  for (let i = 0; i < allQuestions.length; i++) {
+    const q = allQuestions[i];
+    const audit = auditResults.find(a => a.index === i) || { status: "flagged", notes: "Audit missing" };
+    
     const subjectName = q.subject || subjects[0] || field;
     const chapterId = targetChapterId || await getOrCreateChapterId(subjectName);
 
@@ -390,6 +437,9 @@ export async function generateAllQuestions(
           chapterId: chapterId,
           correctAnswer: q.options[q.correctAnswer],
           explanation: `${q.explanation || ""}===TRICK===${q.trick || ""}`,
+          isApproved: false, // Mark AI questions as unapproved by default for staging workflow
+          isFlagged: audit.status === "flagged",
+          auditNotes: audit.notes,
           options: {
             create: q.options.map((opt) => ({ text: opt })),
           },
@@ -402,6 +452,8 @@ export async function generateAllQuestions(
         statement: savedQuestion.statement,
         chapterId: savedQuestion.chapterId,
         options: savedQuestion.options,
+        isFlagged: savedQuestion.isFlagged,
+        auditNotes: savedQuestion.auditNotes
       });
     } catch (e) {
       console.error("[Groq] Failed to save AI question to DB:", e.message);

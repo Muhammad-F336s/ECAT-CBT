@@ -17,6 +17,9 @@ import {
   createQuestion,
   updateQuestion,
   deleteQuestion,
+  listPendingQuestions,
+  approveQuestion,
+  approveAllVerifiedQuestions,
 } from "../controllers/adminQuestionController.js";
 import { requireAdminAuth } from "../middleware/adminAuth.js";
 
@@ -38,6 +41,9 @@ router.get("/subjects", getSubjectsAndChapters);
 router.post("/subjects", createSubject);
 router.post("/chapters", createChapter);
 router.get("/questions", listQuestions);
+router.get("/questions/pending", listPendingQuestions);
+router.post("/questions/batch-approve-verified", approveAllVerifiedQuestions);
+router.post("/questions/:questionId/approve", approveQuestion);
 router.post("/questions", createQuestion);
 router.put("/questions/:questionId", updateQuestion);
 router.delete("/questions/:questionId", deleteQuestion);

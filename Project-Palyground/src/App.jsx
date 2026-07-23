@@ -24,6 +24,7 @@ import {
   FaTimes,
   FaUsers,
   FaList,
+  FaEye,
 } from "react-icons/fa";
 import AuthPage from "./components/AuthPage";
 import AdminAdministration from "./components/AdminAdministration";
@@ -31,6 +32,7 @@ import AdminApprovals from "./components/AdminApprovals";
 import AdminContentLibrary from "./components/AdminContentLibrary";
 import AdminDashboard from "./components/AdminDashboard";
 import AdminQuestions from "./components/AdminQuestions";
+import AdminReviewQueue from "./components/AdminReviewQueue";
 import AdminMessages from "./components/AdminMessages";
 import AdminStudents from "./components/AdminStudents";
 import UserDashboard from "./components/UserDashboard";
@@ -222,21 +224,28 @@ function AdminAppShell({ user, setUser }) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+  const [pendingQuestionCount, setPendingQuestionCount] = useState(0);
   const [loginMessages, setLoginMessages] = useState(user.loginMessages || []);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
-    const fetchPendingCount = async () => {
+    const fetchCounts = async () => {
       try {
-        const res = await API.get("/user/pending-users");
-        if (isMounted) setPendingApprovalCount(res.data.length);
+        const [usersRes, questionsRes] = await Promise.all([
+          API.get("/user/pending-users"),
+          API.get("/admin/questions/pending")
+        ]);
+        if (isMounted) {
+          setPendingApprovalCount(usersRes.data.length);
+          setPendingQuestionCount(questionsRes.data.length);
+        }
       } catch (err) {
-        console.error("Pending approval count failed:", err);
+        console.error("Dashboard counts fetch failed:", err);
       }
     };
-    fetchPendingCount();
-    const intervalId = window.setInterval(fetchPendingCount, 10000);
+    fetchCounts();
+    const intervalId = window.setInterval(fetchCounts, 10000);
     return () => {
       isMounted = false;
       window.clearInterval(intervalId);
@@ -346,6 +355,13 @@ function AdminAppShell({ user, setUser }) {
               <FaList /> Question Bank
             </button>
             <button
+              onClick={() => handleNavigate("/admin/review-queue")}
+              className={`nav-button ${location.pathname === "/admin/review-queue" ? "active" : ""}`}
+            >
+              <FaEye /> AI Review Queue{" "}
+              <span className="nav-count">{pendingQuestionCount}</span>
+            </button>
+            <button
               onClick={() => handleNavigate("/admin/dashboard")}
               className="nav-button"
             >
@@ -423,6 +439,7 @@ function AdminAppShell({ user, setUser }) {
             <Route path="administration" element={<AdminAdministration />} />
             <Route path="content-library" element={<AdminContentLibrary />} />
             <Route path="questions" element={<AdminQuestions />} />
+            <Route path="review-queue" element={<AdminReviewQueue />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
         </div>

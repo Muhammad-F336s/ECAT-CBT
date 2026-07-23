@@ -580,3 +580,27 @@
   transition: width 0.4s ease;
   border-radius: 4px;
 }
+
+.cbt-study-feedback {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  border-radius: 10px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+}
+
+.feedback-correct {
+  color: #27ae60;
+}
+
+.feedback-wrong {
+  color: #e74c3c;
+}
+
+.explanation-box {
+  margin-top: 10px;
+  padding: 10px;
+  background: #fff;
+  border-left: 4px solid #3498db;
+  color: #333;
+}
