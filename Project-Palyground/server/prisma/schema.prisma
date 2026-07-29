@@ -11,6 +11,7 @@ model PlatformConfig {
   defaultTimePerQ   Int      @default(60)
   negativeMarking   Boolean  @default(false)
   maintenanceMode   Boolean  @default(false)
+  vectorBotEnabled  Boolean  @default(true)
   supportEmail      String   @default("support@ecat-cbt.com")
   updatedAt         DateTime @updatedAt
 }

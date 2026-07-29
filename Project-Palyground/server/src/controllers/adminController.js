@@ -379,6 +379,7 @@ export const getSettings = async (req, res) => {
           defaultTimePerQ: 60,
           negativeMarking: false,
           maintenanceMode: false,
+          vectorBotEnabled: true,
           supportEmail: "support@ecat-cbt.com",
         },
       });
@@ -392,11 +393,11 @@ export const getSettings = async (req, res) => {
 
 export const updateSettings = async (req, res) => {
   try {
-    const { defaultTimePerQ, negativeMarking, maintenanceMode, supportEmail } =
+    const { defaultTimePerQ, negativeMarking, maintenanceMode, supportEmail, vectorBotEnabled } =
       req.body;
     const config = await prisma.platformConfig.update({
       where: { id: 1 },
-      data: { defaultTimePerQ, negativeMarking, maintenanceMode, supportEmail },
+      data: { defaultTimePerQ, negativeMarking, maintenanceMode, supportEmail, vectorBotEnabled },
     });
     res.status(200).json(config);
   } catch (error) {

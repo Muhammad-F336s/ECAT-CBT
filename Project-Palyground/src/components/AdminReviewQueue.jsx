@@ -45,7 +45,11 @@ export default function AdminReviewQueue() {
   };
 
   useEffect(() => {
-    loadData();
+    const fetchOnMount = async () => {
+      await loadData();
+    };
+    fetchOnMount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync MathJax on questions list update
@@ -62,7 +66,7 @@ export default function AdminReviewQueue() {
       await API.post(`/admin/questions/${id}/approve`);
       setMessage("Question approved and moved to active pool.");
       setQuestions((prev) => prev.filter((q) => q.id !== id));
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to approve question.");
     }
   };
@@ -81,7 +85,7 @@ export default function AdminReviewQueue() {
       const res = await API.post("/admin/questions/batch-approve-verified");
       setMessage(res.data.message);
       setQuestions((prev) => prev.filter((q) => q.isFlagged));
-    } catch (err) {
+    } catch (_err) {
       setError("Batch approval failed.");
     } finally {
       setIsBatching(false);
@@ -94,7 +98,7 @@ export default function AdminReviewQueue() {
       await API.delete(`/admin/questions/${id}`);
       setMessage("Question rejected and deleted.");
       setQuestions((prev) => prev.filter((q) => q.id !== id));
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to delete question.");
     }
   };

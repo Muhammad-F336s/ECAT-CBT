@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { FaPaperPlane, FaTimes } from "react-icons/fa";
+import ReactMarkdown from "react-markdown";
 import API from "../utils/api";
 import "./VectorBotWidget.css";
 
@@ -21,7 +22,22 @@ export default function VectorBotWidget({ user }) {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [enabled, setEnabled] = useState(true);
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    const checkFeatureFlag = async () => {
+      try {
+        const res = await API.get("/admin/settings");
+        if (res.data && res.data.vectorBotEnabled === false) {
+          setEnabled(false);
+        }
+      } catch (err) {
+        console.error("Failed to fetch vector bot config", err);
+      }
+    };
+    checkFeatureFlag();
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,6 +89,8 @@ export default function VectorBotWidget({ user }) {
     handleSendMessage();
   };
 
+  if (!enabled) return null;
+
   return (
     <div className="vector-bot-container">
       {!isOpen && (
@@ -117,9 +135,11 @@ export default function VectorBotWidget({ user }) {
                 >
                   {msg.sender === "bot" && <div className="bot-msg-icon">🎯</div>}
                   <div className="message-bubble">
-                    {msg.text.split("\n").map((line, idx) => (
-                      <p key={idx}>{formatMarkdownLine(line)}</p>
-                    ))}
+                    {msg.sender === "bot" ? (
+                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                    ) : (
+                      <p>{msg.text}</p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -173,13 +193,3 @@ export default function VectorBotWidget({ user }) {
   );
 }
 
-function formatMarkdownLine(line) {
-  // Simple markdown renderer for bold (**text**) and emojis
-  const parts = line.split(/(\*\*.*?\*\*)/g);
-  return parts.map((part, index) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={index}>{part.slice(2, -2)}</strong>;
-    }
-    return part;
-  });
-}

@@ -248,7 +248,9 @@ const getSavedScheme = () => {
   if (saved) {
     try {
       return JSON.parse(saved);
-    } catch (e) {}
+    } catch (_parseError) {
+      // Invalid JSON in localStorage - return null
+    }
   }
   return null;
 };
@@ -328,7 +330,7 @@ export default function TestModeForm({ user }) {
     }));
   };
 
-  // Trigger default distributions only on field/total change when user isn't overriding from saved scheme
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     const saved = getSavedScheme();
     if (saved && saved.selectedField === selectedField && saved.numberOfQuestions === numberOfQuestions) {

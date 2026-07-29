@@ -19,7 +19,7 @@ const formatTime = (totalSeconds) => {
 const formatClock = (date) =>
   date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
+const TestWindow = ({ subjectId: _subjectId, userId, user, onTestComplete }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const formData = location.state?.formData || {};
@@ -52,7 +52,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
   const timerRef = useRef(null);
   const autoSubmittedRef = useRef(false);
 
-  // Smooth loader state simulator to provide premium UX feedback
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (!loading) {
       setLoadProgress(0);
@@ -153,6 +153,7 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
   }, []);
 
   // Auto-invoke test generation on mount, with localStorage session recovery
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     const savedSessionRaw = localStorage.getItem("ecat_active_test_session");
     if (savedSessionRaw) {

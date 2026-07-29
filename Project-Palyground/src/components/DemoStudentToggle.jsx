@@ -3,7 +3,7 @@ import { FaUserGraduate, FaKey, FaTimes, FaExchangeAlt } from "react-icons/fa";
 import API from "../utils/api";
 import "./DemoStudentToggle.css";
 
-export default function DemoStudentToggle({ user }) {
+export default function DemoStudentToggle() {
   const [showModal, setShowModal] = useState(false);
   const [secretCode, setSecretCode] = useState("");
   const [loading, setLoading] = useState(false);

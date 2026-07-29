@@ -234,7 +234,7 @@ export const forgotPassword = async (req, res) => {
           </div>`
         });
       }
-    } catch(err) {
+    } catch(_err) {
       // Graceful fallback if nodemailer not installed locally yet
     }
 

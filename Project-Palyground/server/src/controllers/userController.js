@@ -194,6 +194,7 @@ export const listPendingUsers = async (req, res) => {
     });
     res.status(200).json(users);
   } catch (error) {
+    console.error("List pending users error:", error);
     res.status(500).json({ error: "Failed to fetch users." });
   }
 };
@@ -207,6 +208,7 @@ export const listApprovedUsers = async (req, res) => {
     });
     res.status(200).json(users);
   } catch (error) {
+    console.error("List approved users error:", error);
     res.status(500).json({ error: "Failed to fetch users." });
   }
 };
@@ -220,6 +222,7 @@ export const listStudents = async (req, res) => {
     });
     res.status(200).json(users);
   } catch (error) {
+    console.error("List students error:", error);
     res.status(500).json({ error: "Failed to fetch users." });
   }
 };
@@ -246,6 +249,7 @@ export const approveUser = async (req, res) => {
     });
     res.status(200).json({ message: "User updated", user });
   } catch (error) {
+    console.error("Approve user error:", error);
     res.status(500).json({ error: "Failed to update user." });
   }
 };
@@ -263,6 +267,7 @@ export const rejectUser = async (req, res) => {
     const user = await prisma.user.delete({ where: { id: userId }, select: { id: true, name: true, email: true } });
     res.status(200).json({ message: "User rejected", user });
   } catch (error) {
+    console.error("Reject user error:", error);
     res.status(500).json({ error: "Failed to reject user." });
   }
 };
@@ -279,6 +284,7 @@ export const updateUserPackage = async (req, res) => {
     });
     res.status(200).json({ message: "Package updated", user });
   } catch (error) {
+    console.error("Update package error:", error);
     res.status(500).json({ error: "Failed to update package." });
   }
 };

@@ -40,7 +40,7 @@ import AdminMessages from "./components/AdminMessages";
 import AdminStudents from "./components/AdminStudents";
 import AdminSettings from "./components/AdminSettings";
 import AdminSupport from "./components/AdminSupport";
-import SupportPage from "./components/SupportPage";
+import AdminFeatureFlags from "./components/AdminFeatureFlags";
 import UserDashboard from "./components/UserDashboard";
 import ProgressPage from "./components/ProgressPage";
 import ProfilePage from "./components/ProfilePage";
@@ -172,7 +172,7 @@ function App() {
     navigate(isAdminUser(normalizedUser) ? "/admin/dashboard" : "/dashboard", {
       replace: true,
     });
-  }, [navigate]);
+  }, [navigate, isAdminUser]);
 
   if (isLoading) {
     return (
@@ -415,6 +415,14 @@ function AdminAppShell({ user, setUser }) {
             >
               <FaChartBar /> Analytics
             </button>
+            {user?.rank === "Root Owner" && (
+              <button
+                onClick={() => handleNavigate("/admin/features")}
+                className={`nav-button ${location.pathname === "/admin/features" ? "active" : ""}`}
+              >
+                <FaCog /> Feature Flags
+              </button>
+            )}
             <button
               onClick={() => handleNavigate("/admin/settings")}
               className={`nav-button ${location.pathname === "/admin/settings" ? "active" : ""}`}
@@ -496,6 +504,7 @@ function AdminAppShell({ user, setUser }) {
             <Route path="review-queue" element={<AdminReviewQueue />} />
             <Route path="approved-questions" element={<AdminApprovedQuestions />} />
             <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="features" element={<AdminFeatureFlags user={user} />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="support" element={<AdminSupport />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />

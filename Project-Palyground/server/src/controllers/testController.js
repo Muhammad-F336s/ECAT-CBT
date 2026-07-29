@@ -77,7 +77,7 @@ export const generateTest = async (req, res) => {
       difficultyLevel,
       chapters,
       selectedChapters,
-      negativeMarking
+      _negativeMarking
     } = req.body;
 
     const activeField = field || selectedField;
@@ -440,7 +440,7 @@ export const generateChapterPractice = async (req, res) => {
       console.log(`[ChapterPractice] Pool small (${existingQuestions.length}/${requestedCount}). Augmenting...`);
 
       const needed = requestedCount - existingQuestions.length + 15;
-      const aiGenerated = await generateAllQuestions(
+      await generateAllQuestions(
         chapter.subject.name,
         [chapter.subject.name],
         needed,

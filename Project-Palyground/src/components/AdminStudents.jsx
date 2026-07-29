@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  FaBan,
-  FaEdit,
-  FaInfinity,
   FaRedo,
   FaSearch,
-  FaTrash,
   FaUserCheck,
   FaUserSecret,
 } from "react-icons/fa";
@@ -118,7 +114,7 @@ export default function AdminStudents({ onPendingCountChange }) {
       // Save student token and reload
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.student));
-      window.location.href = "/dashboard"; // Force reload to apply new context
+      window.location.assign("/dashboard"); // Force reload to apply new context
     } catch (err) {
       console.error("Impersonation failed:", err);
       setError(err.response?.data?.error || "Impersonation failed.");

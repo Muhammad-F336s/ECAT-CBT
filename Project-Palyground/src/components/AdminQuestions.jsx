@@ -53,7 +53,11 @@ export default function AdminQuestions() {
   };
 
   useEffect(() => {
-    loadData();
+    const fetchOnMount = async () => {
+      await loadData();
+    };
+    fetchOnMount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync MathJax on questions list update
@@ -119,7 +123,7 @@ export default function AdminQuestions() {
       await API.delete(`/admin/questions/${id}`);
       setMessage("Question deleted successfully.");
       setQuestions((prev) => prev.filter((q) => q.id !== id));
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to delete question.");
     }
   };

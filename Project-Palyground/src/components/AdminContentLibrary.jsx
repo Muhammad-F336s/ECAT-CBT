@@ -37,7 +37,11 @@ export default function AdminContentLibrary() {
   };
 
   useEffect(() => {
-    loadResources();
+    const fetchOnMount = async () => {
+      await loadResources();
+    };
+    fetchOnMount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getFileIcon = (type) => {

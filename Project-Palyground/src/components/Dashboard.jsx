@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,7 +25,6 @@ ChartJS.register(
 );
 
 const Dashboard = ({ userId }) => {
-  const navigate = useNavigate();
   const [analytics, setAnalytics] = useState(null);
   const [recentAttempts, setRecentAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,19 +48,6 @@ const Dashboard = ({ userId }) => {
     if (userId) fetchAllData();
   }, [userId]);
 
-  const handleRetryTest = (attempt) => {
-    navigate("/test/cbt", {
-      state: {
-        formData: {
-          subjectName: attempt.subjectName || "Retry Test",
-          questionCount: attempt.questions.length,
-          questions: attempt.questions,
-          mode: "practice",
-          isRetry: true,
-        },
-      },
-    });
-  };
 
   if (loading) {
     return <div className="dashboard-loading">Loading your performance analytics...</div>;

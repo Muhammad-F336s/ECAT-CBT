@@ -22,7 +22,11 @@ export default function AdminSupport() {
   };
 
   useEffect(() => {
-    fetchAllTickets();
+    const fetchOnMount = async () => {
+      await fetchAllTickets();
+    };
+    fetchOnMount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleUpdateTicket = async (e) => {

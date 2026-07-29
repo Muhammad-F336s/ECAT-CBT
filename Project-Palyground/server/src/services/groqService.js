@@ -150,7 +150,7 @@ export async function generateQuestions(
     }
   }
 
-  let syllabusInstruction = "";
+  let syllabusInstruction;
   const normalizedSyllabus = (syllabusType || "").toLowerCase().trim();
   if (normalizedSyllabus === "old" || syllabusType === "Old Syllabus (Batch 2023-2025)") {
     syllabusInstruction =

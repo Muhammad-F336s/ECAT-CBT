@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import API from "../utils/api";
 import "./AdminApprovals.css"; // Reuse card styles
 
-export default function SupportPage({ user }) {
+export default function SupportPage() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSaving] = useState(false);
@@ -25,7 +25,11 @@ export default function SupportPage({ user }) {
   };
 
   useEffect(() => {
-    fetchTickets();
+    const fetchOnMount = async () => {
+      await fetchTickets();
+    };
+    fetchOnMount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async (e) => {
