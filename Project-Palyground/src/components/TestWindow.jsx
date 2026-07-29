@@ -731,11 +731,10 @@ const TestWindow = ({ subjectId, userId, user, onTestComplete }) => {
           </div>
         </div>
       )}
-          <p className="cbt-warning-note">
-            Note: Please select the option carefully. Once you select an option you must Save and Next — you cannot skip that question, and after saving you cannot return to change the answer.
-          </p>
-        </div>
-      </footer>
+      
+      <p className="cbt-warning-note">
+        Note: Please select the option carefully. Once you select an option you must Save and Next — you cannot skip that question, and after saving you cannot return to change the answer.
+      </p>
 
       {showStudentDetails && (
         <div className="cbt-modal-backdrop" onClick={() => setShowStudentDetails(false)}>

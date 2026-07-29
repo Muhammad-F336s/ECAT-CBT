@@ -291,3 +291,38 @@ export const approveAllVerifiedQuestions = async (req, res) => {
     res.status(500).json({ error: "Failed to batch approve questions." });
   }
 };
+
+// 11. Fetch all approved questions grouped by subject and creation date
+export const getApprovedQuestionsGrouped = async (req, res) => {
+  try {
+    const questions = await prisma.question.findMany({
+      where: { isApproved: true },
+      include: {
+        options: true,
+        chapter: {
+          include: {
+            subject: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const grouped = questions.reduce((acc, q) => {
+      const subjectName = q.chapter?.subject?.name || "Uncategorized";
+      const date = q.createdAt.toISOString().split("T")[0]; // YYYY-MM-DD
+
+      if (!acc[subjectName]) acc[subjectName] = {};
+      if (!acc[subjectName][date]) acc[subjectName][date] = [];
+      
+      acc[subjectName][date].push(q);
+      return acc;
+    }, {});
+
+    res.status(200).json(grouped);
+  } catch (error) {
+    console.error("Get approved grouped error:", error);
+    res.status(500).json({ error: "Failed to retrieve approved questions." });
+  }
+};
+

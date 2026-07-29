@@ -1,38 +1,21 @@
 # Project Target List
 
-This document tracks the current development state of the ECAT-CBT platform after a deep codebase audit.
+This document tracks the current development state of the ECAT-CBT platform.
 
-## 🟢 Verified Existing Features
-- [x] **CBT Persistence:** `TestWindow.jsx` automatically saves and restores sessions via `localStorage` on page refresh.
-- [x] **Admin Review Queue:** `AdminReviewQueue.jsx` handles auditing of unapproved AI-generated content.
-- [x] **Performance Charts:** `Dashboard.jsx` (User Analytics) and `TestResultPage.jsx` (Test Feedback) already utilize Chart.js for data visualization.
-- [x] **Targeted Practice Engine:** Students can select specific chapters and question counts for practice.
+## 🟢 Completed
+- [x] **Enhanced Content Library:** Chapter-wise browsing with question counts & mastery tracking.
+- [x] **Targeted Practice Engine:** Practice specific chapters with customizable question counts.
+- [x] **On-the-Fly AI Augmentation:** Automatically generate/save new questions when pool is low.
+- [x] **DB Limit Expansion:** Increased capacity to 1500 questions.
+- [x] **CBT Persistence:** Session restoration on page refresh.
+- [x] **Study Mode:** Instant feedback with explanations & tricks.
+- [x] **Admin Analytics:** Platform-wide metrics, activity trends, and subject performance.
+- [x] **Admin Settings:** Configurable platform parameters (time, email, maintenance mode).
+- [x] **Support Ticketing System:** Student-to-Admin communication channel.
+- [x] **Admin Review Queue:** Subject-wise AI-generated content auditing.
 
-## 🟡 Real Remaining Gaps (High Priority)
-
-### 1. Visual Mastery Tracking
-- [ ] **Frontend Integration:** Update `ContentLibrary.jsx` to fetch student analytics and display a "Mastery Percentage" progress bar for every chapter (currently only shows total question counts).
-- [ ] **Subject Overview:** Show an aggregate mastery score for the entire subject in the sidebar.
-
-### 2. Study Mode (Instant Feedback)
-- [ ] **Mode Selection:** Add a "Study Mode" toggle in the Content Library start panel.
-- [ ] **Interactive Feedback:** Update `TestWindow.jsx` logic:
-    - In Study Mode, hide the "Save and Next" button initially.
-    - Show a "Check Answer" button.
-    - Upon clicking, reveal the correct answer, explanation, and pro-tips immediately.
-    - Then show the "Next" button.
-
-### 3. AI Staging Logic Refinement
-- [ ] **Instant Use of Generated Qs:** Currently, `groqService.js` marks new questions as `isApproved: false`, preventing them from being used in the session that triggered their generation.
-- [ ] **Logic Fix:** Modify `generateChapterPractice` to allow the current session to include newly generated (unapproved) questions, or auto-approve them for practice sessions while keeping them unapproved for "Standard Exam" modes.
-
-## 🔵 Future Enhancements
-
-### 🚀 UX & Features
-- [ ] **Iconography:** Add descriptive icons (FontAwesome/React Icons) to the sidebar and dashboard buttons for better accessibility.
+## 🔵 Future Considerations
 - [ ] **Global Leaderboard:** Implement a "Top Scorers" board to encourage competition.
-- [ ] **Daily Challenge:** A system-generated 10-question daily test for consistency.
-
-### 🛠️ Technical Debt
-- [ ] **TypeScript Migration:** Transition the `TestWindow` and `groqService` to TypeScript.
-- [ ] **Error Boundaries:** Add React Error Boundaries to prevent total page crashes on API failures.
+- [ ] **Advanced Error Boundaries:** Refine React Error Boundaries to improve user feedback on API failures.
+- [ ] **TypeScript Migration:** Gradual move to TS for core logic.
+- [ ] **Automated Migrations:** Move from raw SQL `db:setup` to Prisma Migrate for production stability.

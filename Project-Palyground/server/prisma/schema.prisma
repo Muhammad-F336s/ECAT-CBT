@@ -6,24 +6,34 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// 1. User Table (Authentication & Identity)
+model PlatformConfig {
+  id                Int      @id @default(1)
+  defaultTimePerQ   Int      @default(60)
+  negativeMarking   Boolean  @default(false)
+  maintenanceMode   Boolean  @default(false)
+  supportEmail      String   @default("support@ecat-cbt.com")
+  updatedAt         DateTime @updatedAt
+}
+
 enum PackageType {
   STANDARD
   PREMIUM
 }
 
 model User {
-  id                String        @id @default(uuid())
+  id                String          @id @default(uuid())
   name              String
-  email             String        @unique
+  email             String          @unique
   password          String
-  role              String        @default("student")
-  isApproved        Boolean       @default(false)
-  packageType       PackageType   @default(STANDARD)
-  testAttemptsLimit Int           @default(0)
-  attempts          TestAttempt[] // Relation: User ne kitne tests diye
-  createdAt         DateTime      @default(now())
+  role              String          @default("student")
+  isApproved        Boolean         @default(false)
+  packageType       PackageType     @default(STANDARD)
+  testAttemptsLimit Int             @default(0)
+  attempts          TestAttempt[]   // Relation: User ne kitne tests diye
+  tickets           SupportTicket[] // Relation: Support tickets submitted by the user
+  createdAt         DateTime        @default(now())
 }
+
 
 // 2. Admin Table (Dedicated admin identity and access controls)
 model Admin {
@@ -134,3 +144,17 @@ model ResourceItem {
   resourceGroup   ResourceGroup @relation(fields: [resourceGroupId], references: [id], onDelete: Cascade)
   createdAt       DateTime      @default(now())
 }
+
+model SupportTicket {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  category    String   // Bug, Account, Payment, Other
+  description String   @db.Text
+  status      String   @default("Pending") // Pending, Replied, Resolved
+  reply       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

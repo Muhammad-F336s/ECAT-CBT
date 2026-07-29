@@ -8,6 +8,11 @@ import {
   listRecipients,
   regenerateAdminSecret,
   updateAdmin,
+  getPlatformAnalytics,
+  getSettings,
+  updateSettings,
+  getPlatformTickets,
+  updateTicketStatus,
 } from "../controllers/adminController.js";
 import {
   getSubjectsAndChapters,
@@ -20,6 +25,7 @@ import {
   listPendingQuestions,
   approveQuestion,
   approveAllVerifiedQuestions,
+  getApprovedQuestionsGrouped,
 } from "../controllers/adminQuestionController.js";
 import { requireAdminAuth } from "../middleware/adminAuth.js";
 
@@ -35,6 +41,13 @@ router.get("/recipients", listRecipients);
 router.get("/messages", listLoginMessages);
 router.post("/messages", createLoginMessage);
 router.get("/messages/inbox", getInboxMessages);
+router.get("/analytics", getPlatformAnalytics);
+router.get("/settings", getSettings);
+router.patch("/settings", updateSettings);
+router.get("/support/tickets", getPlatformTickets);
+router.patch("/support/tickets/:ticketId", updateTicketStatus);
+
+
 
 // Subject, Chapter & Question CRUD Router Links
 router.get("/subjects", getSubjectsAndChapters);
@@ -42,6 +55,7 @@ router.post("/subjects", createSubject);
 router.post("/chapters", createChapter);
 router.get("/questions", listQuestions);
 router.get("/questions/pending", listPendingQuestions);
+router.get("/questions/approved-grouped", getApprovedQuestionsGrouped);
 router.post("/questions/batch-approve-verified", approveAllVerifiedQuestions);
 router.post("/questions/:questionId/approve", approveQuestion);
 router.post("/questions", createQuestion);

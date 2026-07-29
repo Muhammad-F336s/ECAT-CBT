@@ -17,6 +17,7 @@ export default function AdminReviewQueue() {
   const [isBatching, setIsBatching] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [activeSubject, setActiveSubject] = useState("All");
 
   // Editor Modal Settings
   const [showModal, setShowModal] = useState(false);
@@ -137,6 +138,17 @@ export default function AdminReviewQueue() {
     }
   };
 
+  // Filtering Logic
+  const subjectList = ["All", ...new Set(questions.map(q => q.chapter?.subject?.name).filter(Boolean))];
+  const getSubjectCount = (sub) => {
+    if (sub === "All") return questions.length;
+    return questions.filter(q => q.chapter?.subject?.name === sub).length;
+  };
+
+  const filteredQuestions = activeSubject === "All"
+    ? questions
+    : questions.filter(q => q.chapter?.subject?.name === activeSubject);
+
   return (
     <div className="approval-page">
       <header className="approval-header">
@@ -148,10 +160,9 @@ export default function AdminReviewQueue() {
         <div style={{ display: "flex", gap: "12px" }}>
           <button 
             type="button" 
-            className="approval-refresh-button" 
+            className="approval-refresh-button approval-btn-approve" 
             onClick={handleBatchApprove}
             disabled={isBatching || questions.every(q => q.isFlagged)}
-            style={{ background: "var(--ecat-green-active)", color: "white" }}
           >
             <FaCheckDouble /> {isBatching ? "Approving..." : "Approve All Verified"}
           </button>
@@ -185,78 +196,95 @@ export default function AdminReviewQueue() {
           <p>Queue is empty! All AI questions have been reviewed.</p>
         </div>
       ) : (
-        <section className="approval-card">
-          <div className="approval-table-wrap">
-            <table className="approval-table">
-              <thead>
-                <tr>
-                  <th style={{ width: "50%" }}>Question & Auditor Report</th>
-                  <th>Subject / Chapter</th>
-                  <th>Audit Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {questions.map((q) => (
-                  <tr key={q.id} style={q.isFlagged ? { borderLeft: "4px solid #e74c3c", background: "#fffefe" } : {}}>
-                    <td>
-                      <div style={{ fontWeight: 500, fontSize: "0.95rem", color: "var(--ecat-blue-dark)" }} className="mathjax-question-statement">
-                        {q.statement}
-                      </div>
-                      <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <div style={{ fontSize: "0.8rem", color: "#666", padding: "8px", background: "#f1f3f5", borderRadius: "4px" }}>
-                          <strong>Explanation:</strong> {q.explanation?.replace(/===TRICK===/g, " | Trick: ")}
-                        </div>
-                        {q.auditNotes && (
-                          <div style={{ 
-                            fontSize: "0.8rem", 
-                            color: q.isFlagged ? "#c0392b" : "#27ae60", 
-                            padding: "8px", 
-                            background: q.isFlagged ? "#fdf2f2" : "#f0fdf4", 
-                            borderRadius: "4px", 
-                            border: `1px solid ${q.isFlagged ? "#fadbd8" : "#d4efdf"}`,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px"
-                          }}>
-                            {q.isFlagged ? <FaExclamationTriangle /> : <FaShieldAlt />}
-                            <strong>AI Auditor:</strong> {q.auditNotes}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ fontSize: "0.85rem" }}>
-                        <strong>{q.chapter?.subject?.name}</strong>
-                        <div style={{ color: "#777" }}>{q.chapter?.name}</div>
-                      </div>
-                    </td>
-                    <td>
-                      {q.isFlagged ? (
-                        <span className="approval-status-pill" style={{ background: "#e74c3c", color: "white" }}>Flagged</span>
-                      ) : (
-                        <span className="approval-status-pill" style={{ background: "#27ae60", color: "white" }}>Verified</span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="approval-table-actions">
-                        <button type="button" style={{ background: "var(--ecat-green-active)", color: "white" }} onClick={() => handleApprove(q.id)}>
-                          <FaCheck /> Approve
-                        </button>
-                        <button type="button" onClick={() => handleOpenEditModal(q)}>
-                          <FaEdit /> Edit
-                        </button>
-                        <button type="button" className="approval-delete-action" onClick={() => handleReject(q.id)}>
-                          <FaTrash /> Reject
-                        </button>
-                      </div>
-                    </td>
+        <>
+          <nav className="approval-management-toolbar" style={{ marginBottom: "20px" }}>
+            {subjectList.map(sub => (
+              <button
+                key={sub}
+                type="button"
+                className={activeSubject === sub ? "active" : ""}
+                onClick={() => setActiveSubject(sub)}
+              >
+                {sub} <span className="nav-count" style={{ marginLeft: "6px", background: activeSubject === sub ? "rgba(255,255,255,0.2)" : "#ddd", color: activeSubject === sub ? "white" : "#666" }}>
+                  {getSubjectCount(sub)}
+                </span>
+              </button>
+            ))}
+          </nav>
+
+          <section className="approval-card">
+            <div className="approval-table-wrap">
+              <table className="approval-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: "50%" }}>Question & Auditor Report</th>
+                    <th>Subject / Chapter</th>
+                    <th>Audit Status</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {filteredQuestions.map((q) => (
+                    <tr key={q.id} style={q.isFlagged ? { borderLeft: "4px solid #e74c3c", background: "#fffefe" } : {}}>
+                      <td>
+                        <div style={{ fontWeight: 500, fontSize: "0.95rem", color: "var(--ecat-blue-dark)" }} className="mathjax-question-statement">
+                          {q.statement}
+                        </div>
+                        <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <div style={{ fontSize: "0.8rem", color: "#666", padding: "8px", background: "#f1f3f5", borderRadius: "4px" }}>
+                            <strong>Explanation:</strong> {q.explanation?.replace(/===TRICK===/g, " | Trick: ")}
+                          </div>
+                          {q.auditNotes && (
+                            <div style={{ 
+                              fontSize: "0.8rem", 
+                              color: q.isFlagged ? "#c0392b" : "#27ae60", 
+                              padding: "8px", 
+                              background: q.isFlagged ? "#fdf2f2" : "#f0fdf4", 
+                              borderRadius: "4px", 
+                              border: `1px solid ${q.isFlagged ? "#fadbd8" : "#d4efdf"}`,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px"
+                            }}>
+                              {q.isFlagged ? <FaExclamationTriangle /> : <FaShieldAlt />}
+                              <strong>AI Auditor:</strong> {q.auditNotes}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ fontSize: "0.85rem" }}>
+                          <strong>{q.chapter?.subject?.name}</strong>
+                          <div style={{ color: "#777" }}>{q.chapter?.name}</div>
+                        </div>
+                      </td>
+                      <td>
+                        {q.isFlagged ? (
+                          <span className="approval-status-pill" style={{ background: "#e74c3c", color: "white" }}>Flagged</span>
+                        ) : (
+                          <span className="approval-status-pill" style={{ background: "#27ae60", color: "white" }}>Verified</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="approval-table-actions">
+                          <button type="button" className="approval-btn-approve" onClick={() => handleApprove(q.id)}>
+                            <FaCheck /> Approve
+                          </button>
+                          <button type="button" onClick={() => handleOpenEditModal(q)}>
+                            <FaEdit /> Edit
+                          </button>
+                          <button type="button" className="approval-delete-action" onClick={() => handleReject(q.id)}>
+                            <FaTrash /> Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
       )}
 
       {/* Edit & Approve Modal */}
@@ -316,7 +344,7 @@ export default function AdminReviewQueue() {
                 <button type="button" className="action-secondary" onClick={() => setShowModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="action-primary" style={{ background: "var(--ecat-green-active)" }}>
+                <button type="submit" className="action-primary">
                   Save &amp; Approve ✅
                 </button>
               </div>

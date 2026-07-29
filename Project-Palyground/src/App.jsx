@@ -25,6 +25,7 @@ import {
   FaUsers,
   FaList,
   FaEye,
+  FaArchive,
 } from "react-icons/fa";
 import AuthPage from "./components/AuthPage";
 import AdminAdministration from "./components/AdminAdministration";
@@ -35,6 +36,9 @@ import AdminQuestions from "./components/AdminQuestions";
 import AdminReviewQueue from "./components/AdminReviewQueue";
 import AdminMessages from "./components/AdminMessages";
 import AdminStudents from "./components/AdminStudents";
+import AdminSettings from "./components/AdminSettings";
+import AdminSupport from "./components/AdminSupport";
+import SupportPage from "./components/SupportPage";
 import UserDashboard from "./components/UserDashboard";
 import ProgressPage from "./components/ProgressPage";
 import ProfilePage from "./components/ProfilePage";
@@ -362,14 +366,14 @@ function AdminAppShell({ user, setUser }) {
               <span className="nav-count">{pendingQuestionCount}</span>
             </button>
             <button
-              onClick={() => handleNavigate("/admin/dashboard")}
-              className="nav-button"
+              onClick={() => handleNavigate("/admin/analytics")}
+              className={`nav-button ${location.pathname === "/admin/analytics" ? "active" : ""}`}
             >
               <FaChartBar /> Analytics
             </button>
             <button
-              onClick={() => handleNavigate("/admin/dashboard")}
-              className="nav-button"
+              onClick={() => handleNavigate("/admin/settings")}
+              className={`nav-button ${location.pathname === "/admin/settings" ? "active" : ""}`}
             >
               <FaCog /> Settings
             </button>
@@ -383,65 +387,19 @@ function AdminAppShell({ user, setUser }) {
               <span>{user.rank || "Admin"}</span>
             </div>
           </div>
-          <button type="button" className="support-button">
+          <button 
+            type="button" 
+            className="support-button"
+            onClick={() => handleNavigate("/admin/support")}
+          >
             <FaHeadset /> Support
           </button>
-          <button onClick={handleLogout} className="logout-button">
-            Logout <img src={logoutIcon} alt="Logout" className="logout-icon" />
-          </button>
-        </div>
-      </aside>
-      <main className="main-panel admin-main-panel">
-        <div className="main-content">
-          <LoginMessageBanner
-            user={user}
-            setUser={setUser}
-            messages={loginMessages}
-            setMessages={setLoginMessages}
-          />
-          <Routes>
-            <Route index element={<Navigate to="/admin/dashboard" replace />} />
-            <Route
-              path="dashboard"
-              element={
-                <AdminDashboard
-                  user={user}
-                  headerActions={
-                    <>
-                      <button type="button" className="admin-icon-button" aria-label="Notifications">
-                        <FaBell />
-                      </button>
-                      <button type="button" className="admin-icon-button" aria-label="Messages">
-                        <FaCommentDots />
-                      </button>
-                    </>
-                  }
-                />
-              }
-            />
-            <Route
-              path="approvals"
-              element={
-                <AdminApprovals
-                  onPendingCountChange={setPendingApprovalCount}
-                />
-              }
-            />
-            <Route
-              path="students"
-              element={
-                <AdminStudents
-                  onPendingCountChange={setPendingApprovalCount}
-                />
-              }
-            />
-            <Route path="messages" element={<AdminMessages />} />
-            <Route path="administration" element={<AdminAdministration />} />
-            <Route path="content-library" element={<AdminContentLibrary />} />
-            <Route path="questions" element={<AdminQuestions />} />
+...
             <Route path="review-queue" element={<AdminReviewQueue />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="support" element={<AdminSupport />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
-          </Routes>
+
         </div>
       </main>
     </div>
@@ -608,6 +566,12 @@ function AppShell({ user, setUser }) {
                 className={`nav-button ${view === "profile" ? "active" : ""}`}
               >
                 Account
+              </button>
+              <button
+                onClick={() => handleNavigate("/support")}
+                className={`nav-button ${view === "support" ? "active" : ""}`}
+              >
+                <FaHeadset /> Support
               </button>
             </div>
           </div>

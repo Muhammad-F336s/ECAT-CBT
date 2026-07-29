@@ -259,3 +259,34 @@ export const updateUserPackage = async (req, res) => {
     res.status(500).json({ error: "Failed to update package." });
   }
 };
+
+export const createSupportTicket = async (req, res) => {
+  try {
+    const userId = req.auth.id;
+    const { title, category, description } = req.body;
+    if (!title || !category || !description) {
+      return res.status(400).json({ error: "All fields are required." });
+    }
+    const ticket = await prisma.supportTicket.create({
+      data: { userId, title, category, description },
+    });
+    res.status(201).json({ message: "Ticket submitted successfully.", ticket });
+  } catch (error) {
+    console.error("Create ticket error:", error);
+    res.status(500).json({ error: "Failed to submit support ticket." });
+  }
+};
+
+export const getUserTickets = async (req, res) => {
+  try {
+    const userId = req.auth.id;
+    const tickets = await prisma.supportTicket.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+    res.status(200).json(tickets);
+  } catch (error) {
+    console.error("Get user tickets error:", error);
+    res.status(500).json({ error: "Failed to retrieve tickets." });
+  }
+};
