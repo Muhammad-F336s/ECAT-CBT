@@ -22,22 +22,7 @@ export default function VectorBotWidget({ user }) {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [enabled, setEnabled] = useState(true);
   const messagesEndRef = useRef(null);
-
-  useEffect(() => {
-    const checkFeatureFlag = async () => {
-      try {
-        const res = await API.get("/admin/settings");
-        if (res.data && res.data.vectorBotEnabled === false) {
-          setEnabled(false);
-        }
-      } catch (err) {
-        console.error("Failed to fetch vector bot config", err);
-      }
-    };
-    checkFeatureFlag();
-  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -76,7 +61,7 @@ export default function VectorBotWidget({ user }) {
       const errorMsg = {
         id: crypto.randomUUID(),
         sender: "bot",
-        text: "🎯 **Vector Bot:** I had a quick connection error. Please try asking again!",
+        text: "🎯 I'm having trouble connecting right now. Please make sure you are logged in and try again in a moment!",
       };
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
@@ -88,8 +73,6 @@ export default function VectorBotWidget({ user }) {
     e.preventDefault();
     handleSendMessage();
   };
-
-  if (!enabled) return null;
 
   return (
     <div className="vector-bot-container">
@@ -113,7 +96,7 @@ export default function VectorBotWidget({ user }) {
               <div className="vector-bot-avatar">🎯</div>
               <div>
                 <h3>Vector Bot <span className="vector-badge">AI Mentor</span></h3>
-                <p>ECAT Direction & Magnitude</p>
+                <p>ECAT Direction &amp; Magnitude</p>
               </div>
             </div>
             <button
@@ -192,4 +175,3 @@ export default function VectorBotWidget({ user }) {
     </div>
   );
 }
-

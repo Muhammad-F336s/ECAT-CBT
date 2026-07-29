@@ -1,7 +1,17 @@
 import OpenAI from "openai";
 
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+// Use Groq Cloud as the LLM provider for the mentor
+const groqKeys = [
+  process.env.GROQ_API_KEY,
+  process.env.GROQ_API_KEY_1,
+  process.env.GROQ_API_KEY_2,
+].filter(Boolean);
+
+const openai = groqKeys.length > 0
+  ? new OpenAI({
+      apiKey: groqKeys[0],
+      baseURL: "https://api.groq.com/openai/v1",
+    })
   : null;
 
 const SYSTEM_PROMPT = `You are Vector Bot (🎯 Vector Bot), an intelligent, highly focused AI Study Mentor and ECAT Entrance Test Assistant integrated into the ECAT-CBT platform.
@@ -46,7 +56,7 @@ export const handleVectorBotChat = async (req, res) => {
       ];
 
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "llama-3.3-70b-versatile",
         messages,
         temperature: 0.5,
         max_tokens: 600,
