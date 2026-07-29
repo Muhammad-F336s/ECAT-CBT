@@ -1,10 +1,14 @@
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import prisma from "../db.js";
 
 const MAIN_ADMIN_EMAIL = "muhammad.f336s@gmail.com";
 const ROOT_OWNER_RANK = "Root Owner";
 const MAIN_ADMIN_RANK = "Main Admin";
 const STANDARD_ADMIN_RANK = "Standard Admin";
+
+// ── Protected Demo Account ─────────────────────────────────────────
+export const DEMO_ACCOUNT_EMAIL = "demo@cbt.com";
 
 const generateSecret = () =>
   `ADM-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random()
@@ -421,15 +425,84 @@ export const getPlatformTickets = async (req, res) => {
 export const updateTicketStatus = async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { reply, status } = req.body;
+    const { status } = req.body;
+
     const ticket = await prisma.supportTicket.update({
       where: { id: ticketId },
-      data: { reply, status },
+      data: { status },
     });
-    res.status(200).json({ message: "Ticket updated successfully.", ticket });
+
+    res.status(200).json({ message: "Ticket status updated", ticket });
   } catch (error) {
     console.error("Update ticket status error:", error);
-    res.status(500).json({ error: "Failed to update ticket." });
+    res.status(500).json({ error: "Failed to update ticket status." });
+  }
+};
+
+export const impersonateUser = async (req, res) => {
+  try {
+    const adminId = req.adminAuth.id;
+    const { secretCode } = req.body;
+
+    // 1. Verify admin secret code
+    const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin || !secretCode || !(await bcrypt.compare(String(secretCode).trim().toUpperCase(), admin.secretHash))) {
+      return res.status(403).json({ error: "Invalid Admin Secret Code." });
+    }
+
+    // 2. Always use the protected Demo@CBT.com account — auto-create if absent
+    let demoStudent = await prisma.user.findUnique({
+      where: { email: DEMO_ACCOUNT_EMAIL },
+    });
+
+    if (!demoStudent) {
+      const demoPasswordHash = await bcrypt.hash("DemoCBT@2026", 10);
+      demoStudent = await prisma.user.create({
+        data: {
+          name: "Demo Student",
+          email: DEMO_ACCOUNT_EMAIL,
+          password: demoPasswordHash,
+          role: "student",
+          isApproved: true,
+          packageType: "PREMIUM",
+          testAttemptsLimit: -1,
+        },
+      });
+      console.log("[Demo] Auto-created protected demo account:", demoStudent.id);
+    }
+
+    // 3. Log the impersonation
+    try {
+      await prisma.impersonationLog.create({
+        data: { adminId, studentId: demoStudent.id },
+      });
+    } catch (logErr) {
+      console.warn("Impersonation log warning:", logErr.message);
+    }
+
+    // 4. Issue temporary student JWT (2-hour session)
+    const token = jwt.sign(
+      { id: demoStudent.id, email: demoStudent.email, role: "student", isDemo: true },
+      process.env.JWT_SECRET || "super_secret_fallback_key_123",
+      { expiresIn: "2h" }
+    );
+
+    res.status(200).json({
+      token,
+      student: {
+        id: demoStudent.id,
+        name: demoStudent.name,
+        email: demoStudent.email,
+        role: "student",
+        isApproved: demoStudent.isApproved,
+        packageType: demoStudent.packageType,
+        testAttemptsLimit: demoStudent.testAttemptsLimit,
+        createdAt: demoStudent.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error("Impersonation error:", error);
+    res.status(500).json({ error: "Failed to initiate impersonation." });
   }
 };
 

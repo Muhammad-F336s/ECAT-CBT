@@ -29,7 +29,9 @@ import {
 } from "react-icons/fa";
 import AuthPage from "./components/AuthPage";
 import AdminAdministration from "./components/AdminAdministration";
+import AdminAnalytics from "./components/AdminAnalytics";
 import AdminApprovals from "./components/AdminApprovals";
+import AdminApprovedQuestions from "./components/AdminApprovedQuestions";
 import AdminContentLibrary from "./components/AdminContentLibrary";
 import AdminDashboard from "./components/AdminDashboard";
 import AdminQuestions from "./components/AdminQuestions";
@@ -48,6 +50,7 @@ import TestModeForm from "./components/TestModeForm";
 import ContentLibrary from "./components/ContentLibrary";
 import HistoricalResultViewer from "./components/HistoricalResultViewer";
 import ResetPassword from "./components/ResetPassword";
+import DemoStudentToggle from "./components/DemoStudentToggle";
 import API from "./utils/api";
 
 import logoutIcon from "./assets/logout-pypojw37dhfwhy26x2wxze.webp";
@@ -180,46 +183,80 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route
-        path="/auth"
-        element={
-          user ? (
-            <Navigate
-              to={isAdminUser(user) ? "/admin/dashboard" : "/dashboard"}
-              replace
-            />
-          ) : (
-            <AuthPage onAuthSuccess={handleAuthSuccess} />
-          )
-        }
-      />
-      <Route path="/reset-password" element={<ResetPassword />} />
+    <>
+      <DemoModeBanner />
+      <Routes>
+        <Route
+          path="/auth"
+          element={
+            user ? (
+              <Navigate
+                to={isAdminUser(user) ? "/admin/dashboard" : "/dashboard"}
+                replace
+              />
+            ) : (
+              <AuthPage onAuthSuccess={handleAuthSuccess} />
+            )
+          }
+        />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
-      <Route
-        path="/admin/*"
-        element={
-          isAdminUser(user) ? (
-            <AdminAppShell user={user} setUser={setUser} />
-          ) : (
-            <Navigate to="/auth" replace />
-          )
-        }
-      />
+        <Route
+          path="/admin/*"
+          element={
+            isAdminUser(user) ? (
+              <AdminAppShell user={user} setUser={setUser} />
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          }
+        />
 
-      <Route
-        path="/*"
-        element={
-          user?.role === "student" ? (
-            <AppShell user={user} setUser={setUser} />
-          ) : user ? (
-            <Navigate to="/admin/dashboard" replace />
-          ) : (
-            <Navigate to="/auth" replace />
-          )
-        }
-      />
-    </Routes>
+        <Route
+          path="/*"
+          element={
+            user?.role === "student" ? (
+              <AppShell user={user} setUser={setUser} />
+            ) : user ? (
+              <Navigate to="/admin/dashboard" replace />
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          }
+        />
+      </Routes>
+    </>
+  );
+}
+
+function DemoModeBanner() {
+  const isDemoActive = !!localStorage.getItem("originalAdminToken");
+  if (!isDemoActive) return null;
+
+  const handleExitDemo = () => {
+    const adminToken = localStorage.getItem("originalAdminToken");
+    const adminUser = localStorage.getItem("originalAdminUser");
+
+    if (adminToken) localStorage.setItem("token", adminToken);
+    if (adminUser) localStorage.setItem("user", adminUser);
+
+    localStorage.removeItem("originalAdminToken");
+    localStorage.removeItem("originalAdminUser");
+
+    window.location.href = "/admin/dashboard";
+  };
+
+  return (
+    <div className="demo-mode-active-banner">
+      <span>👁️ Demo Student Mode Active (Realtime Testing)</span>
+      <button
+        type="button"
+        className="demo-mode-exit-btn"
+        onClick={handleExitDemo}
+      >
+        Exit Back to Admin
+      </button>
+    </div>
   );
 }
 
@@ -366,6 +403,12 @@ function AdminAppShell({ user, setUser }) {
               <span className="nav-count">{pendingQuestionCount}</span>
             </button>
             <button
+              onClick={() => handleNavigate("/admin/approved-questions")}
+              className={`nav-button ${location.pathname === "/admin/approved-questions" ? "active" : ""}`}
+            >
+              <FaArchive /> Approved Archive
+            </button>
+            <button
               onClick={() => handleNavigate("/admin/analytics")}
               className={`nav-button ${location.pathname === "/admin/analytics" ? "active" : ""}`}
             >
@@ -394,12 +437,68 @@ function AdminAppShell({ user, setUser }) {
           >
             <FaHeadset /> Support
           </button>
-...
+          <button onClick={handleLogout} className="logout-button">
+            Logout <img src={logoutIcon} alt="Logout" className="logout-icon" />
+          </button>
+        </div>
+      </aside>
+
+      <main className="main-panel admin-main-panel">
+        <div className="main-content">
+          <LoginMessageBanner
+            user={user}
+            setUser={setUser}
+            messages={loginMessages}
+            setMessages={setLoginMessages}
+          />
+          <Routes>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route
+              path="dashboard"
+              element={
+                <AdminDashboard
+                  user={user}
+                  headerActions={
+                    <>
+                      <DemoStudentToggle user={user} />
+                      <button type="button" className="admin-icon-button" aria-label="Notifications">
+                        <FaBell />
+                      </button>
+                      <button type="button" className="admin-icon-button" aria-label="Messages">
+                        <FaCommentDots />
+                      </button>
+                    </>
+                  }
+                />
+              }
+            />
+            <Route
+              path="approvals"
+              element={
+                <AdminApprovals
+                  onPendingCountChange={setPendingApprovalCount}
+                />
+              }
+            />
+            <Route
+              path="students"
+              element={
+                <AdminStudents
+                  onPendingCountChange={setPendingApprovalCount}
+                />
+              }
+            />
+            <Route path="messages" element={<AdminMessages />} />
+            <Route path="administration" element={<AdminAdministration />} />
+            <Route path="content-library" element={<AdminContentLibrary />} />
+            <Route path="questions" element={<AdminQuestions />} />
             <Route path="review-queue" element={<AdminReviewQueue />} />
+            <Route path="approved-questions" element={<AdminApprovedQuestions />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="support" element={<AdminSupport />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
-
+          </Routes>
         </div>
       </main>
     </div>

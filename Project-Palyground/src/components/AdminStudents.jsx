@@ -7,6 +7,7 @@ import {
   FaSearch,
   FaTrash,
   FaUserCheck,
+  FaUserSecret,
 } from "react-icons/fa";
 import API from "../utils/api";
 import "./AdminApprovals.css";
@@ -99,6 +100,32 @@ export default function AdminStudents({ onPendingCountChange }) {
       return matchesSearch && matchesStatus;
     });
   }, [students, searchTerm, statusFilter]);
+
+  const handleImpersonate = async (student) => {
+    const secretCode = window.prompt("Enter Admin Secret Code to impersonate this student:");
+    if (!secretCode) return;
+
+    setSavingId(student.id);
+    try {
+      const res = await API.post("/admin/impersonate", { 
+        studentId: student.id,
+        secretCode 
+      });
+
+      // Save admin token to restore later
+      localStorage.setItem("adminToken", localStorage.getItem("token"));
+      
+      // Save student token and reload
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.student));
+      window.location.href = "/dashboard"; // Force reload to apply new context
+    } catch (err) {
+      console.error("Impersonation failed:", err);
+      setError(err.response?.data?.error || "Impersonation failed.");
+    } finally {
+      setSavingId("");
+    }
+  };
 
   const updateStudent = async (student, updates) => {
     setSavingId(student.id);
@@ -278,81 +305,58 @@ export default function AdminStudents({ onPendingCountChange }) {
                 const status = getStatus(student);
 
                 return (
-                  <tr key={student.id}>
-                    <td>
-                      <strong>{student.name}</strong>
-                      <span>{student.email}</span>
-                    </td>
-                    <td>
-                      <span className={`approval-status ${status === "Frozen" ? "approval-status--paused" : ""}`}>
-                        {status}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`approval-package-badge approval-package-badge--${student.packageType === "PREMIUM" ? "premium" : "standard"}`}>
-                        {formatPackage(student.packageType)}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`approval-limit-badge approval-limit-badge--${student.testAttemptsLimit === -1 ? "unlimited" : "standard"}`}>
-                        {formatLimitText(student.testAttemptsLimit)}
-                      </span>
-                    </td>
-                    <td>{attemptsUsed(student)}</td>
-                    <td>{new Date(student.createdAt).toLocaleDateString()}</td>
-                    <td>
-                      <div className="approval-table-actions">
-                        {status === "Pending" ? (
-                          <button
-                            type="button"
-                            disabled={savingId === student.id}
-                            onClick={() => approveStudent(student)}
-                          >
-                            <FaUserCheck /> Approve
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              disabled={savingId === student.id || student.packageType === "PREMIUM"}
-                              onClick={() => updateStudent(student, { packageType: "PREMIUM" })}
-                            >
-                              Premium
-                            </button>
-                            <button
-                              type="button"
-                              disabled={savingId === student.id || student.packageType === "STANDARD"}
-                              onClick={() => updateStudent(student, { packageType: "STANDARD" })}
-                            >
-                              Standard
-                            </button>
-                            <button
-                              type="button"
-                              disabled={savingId === student.id}
-                              onClick={() => editLimit(student)}
-                            >
-                              Set Limit
-                            </button>
-                            <button
-                              type="button"
-                              disabled={savingId === student.id}
-                              onClick={() => updateStudent(student, { isApproved: !student.isApproved })}
-                            >
-                              {student.isApproved ? "Freeze" : "Unfreeze"}
-                            </button>
-                          </>
+                    <tr key={student.id}>
+                      <td data-label="Student">
+                        <strong>{student.name}</strong>
+                        {student.email?.toLowerCase() === "demo@cbt.com" && (
+                          <span style={{ fontSize: "0.7rem", background: "#1b5e20", color: "#fff", padding: "2px 6px", borderRadius: "4px", marginLeft: "6px", verticalAlign: "middle" }}>🛡️ Root</span>
                         )}
-                        <button
-                          type="button"
-                          className="approval-delete-action"
-                          disabled={savingId === student.id}
-                          onClick={() => deleteStudent(student)}
-                        >
-                          <FaTrash /> Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                        <span>{student.email}</span>
+                      </td>
+                      <td data-label="Status">
+                        <span className={`approval-status ${status === "Frozen" ? "approval-status--paused" : ""}`}> {status} </span>
+                      </td>
+                      <td data-label="Package">
+                        <span className={`approval-package-badge approval-package-badge--${student.packageType === "PREMIUM" ? "premium" : "standard"}`}> {formatPackage(student.packageType)} </span>
+                      </td>
+                      <td data-label="Limit">
+                        <span className={`approval-limit-badge approval-limit-badge--${student.testAttemptsLimit === -1 ? "unlimited" : "standard"}`}> {formatLimitText(student.testAttemptsLimit)} </span>
+                      </td>
+                      <td data-label="Used">{attemptsUsed(student)}</td>
+                      <td data-label="Joined">{new Date(student.createdAt).toLocaleDateString()}</td>
+                      <td data-label="Actions">
+                        <div className="approval-table-actions">
+                          {status === "Pending" ? (
+                            <button type="button" disabled={savingId === student.id} onClick={() => approveStudent(student)}>
+                              <FaUserCheck /> Approve
+                            </button>
+                          ) : (
+                            <>
+                              <button type="button" className="action-primary" onClick={() => handleImpersonate(student)}>
+                                <FaUserSecret /> Impersonate
+                              </button>
+                              <button type="button" disabled={savingId === student.id || student.packageType === "PREMIUM"} onClick={() => updateStudent(student, { packageType: "PREMIUM" })}>
+                                Premium
+                              </button>
+                              <button type="button" disabled={savingId === student.id || student.packageType === "STANDARD"} onClick={() => updateStudent(student, { packageType: "STANDARD" })}>
+                                Standard
+                              </button>
+                              <button type="button" disabled={savingId === student.id} onClick={() => editLimit(student)}>
+                                Set Limit
+                              </button>
+                              <button type="button" disabled={savingId === student.id} onClick={() => updateStudent(student, { isApproved: !student.isApproved })}>
+                                {student.isApproved ? "Freeze" : "Unfreeze"}
+                              </button>
+                            </>
+                          )}
+                          {student.email?.toLowerCase() !== "demo@cbt.com" && (
+                            <button type="button" className="approval-delete-action" disabled={savingId === student.id} onClick={() => deleteStudent(student)}>
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                 );
               })}
               {!filteredStudents.length && (

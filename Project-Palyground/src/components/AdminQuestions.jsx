@@ -45,7 +45,8 @@ export default function AdminQuestions() {
       setQuestions(questRes.data || []);
     } catch (err) {
       console.error("Failed to load question pool:", err);
-      setError("Unable to load subjects or questions database.");
+      const detail = err.response?.data?.error || err.message || "Failed to communicate with backend API server.";
+      setError(`Unable to load subjects or questions database: ${detail}`);
     } finally {
       setLoading(false);
     }
@@ -216,10 +217,10 @@ export default function AdminQuestions() {
           <span>Manage subjects, chapters, and MCQ questions for mock tests and exam generations.</span>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
-          <button type="button" className="approval-refresh-button" style={{ background: "var(--ecat-dark-bg)", color: "#fff" }} onClick={handleCreateSubject}>
+          <button type="button" className="approval-btn-add" onClick={handleCreateSubject}>
             <FaBook /> Add Subject
           </button>
-          <button type="button" className="approval-refresh-button" style={{ background: "var(--ecat-dark-bg)", color: "#fff" }} onClick={handleCreateChapter}>
+          <button type="button" className="approval-btn-add" onClick={handleCreateChapter}>
             <FaList /> Add Chapter
           </button>
           <button type="button" className="approval-refresh-button" onClick={handleOpenAddModal}>
@@ -311,7 +312,7 @@ export default function AdminQuestions() {
               <tbody>
                 {filteredQuestions.map((q) => (
                   <tr key={q.id}>
-                    <td>
+                    <td data-label="Question / Explanation">
                       <div style={{ fontWeight: 500, fontSize: "0.95rem", color: "var(--ecat-blue-dark)" }} className="mathjax-question-statement">
                         {q.statement}
                       </div>
@@ -321,14 +322,14 @@ export default function AdminQuestions() {
                         </div>
                       )}
                     </td>
-                    <td>{q.chapter?.subject?.name || "—"}</td>
-                    <td>{q.chapter?.name || "—"}</td>
-                    <td>
+                    <td data-label="Subject">{q.chapter?.subject?.name || "—"}</td>
+                    <td data-label="Chapter">{q.chapter?.name || "—"}</td>
+                    <td data-label="Correct Solution">
                       <span className="approval-package-badge approval-package-badge--premium">
                         {q.correctAnswer}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Actions">
                       <div className="approval-table-actions">
                         <button type="button" onClick={() => handleOpenEditModal(q)}>
                           <FaEdit /> Edit

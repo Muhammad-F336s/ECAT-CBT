@@ -165,7 +165,8 @@ const AuthPage = ({ onAuthSuccess }) => {
     } catch (error) {
       setError(
         error.response?.data?.error ||
-          "Authentication layer processing crashed.",
+          error.message ||
+          "Unable to connect to authentication server. Please check your network or ensure backend engine is running on port 8787.",
       );
     } finally {
       setLoading(false);

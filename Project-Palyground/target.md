@@ -15,7 +15,11 @@ This document tracks the current development state of the ECAT-CBT platform.
 - [x] **Admin Review Queue:** Subject-wise AI-generated content auditing.
 
 ## 🔵 Future Considerations
-- [ ] **Global Leaderboard:** Implement a "Top Scorers" board to encourage competition.
-- [ ] **Advanced Error Boundaries:** Refine React Error Boundaries to improve user feedback on API failures.
+- [x] **Advanced Error Boundaries:** React Error Boundaries implemented to catch runtime failures and provide graceful recovery UI.
+- [x] **Protected Demo Mode:** Root-protected `Demo@CBT.com` account for instant real-time admin testing.
+- [x] **Production Config & CORS:** Dynamic environment API routing (`VITE_API_URL`) & configurable CORS origins for deployment.
+
+## 🔵 Future Considerations (Post-V1 Release)
+- [ ] **Global Leaderboard:** Implement a "Top Scorers" board to encourage competition (Deferred to V2).
 - [ ] **TypeScript Migration:** Gradual move to TS for core logic.
 - [ ] **Automated Migrations:** Move from raw SQL `db:setup` to Prisma Migrate for production stability.

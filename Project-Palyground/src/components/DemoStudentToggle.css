@@ -1,0 +1,231 @@
+/* Demo Student Toggle Button & Modal Styles */
+
+.demo-student-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(27, 67, 50, 0.2);
+  transition: all 0.2s ease;
+}
+
+.demo-student-toggle-btn:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #2d6a4f 0%, #40916c 100%);
+  box-shadow: 0 6px 16px rgba(27, 67, 50, 0.3);
+}
+
+.demo-toggle-icon {
+  font-size: 0.95rem;
+  color: #74c69d;
+}
+
+.demo-toggle-arrow {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+/* Modal Overlay */
+.demo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(10, 25, 18, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: demoFadeIn 0.2s ease;
+}
+
+@keyframes demoFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.demo-modal-card {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(85, 122, 97, 0.18);
+}
+
+.demo-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.demo-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.demo-modal-title .key-icon {
+  font-size: 1.2rem;
+  color: #2d6a4f;
+}
+
+.demo-modal-title h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #1b4332;
+}
+
+.demo-modal-close {
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.demo-modal-close:hover {
+  background: #f0f0f0;
+  color: #111;
+}
+
+.demo-modal-desc {
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+  color: #495057;
+  line-height: 1.5;
+}
+
+.demo-modal-error {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8d7da;
+  color: #721c24;
+  font-size: 0.85rem;
+  margin-bottom: 14px;
+  border: 1px solid #f5c6cb;
+}
+
+.demo-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.demo-input-wrapper input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #ced4da;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.demo-input-wrapper input:focus {
+  border-color: #2d6a4f;
+  box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.15);
+}
+
+.demo-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.demo-btn-cancel,
+.demo-btn-submit {
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.demo-btn-cancel {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.demo-btn-cancel:hover {
+  background: #dee2e6;
+}
+
+.demo-btn-submit {
+  background: #2d6a4f;
+  color: #ffffff;
+}
+
+.demo-btn-submit:hover {
+  background: #1b4332;
+}
+
+.demo-btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Floating Banner for Active Demo Mode */
+.demo-mode-active-banner {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 18px;
+  background: #1b4332;
+  color: #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  border: 1.5px solid #52b788;
+  font-size: 0.86rem;
+  font-weight: 600;
+  animation: demoBannerSlideDown 0.3s ease;
+}
+
+@keyframes demoBannerSlideDown {
+  from {
+    transform: translate(-50%, -20px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.demo-mode-exit-btn {
+  border: none;
+  background: #d8f3dc;
+  color: #1b4332;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.demo-mode-exit-btn:hover {
+  background: #ffffff;
+  transform: scale(1.04);
+}

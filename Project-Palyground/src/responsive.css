@@ -1,0 +1,238 @@
+/* ==========================================================================
+   Global Mobile Responsiveness & Adaptive Utility Styles for ECAT-CBT
+   ========================================================================== */
+
+/* Universal Box Sizing & Input Boundaries */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+img, svg, video, canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+input, select, textarea, button {
+  max-width: 100%;
+}
+
+/* Base Responsive Controls Toolbar & Flex Helpers */
+.approval-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.approval-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.approval-filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+
+.approval-filter-item {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.approval-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.support-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+/* ==========================================================================
+   Mobile Table-to-Card Transformation (<= 768px)
+   Converts wide tables into stacked cards so Edit/Delete/Action buttons 
+   are directly visible without side scrolling!
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Responsive Support Grid */
+  .support-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Table Container Reset */
+  .approval-table-wrap,
+  .admin-table-wrap {
+    overflow-x: visible !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  /* Hide Desktop Table Headers */
+  .approval-table thead,
+  .admin-student-table thead {
+    display: none !important;
+  }
+
+  /* Table Body & Rows into Cards */
+  .approval-table tbody,
+  .admin-student-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .approval-table tr,
+  .admin-student-table tr {
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid rgba(85, 122, 97, 0.18) !important;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 8px 20px rgba(40, 70, 48, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .approval-table tr:hover,
+  .admin-student-table tr:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(40, 70, 48, 0.1);
+  }
+
+  /* Table Cells into Key-Value Rows */
+  .approval-table td,
+  .admin-student-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0 !important;
+    border-bottom: 1px dashed rgba(85, 122, 97, 0.15) !important;
+    width: 100% !important;
+    font-size: 0.92rem;
+    white-space: normal !important;
+    word-break: break-word;
+  }
+
+  .approval-table td:last-child,
+  .admin-student-table td:last-child {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+    margin-top: 6px;
+  }
+
+  /* Add data-label pseudo elements for mobile cards */
+  .approval-table td[data-label]::before,
+  .admin-student-table td[data-label]::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #315f38;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+
+  /* Full Width & Wrapped Action Buttons */
+  .approval-table-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .approval-table-actions button {
+    flex: 1 1 auto;
+    min-width: 100px;
+    padding: 10px 14px !important;
+    font-size: 0.88rem !important;
+    min-height: 42px !important;
+  }
+
+  /* Header & Navigation Stack */
+  .approval-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .approval-header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .approval-header-actions button,
+  .approval-btn-add,
+  .approval-refresh-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Modal responsiveness */
+  .modal-overlay > div,
+  .approval-modal {
+    width: 95% !important;
+    max-width: 100% !important;
+    margin: 10px !important;
+    padding: 18px !important;
+    border-radius: 16px !important;
+  }
+}
+
+/* ==========================================================================
+   Small Mobile Devices (<= 480px)
+   ========================================================================== */
+@media (max-width: 480px) {
+  body {
+    font-size: 14px;
+  }
+
+  .page-header h2,
+  .approval-header h1 {
+    font-size: 1.6rem !important;
+  }
+
+  .approval-table td,
+  .admin-student-table td {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .approval-table td[data-label]::before,
+  .admin-student-table td[data-label]::before {
+    margin-bottom: 2px;
+  }
+
+  .approval-table-actions {
+    flex-direction: column;
+  }
+
+  .approval-table-actions button {
+    width: 100%;
+  }
+
+  /* Topbar search & filters */
+  .admin-search {
+    width: 100% !important;
+  }
+
+  .admin-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-top-actions {
+    justify-content: space-between;
+  }
+}

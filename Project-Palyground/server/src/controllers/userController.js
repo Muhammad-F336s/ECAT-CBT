@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import prisma from "../db.js";
+import { DEMO_ACCOUNT_EMAIL } from "./adminController.js";
 
 const generateSecret = () =>
   `ADM-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random()
@@ -12,6 +13,21 @@ export const getMe = async (req, res) => {
   try {
     const userId = req.auth.id;
     if (!userId) return res.status(401).json({ error: "No user ID found in token." });
+
+    // Handle synthetic demo student tokens (id starts with "demo-")
+    // (Legacy fallback — the real demo account should exist in DB now)
+    if (userId.startsWith("demo-") && req.auth.isDemo) {
+      return res.status(200).json({
+        id: userId,
+        name: "Demo Student",
+        email: req.auth.email || "demo@cbt.com",
+        role: "student",
+        isApproved: true,
+        packageType: "PREMIUM",
+        testAttemptsLimit: -1,
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     // 1. Try to find in User table first
     let user = await prisma.user.findUnique({
@@ -237,6 +253,13 @@ export const approveUser = async (req, res) => {
 export const rejectUser = async (req, res) => {
   try {
     const { userId } = req.params;
+
+    // Guard: prevent deletion of the protected demo account
+    const targetUser = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (targetUser && targetUser.email.toLowerCase() === DEMO_ACCOUNT_EMAIL) {
+      return res.status(403).json({ error: "The Demo Student account is a protected root account and cannot be deleted." });
+    }
+
     const user = await prisma.user.delete({ where: { id: userId }, select: { id: true, name: true, email: true } });
     res.status(200).json({ message: "User rejected", user });
   } catch (error) {

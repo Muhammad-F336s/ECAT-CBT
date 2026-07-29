@@ -13,6 +13,7 @@ import {
   updateSettings,
   getPlatformTickets,
   updateTicketStatus,
+  impersonateUser,
 } from "../controllers/adminController.js";
 import {
   getSubjectsAndChapters,
@@ -46,6 +47,7 @@ router.get("/settings", getSettings);
 router.patch("/settings", updateSettings);
 router.get("/support/tickets", getPlatformTickets);
 router.patch("/support/tickets/:ticketId", updateTicketStatus);
+router.post("/impersonate", impersonateUser);
 
 
 
