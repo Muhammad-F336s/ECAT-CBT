@@ -12,6 +12,7 @@ import {
   createSupportTicket,
   getUserTickets,
 } from "../controllers/userController.js";
+import { handleVectorBotChat } from "../controllers/vectorBotController.js";
 import { requireAdminAuth } from "../middleware/adminAuth.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -19,6 +20,7 @@ const router = express.Router();
 
 // Dynamic route tracking parametric endpoint
 router.get("/me", requireAuth, getMe);
+router.post("/vector-bot/chat", requireAuth, handleVectorBotChat);
 router.get("/analytics/:userId", getUserAnalytics);
 router.patch("/profile", requireAuth, updateProfile);
 router.post("/support/ticket", requireAuth, createSupportTicket);

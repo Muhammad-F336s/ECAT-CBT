@@ -51,6 +51,7 @@ import ContentLibrary from "./components/ContentLibrary";
 import HistoricalResultViewer from "./components/HistoricalResultViewer";
 import ResetPassword from "./components/ResetPassword";
 import DemoStudentToggle from "./components/DemoStudentToggle";
+import VectorBotWidget from "./components/VectorBotWidget";
 import API from "./utils/api";
 
 import logoutIcon from "./assets/logout-pypojw37dhfwhy26x2wxze.webp";
@@ -762,6 +763,7 @@ function AppShell({ user, setUser }) {
           </Routes>
         </div>
       </main>
+      <VectorBotWidget user={user} />
     </div>
   );
 }
