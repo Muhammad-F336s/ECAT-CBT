@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import testRoutes from "./routes/testRoutes.js";
@@ -10,6 +12,22 @@ import resourceRoutes from "./routes/resourceRoutes.js";
 dotenv.config();
 
 const app = express();
+
+// Trust proxy if deployed behind Vercel, Render, or Cloudflare
+app.set("trust proxy", 1);
+
+// Security Headers
+app.use(helmet());
+
+// Global Rate Limiting: 300 requests per 15 minutes per IP
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: { error: "Too many requests from this IP, please try again after 15 minutes" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
 
 const corsOrigin = process.env.CLIENT_ORIGIN || "*";
 app.use(

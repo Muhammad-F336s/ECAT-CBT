@@ -630,6 +630,7 @@ select {
 
   .sidebar-open {
     transform: translateX(0);
+    background: #ffffff !important;
   }
 
   .sidebar-closed {

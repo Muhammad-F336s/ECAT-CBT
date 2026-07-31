@@ -1,5 +1,9 @@
 import jwt from "jsonwebtoken";
 
+if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+  console.error("FATAL ERROR: JWT_SECRET is not defined in production.");
+  process.exit(1);
+}
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_fallback_key_123";
 
 export const requireAuth = (req, res, next) => {

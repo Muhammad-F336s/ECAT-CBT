@@ -1,10 +1,15 @@
 import express from "express";
 import axios from "axios";
 import jwt from "jsonwebtoken";
+import rateLimit from "express-rate-limit";
 import prisma from "../db.js";
 import { signup, login, googleAuth, forgotPassword, resetPassword } from "../controllers/authController.js";
 
 const router = express.Router();
+if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+  console.error("FATAL ERROR: JWT_SECRET is not defined in production.");
+  process.exit(1);
+}
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_fallback_key_123";
 const DEFAULT_FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
@@ -175,10 +180,19 @@ router.get("/github/callback", async (req, res) => {
   }
 });
 
-router.post("/signup", signup);
-router.post("/login", login);
-router.post("/google", googleAuth);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
+// Strict Rate Limiting for Auth routes to prevent Brute-Force attacks
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15, // limit each IP to 15 requests per windowMs for auth routes
+  message: { error: "Too many login/signup attempts from this IP, please try again after 15 minutes" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.post("/signup", authLimiter, signup);
+router.post("/login", authLimiter, login);
+router.post("/google", authLimiter, googleAuth);
+router.post("/forgot-password", authLimiter, forgotPassword);
+router.post("/reset-password", authLimiter, resetPassword);
 
 export default router;
