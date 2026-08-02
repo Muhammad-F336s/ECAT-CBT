@@ -371,8 +371,7 @@
   text-transform: uppercase;
 }
 
-.approval-table td strong,
-.approval-table td span {
+.approval-table td strong {
   display: block;
 }
 

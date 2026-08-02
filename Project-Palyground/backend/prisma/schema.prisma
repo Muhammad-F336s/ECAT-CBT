@@ -28,6 +28,12 @@ model User {
   password          String
   role              String          @default("student")
   isApproved        Boolean         @default(false)
+  isEmailVerified   Boolean         @default(false)
+  isDemoAccount     Boolean         @default(false)
+  domain            String?         // e.g., "Engineering", "Medical", "Computer Science"
+  cnic              String?         @unique // CNIC - prevents re-registration with same national ID
+  emailOtp          String?         // One-time password for email verification
+  emailOtpExpiry    DateTime?       // OTP expiry time
   packageType       PackageType     @default(STANDARD)
   testAttemptsLimit Int             @default(0)
   falseReportCount  Int             @default(0)

@@ -16,6 +16,8 @@ import {
   impersonateUser,
   getNotificationCounts,
   markMessagesAsRead,
+  deleteTicket,
+  deleteLoginMessage,
 } from "../controllers/adminController.js";
 import {
   getSubjectsAndChapters,
@@ -49,9 +51,11 @@ router.get("/settings", getSettings);
 router.patch("/settings", updateSettings);
 router.get("/support/tickets", getPlatformTickets);
 router.patch("/support/tickets/:ticketId", updateTicketStatus);
+router.delete("/support/tickets/:ticketId", deleteTicket);
 router.post("/impersonate", impersonateUser);
 router.get("/notifications/counts", getNotificationCounts);
 router.post("/messages/mark-read", markMessagesAsRead);
+router.delete("/messages/:id", deleteLoginMessage);
 
 
 

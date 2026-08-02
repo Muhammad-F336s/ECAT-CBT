@@ -3,7 +3,6 @@ import {
   FaRedo,
   FaSearch,
   FaUserCheck,
-  FaUserSecret,
 } from "react-icons/fa";
 import API from "../utils/api";
 import "./AdminApprovals.css";
@@ -96,32 +95,6 @@ export default function AdminStudents({ onPendingCountChange }) {
       return matchesSearch && matchesStatus;
     });
   }, [students, searchTerm, statusFilter]);
-
-  const handleImpersonate = async (student) => {
-    const secretCode = window.prompt("Enter Admin Secret Code to impersonate this student:");
-    if (!secretCode) return;
-
-    setSavingId(student.id);
-    try {
-      const res = await API.post("/admin/impersonate", { 
-        studentId: student.id,
-        secretCode 
-      });
-
-      // Save admin token to restore later
-      localStorage.setItem("adminToken", localStorage.getItem("token"));
-      
-      // Save student token and reload
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.student));
-      window.location.assign("/dashboard"); // Force reload to apply new context
-    } catch (err) {
-      console.error("Impersonation failed:", err);
-      setError(err.response?.data?.error || "Impersonation failed.");
-    } finally {
-      setSavingId("");
-    }
-  };
 
   const updateStudent = async (student, updates) => {
     setSavingId(student.id);
@@ -328,9 +301,7 @@ export default function AdminStudents({ onPendingCountChange }) {
                             </button>
                           ) : (
                             <>
-                              <button type="button" className="action-primary" onClick={() => handleImpersonate(student)}>
-                                <FaUserSecret /> Impersonate
-                              </button>
+
                               <button type="button" disabled={savingId === student.id || student.packageType === "PREMIUM"} onClick={() => updateStudent(student, { packageType: "PREMIUM" })}>
                                 Premium
                               </button>

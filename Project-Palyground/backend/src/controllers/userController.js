@@ -267,32 +267,6 @@ export const rejectUser = async (req, res) => {
     const user = await prisma.user.delete({ where: { id: userId }, select: { id: true, name: true, email: true } });
     res.status(200).json({ message: "User rejected", user });
   } catch (error) {
-    console.error("Reject user error:", error);
-    res.status(500).json({ error: "Failed to reject user." });
-  }
-};
-
-export const updateUserPackage = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { attemptsLimit, packageType, isApproved } = req.body;
-    const normalizedLimit = attemptsLimit === "unlimited" || attemptsLimit === -1 ? -1 : Number(attemptsLimit); 
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data: { testAttemptsLimit: normalizedLimit, ...(packageType ? { packageType } : {}), ...(typeof isApproved === "boolean" ? { isApproved } : {}), },
-      select: { id: true, name: true, email: true, packageType: true, testAttemptsLimit: true, isApproved: true, createdAt: true, _count: { select: { attempts: true } } },
-    });
-    res.status(200).json({ message: "Package updated", user });
-  } catch (error) {
-    console.error("Update package error:", error);
-    res.status(500).json({ error: "Failed to update package." });
-  }
-};
-
-export const createSupportTicket = async (req, res) => {
-  try {
-    const userId = req.auth.id;
-    const { title, category, description } = req.body;
     if (!title || !category || !description) {
       return res.status(400).json({ error: "All fields are required." });
     }

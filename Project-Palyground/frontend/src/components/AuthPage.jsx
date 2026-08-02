@@ -50,7 +50,6 @@ const openAuthPopup = (url, onSuccess) => {
         window.clearInterval(interval);
       }
     } catch (error) {
-      // ignore cross-origin loading states until redirected back to our app
       console.error("Error parsing popup auth:", error);
     }
   }, 500);
@@ -64,11 +63,12 @@ const handleGoogleAuth = (onSuccess) => {
   openAuthPopup(`${API_ORIGIN}/api/auth/google?returnTo=${returnTo}`, onSuccess);
 };
 
-
 const handleGithubAuth = (onSuccess) => {
   const returnTo = encodeURIComponent(window.location.origin);
   openAuthPopup(`${API_ORIGIN}/api/auth/github?returnTo=${returnTo}`, onSuccess);
 };
+
+const DOMAINS = ["Engineering", "Medical", "Computer Science"];
 
 const AuthPage = ({ onAuthSuccess }) => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -80,6 +80,8 @@ const AuthPage = ({ onAuthSuccess }) => {
     email: "",
     password: "",
     confirmPassword: "",
+    domain: "",
+    cnic: "",
   });
   const [error, setError] = useState("");
   const [isFrozen, setIsFrozen] = useState(false);
@@ -88,6 +90,13 @@ const AuthPage = ({ onAuthSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSecretCode, setShowSecretCode] = useState(false);
+
+  // OTP verification state
+  const [otpStep, setOtpStep] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
     const popupAuth = parsePopupAuth();
@@ -98,13 +107,28 @@ const AuthPage = ({ onAuthSuccess }) => {
     }
   }, [onAuthSuccess]);
 
+  // Countdown timer for resend button
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // const handleRoleChange = (e) => {
-  //   setRole(e.target.value);
-  // };
+  const formatCnic = (value) => {
+    // Auto-format CNIC as XXXXX-XXXXXXX-X
+    const digits = value.replace(/\D/g, "").slice(0, 13);
+    if (digits.length <= 5) return digits;
+    if (digits.length <= 12) return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+    return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
+  };
+
+  const handleCnicChange = (e) => {
+    setFormData({ ...formData, cnic: formatCnic(e.target.value) });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -125,6 +149,8 @@ const AuthPage = ({ onAuthSuccess }) => {
           email: formData.email,
           password: formData.password,
           role,
+          domain: formData.domain,
+          cnic: formData.cnic,
         }
       : {
           email: formData.email,
@@ -134,7 +160,6 @@ const AuthPage = ({ onAuthSuccess }) => {
         };
 
     try {
-      // handle forgot password separately
       if (isForgotPassword) {
         const resetRes = await API.post("/auth/forgot-password", { email: formData.email });
         setSuccessMessage(resetRes.data.message || "Reset link dispatched.");
@@ -146,16 +171,21 @@ const AuthPage = ({ onAuthSuccess }) => {
 
       if (isSignUp) {
         if (role === "admin") {
-          setSuccessMessage(
-            "Admin registration submitted. Main admin will approve and allocate your secret key.",
-          );
+          setSuccessMessage("Admin registration submitted. Main admin will approve and allocate your secret key.");
           setLoading(false);
           return;
         }
 
-        setSuccessMessage(
-          res.data.message || "Registration submitted successfully. Your account is pending approval by admin.",
-        );
+        // Student signup → show OTP step
+        if (res.data.requiresOtp) {
+          setPendingEmail(formData.email);
+          setOtpStep(true);
+          setResendCooldown(60);
+          setLoading(false);
+          return;
+        }
+
+        setSuccessMessage(res.data.message || "Registration submitted successfully.");
         setLoading(false);
         return;
       }
@@ -180,11 +210,88 @@ const AuthPage = ({ onAuthSuccess }) => {
     }
   };
 
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError("");
+    setOtpLoading(true);
+    try {
+      const res = await API.post("/auth/verify-email", { email: pendingEmail, otp });
+      setOtpStep(false);
+      setSuccessMessage(res.data.message || "Email verified! Your account is pending admin approval.");
+    } catch (err) {
+      setError(err.response?.data?.error || "OTP verification failed.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+    setError("");
+    try {
+      await API.post("/auth/resend-otp", { email: pendingEmail });
+      setResendCooldown(60);
+      setSuccessMessage("A new OTP has been sent to your email.");
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to resend OTP.");
+    }
+  };
+
+  // ---- OTP Verification Screen ----
+  if (otpStep) {
+    return (
+      <div className="auth-page-container">
+        <div className="auth-card-wrapper">
+          <div className="form-panel-container">
+            <form onSubmit={handleVerifyOtp} className="auth-core-form">
+              <div className="otp-icon">✉️</div>
+              <h2 className="form-main-title">Verify Your Email</h2>
+              <p className="form-subtext" style={{ textAlign: "center", marginBottom: "18px" }}>
+                We sent a 6-digit code to <strong>{pendingEmail}</strong>. Enter it below.
+              </p>
+
+              {successMessage && <div className="auth-success-alert">{successMessage}</div>}
+              {error && <div className="auth-error-alert">{error}</div>}
+
+              <div className="input-field-group">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="Enter 6-digit OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required
+                  className="otp-input"
+                  style={{ letterSpacing: "8px", fontSize: "1.4rem", textAlign: "center" }}
+                />
+              </div>
+
+              <button type="submit" disabled={otpLoading || otp.length < 6} className="auth-action-submit-btn">
+                {otpLoading ? "Verifying..." : "Verify Email"}
+              </button>
+
+              <div style={{ textAlign: "center", marginTop: "14px" }}>
+                <button
+                  type="button"
+                  className="auth-mobile-toggle-btn"
+                  onClick={handleResendOtp}
+                  disabled={resendCooldown > 0}
+                  style={{ opacity: resendCooldown > 0 ? 0.5 : 1 }}
+                >
+                  {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Resend OTP"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="auth-page-container">
-      <div
-        className={`auth-card-wrapper ${isSignUp ? "right-panel-active" : ""}`}
-      >
+      <div className={`auth-card-wrapper ${isSignUp ? "right-panel-active" : ""}`}>
         {/* FORM CONTAINER */}
         <div className="form-panel-container">
           <form onSubmit={handleSubmit} className="auth-core-form">
@@ -195,11 +302,7 @@ const AuthPage = ({ onAuthSuccess }) => {
               <div className="role-toggle-group">
                 <span
                   className="role-toggle-label"
-                  style={{
-                    padding: "auto",
-                    margin: " 10px auto",
-                    fontSize: "0.9rem",
-                  }}
+                  style={{ padding: "auto", margin: " 10px auto", fontSize: "0.9rem" }}
                 >
                   Select Role
                 </span>
@@ -220,10 +323,7 @@ const AuthPage = ({ onAuthSuccess }) => {
                   </button>
                   <div
                     className="role-toggle-indicator"
-                    style={{
-                      transform:
-                        role === "admin" ? "translateX(100%)" : "translateX(0)",
-                    }}
+                    style={{ transform: role === "admin" ? "translateX(100%)" : "translateX(0)" }}
                   />
                 </div>
               </div>
@@ -232,30 +332,18 @@ const AuthPage = ({ onAuthSuccess }) => {
             {!isForgotPassword && (
               <>
                 <div className="oauth-btn-row">
-                  <button
-                    type="button"
-                    onClick={() => handleGoogleAuth(onAuthSuccess)}
-                    className="oauth-circle-btn"
-                  >
+                  <button type="button" onClick={() => handleGoogleAuth(onAuthSuccess)} className="oauth-circle-btn">
                     <img src={googleIcon} alt="Google" />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleGithubAuth(onAuthSuccess)}
-                    className="oauth-circle-btn"
-                  >
-                    <img
-                      src="https://www.svgrepo.com/show/512317/github-142.svg"
-                      alt="Github"
-                    />
+                  <button type="button" onClick={() => handleGithubAuth(onAuthSuccess)} className="oauth-circle-btn">
+                    <img src="https://www.svgrepo.com/show/512317/github-142.svg" alt="Github" />
                   </button>
                 </div>
                 <p className="form-subtext">or use your account email</p>
               </>
             )}
-            {successMessage && (
-              <div className="auth-success-alert">{successMessage}</div>
-            )}
+
+            {successMessage && <div className="auth-success-alert">{successMessage}</div>}
             {error && (
               <div className={`auth-error-alert ${isFrozen ? "frozen-alert" : ""}`}>
                 {isFrozen ? (
@@ -296,40 +384,69 @@ const AuthPage = ({ onAuthSuccess }) => {
 
             {!isForgotPassword && (
               <div className="input-field-group input-field-group--with-action">
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleInputChange}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((value) => !value)}
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-            )}
-
-            {isSignUp && (
-              <div className="input-field-group input-field-group--with-action">
                 <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  name="confirmPassword"
-                  placeholder="Confirm Password"
-                  value={formData.confirmPassword}
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Password"
+                  value={formData.password}
                   onChange={handleInputChange}
                   required
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword((value) => !value)}
-                >
-                  {showConfirmPassword ? "Hide" : "Show"}
+                <button type="button" onClick={() => setShowPassword((value) => !value)}>
+                  {showPassword ? "Hide" : "Show"}
                 </button>
               </div>
+            )}
+
+            {isSignUp && (
+              <>
+                <div className="input-field-group input-field-group--with-action">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    placeholder="Confirm Password"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    required
+                  />
+                  <button type="button" onClick={() => setShowConfirmPassword((value) => !value)}>
+                    {showConfirmPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+
+                {role === "student" && (
+                  <>
+                    {/* Domain Selector */}
+                    <div className="input-field-group">
+                      <select
+                        name="domain"
+                        value={formData.domain}
+                        onChange={handleInputChange}
+                        required
+                        className="auth-select"
+                      >
+                        <option value="">Select Your Domain</option>
+                        {DOMAINS.map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* CNIC */}
+                    <div className="input-field-group">
+                      <input
+                        type="text"
+                        name="cnic"
+                        placeholder="CNIC  e.g. 12345-1234567-1"
+                        value={formData.cnic}
+                        onChange={handleCnicChange}
+                        required
+                        maxLength={15}
+                      />
+                    </div>
+                  </>
+                )}
+              </>
             )}
 
             {!isSignUp && !isForgotPassword && role === "admin" && (
@@ -342,10 +459,7 @@ const AuthPage = ({ onAuthSuccess }) => {
                   onChange={(e) => setAdminSecretCode(e.target.value)}
                   required
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowSecretCode((value) => !value)}
-                >
+                <button type="button" onClick={() => setShowSecretCode((value) => !value)}>
                   {showSecretCode ? "Hide" : "Show"}
                 </button>
               </div>
@@ -353,50 +467,46 @@ const AuthPage = ({ onAuthSuccess }) => {
 
             {!isSignUp && (
               <div className="forgot-password-link">
-                <a href="#" onClick={(e) => { e.preventDefault(); setIsForgotPassword(!isForgotPassword); }}>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsForgotPassword(!isForgotPassword);
+                  }}
+                >
                   {isForgotPassword ? "Back to Login" : "Forgot your password?"}
                 </a>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="auth-action-submit-btn"
-            >
-              {loading ? "Processing..." : isForgotPassword ? "Send Reset Link" : isSignUp ? "Sign Up" : "Sign In"}
+            <button type="submit" disabled={loading} className="auth-action-submit-btn">
+              {loading
+                ? "Processing..."
+                : isForgotPassword
+                  ? "Send Reset Link"
+                  : isSignUp
+                    ? "Sign Up"
+                    : "Sign In"}
             </button>
             {!isForgotPassword && (
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="auth-mobile-toggle-btn"
-              >
-                {isSignUp
-                  ? "Already have an account? Sign in"
-                  : "Need an account? Sign up"}
+              <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="auth-mobile-toggle-btn">
+                {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}
               </button>
             )}
           </form>
         </div>
 
-        {/* SIDE TOGGLE PANEL (The Green Overlay Panel) */}
+        {/* SIDE TOGGLE PANEL */}
         {!isForgotPassword && (
           <div className="overlay-side-panel">
             <div className="overlay-inner-content">
-              <h2 className="overlay-heading">
-                {isSignUp ? "Welcome Back!" : "Create Account"}
-              </h2>
+              <h2 className="overlay-heading">{isSignUp ? "Welcome Back!" : "Create Account"}</h2>
               <p className="overlay-paragraph">
                 {isSignUp
                   ? "To keep connected with us please login with your personal info"
                   : "Join our green workspace and start collaborating right away"}
               </p>
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="overlay-toggle-action-btn"
-              >
+              <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="overlay-toggle-action-btn">
                 {isSignUp ? "Sign In" : "Sign Up"}
               </button>
             </div>

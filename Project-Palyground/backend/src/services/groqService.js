@@ -207,7 +207,8 @@ export async function generateQuestions(
                 "explanation": "Brief explanation using MATH[...] if needed",
                 "trick": "Short shortcut",
                 "passage": "Only for English, otherwise null",
-                "subject": "${subjectsString}"
+                "subject": "${subjectsString}",
+                "chapter": "Specific chapter name (e.g. Matrices, Thermodynamics)"
               }
             ]
           }
@@ -296,7 +297,7 @@ export async function generateQuestions(
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Retrieve chapter ID or create dummy if missing
-async function getOrCreateChapterId(subjectName) {
+async function getOrCreateChapterId(subjectName, chapterName) {
   let subject = await prisma.subject.findUnique({
     where: { name: subjectName },
   });
@@ -307,15 +308,15 @@ async function getOrCreateChapterId(subjectName) {
     });
   }
 
-  const aiChapterName = `AI_Generated_${subjectName}`;
+  const validChapterName = chapterName && chapterName.trim().length > 0 ? chapterName : "General Topics";
   let chapter = await prisma.chapter.findFirst({
-    where: { name: aiChapterName, subjectId: subject.id },
+    where: { name: validChapterName, subjectId: subject.id },
   });
 
   if (!chapter) {
     chapter = await prisma.chapter.create({
       data: {
-        name: aiChapterName,
+        name: validChapterName,
         subjectId: subject.id,
       },
     });
@@ -422,7 +423,7 @@ export async function generateAllQuestions(
     const audit = auditResults.find(a => a.index === i) || { status: "flagged", notes: "Audit missing" };
     
     const subjectName = q.subject || subjects[0] || field;
-    const chapterId = targetChapterId || await getOrCreateChapterId(subjectName);
+    const chapterId = targetChapterId || await getOrCreateChapterId(subjectName, q.chapter);
 
     // Create the question with options
     try {

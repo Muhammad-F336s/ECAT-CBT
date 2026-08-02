@@ -131,7 +131,8 @@ export const regenerateAdminSecret = async (req, res) => {
       return res.status(403).json({ error: "Main admin secret is protected." });
     }
 
-    const secretCode = generateSecret();
+    const { manualSecret } = req.body;
+    let secretCode = manualSecret && manualSecret.trim() ? manualSecret.trim() : generateSecret();
     const secretHash = await bcrypt.hash(secretCode, 10);
     const admin = await prisma.admin.update({
       where: { id: adminId },
@@ -617,3 +618,27 @@ export const markMessagesAsRead = async (req, res) => {
     res.status(500).json({ error: "Failed to mark messages as read" });
   }
 };
+
+export const deleteTicket = async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    await prisma.supportTicket.delete({ where: { id: ticketId } });
+    res.json({ message: 'Ticket deleted successfully.' });
+  } catch (error) {
+    console.error('Failed to delete ticket:', error);
+    res.status(500).json({ error: 'Failed to delete ticket.' });
+  }
+};
+
+
+export const deleteLoginMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.loginMessage.delete({ where: { id } });
+    res.json({ message: 'Message deleted successfully.' });
+  } catch (error) {
+    console.error('Failed to delete message:', error);
+    res.status(500).json({ error: 'Failed to delete message.' });
+  }
+};
+

@@ -3,7 +3,7 @@ import axios from "axios";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import prisma from "../db.js";
-import { signup, login, googleAuth, forgotPassword, resetPassword } from "../controllers/authController.js";
+import { signup, login, googleAuth, forgotPassword, resetPassword, verifyEmail, resendOtp } from "../controllers/authController.js";
 
 const router = express.Router();
 if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
@@ -194,5 +194,7 @@ router.post("/login", authLimiter, login);
 router.post("/google", authLimiter, googleAuth);
 router.post("/forgot-password", authLimiter, forgotPassword);
 router.post("/reset-password", authLimiter, resetPassword);
+router.post("/verify-email", authLimiter, verifyEmail);
+router.post("/resend-otp", authLimiter, resendOtp);
 
 export default router;

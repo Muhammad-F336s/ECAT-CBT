@@ -81,6 +81,17 @@ export default function AdminSupport() {
     }
   };
 
+  const handleDeleteTicket = async (ticket) => {
+    if (!window.confirm("Are you sure you want to delete this ticket? This action cannot be undone.")) return;
+    try {
+      await API.delete(`/admin/support/tickets/${ticket.id}`);
+      fetchAllTickets();
+    } catch (err) {
+      console.error("Delete ticket error:", err);
+      alert("Failed to delete ticket.");
+    }
+  };
+
   if (loading) return <div className="approval-empty-state">Loading support tickets...</div>;
 
   return (
@@ -192,6 +203,14 @@ export default function AdminSupport() {
                             onClick={() => handleFreezeStudent(ticket)}
                           >
                             Freeze
+                          </button>
+                          <button 
+                            type="button" 
+                            className="action-secondary" 
+                            style={{ flex: 1, padding: "4px 8px", fontSize: "0.75rem", borderColor: "#c0392b", color: "#c0392b" }}
+                            onClick={() => handleDeleteTicket(ticket)}
+                          >
+                            Delete
                           </button>
                         </div>
                       </div>

@@ -3,6 +3,40 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import prisma from "../db.js";
+import nodemailer from "nodemailer";
+
+// ---- Nodemailer transporter (reusable) ----
+const getMailTransporter = () => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return null;
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  });
+};
+
+// ---- Send OTP email ----
+const sendOtpEmail = async (to, name, otp) => {
+  const transporter = getMailTransporter();
+  if (!transporter) {
+    console.warn("[Email] EMAIL_USER/PASS not configured — OTP:", otp);
+    return;
+  }
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to,
+    subject: "ECAT CBT – Your Email Verification Code",
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;padding:30px;border:1px solid #e0e0e0;border-radius:12px">
+        <h2 style="color:#2d6a4f">Email Verification</h2>
+        <p>Hi <strong>${name}</strong>,</p>
+        <p>Use the 6-digit OTP below to verify your email address:</p>
+        <div style="text-align:center;margin:28px 0">
+          <span style="font-size:2.4rem;font-weight:bold;letter-spacing:10px;color:#1b4332;background:#d8f3dc;padding:14px 28px;border-radius:10px">${otp}</span>
+        </div>
+        <p style="color:#555;font-size:0.88rem">This code expires in <strong>10 minutes</strong>. Do not share it with anyone.</p>
+      </div>`,
+  });
+};
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -65,11 +99,27 @@ const findAdminForLogin = async (email) => {
 
 export const signup = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, domain, cnic } = req.body;
 
     // 1. Data input verification
     if (!name || !email || !password) {
       return res.status(400).json({ error: "All fields are required." });
+    }
+
+    if (role !== "admin" && !domain) {
+      return res.status(400).json({ error: "Please select your domain (Engineering, Medical, or Computer Science)." });
+    }
+
+    if (role !== "admin" && !cnic) {
+      return res.status(400).json({ error: "CNIC is required." });
+    }
+
+    // Validate CNIC format (Pakistan: 13 digits, XXXXX-XXXXXXX-X)
+    if (role !== "admin" && cnic) {
+      const cleanCnic = cnic.replace(/-/g, "");
+      if (!/^\d{13}$/.test(cleanCnic)) {
+        return res.status(400).json({ error: "Invalid CNIC format. Use: 12345-1234567-1" });
+      }
     }
 
     // 2. Email duplication check across both user and admin identities
@@ -79,23 +129,40 @@ export const signup = async (req, res) => {
     ]);
 
     if (existingUser || existingAdmin) {
-      return res
-        .status(400)
-        .json({ error: "This email is already registered." });
+      return res.status(400).json({ error: "This email is already registered." });
     }
 
-    // 3. Salt hashing password processing
+    // 3. CNIC uniqueness check
+    if (role !== "admin" && cnic) {
+      const cleanCnic = cnic.replace(/-/g, "");
+      const existingCnic = await prisma.user.findUnique({ where: { cnic: cleanCnic } });
+      if (existingCnic) {
+        return res.status(400).json({ error: "An account is already registered with this CNIC. You cannot create multiple accounts." });
+      }
+    }
+
+    // 4. Salt hashing password processing
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // 4. Secure DB row insertion
+    // 5. Generate OTP for email verification
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const cleanCnic = role !== "admin" && cnic ? cnic.replace(/-/g, "") : null;
+
+    // 6. Secure DB row insertion
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
         role: role || "student",
+        domain: role !== "admin" ? domain : null,
+        cnic: cleanCnic,
         isApproved: false,
+        isEmailVerified: false,
+        emailOtp: otp,
+        emailOtpExpiry: otpExpiry,
         testAttemptsLimit: 0,
       },
       select: {
@@ -103,24 +170,91 @@ export const signup = async (req, res) => {
         name: true,
         email: true,
         role: true,
+        domain: true,
         isApproved: true,
+        isEmailVerified: true,
         testAttemptsLimit: true,
         createdAt: true,
       },
     });
 
+    // 7. Send OTP email
+    await sendOtpEmail(email, name, otp);
+
     res.status(201).json({
       message:
         role === "admin"
           ? "Admin registration submitted. Main admin will approve and allocate your secret key."
-          : "Registration submitted successfully. Your account is pending approval by admin.",
+          : "Registration submitted! Please check your email for a verification code.",
       user,
+      requiresOtp: role !== "admin",
     });
   } catch (error) {
     console.error("Signup Endpoint Error:", error);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error. Runtime processing failure." });
+    res.status(500).json({ error: "Internal Server Error. Runtime processing failure." });
+  }
+};
+
+// ---- Verify Email OTP ----
+export const verifyEmail = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: "Email and OTP are required." });
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(404).json({ error: "Account not found." });
+
+    if (user.isEmailVerified) {
+      return res.status(200).json({ message: "Email already verified." });
+    }
+
+    if (!user.emailOtp || !user.emailOtpExpiry) {
+      return res.status(400).json({ error: "No OTP found. Please register again." });
+    }
+
+    if (new Date() > new Date(user.emailOtpExpiry)) {
+      return res.status(400).json({ error: "OTP has expired. Please contact admin or re-register." });
+    }
+
+    if (user.emailOtp !== otp.toString()) {
+      return res.status(400).json({ error: "Invalid OTP. Please try again." });
+    }
+
+    await prisma.user.update({
+      where: { email },
+      data: { isEmailVerified: true, emailOtp: null, emailOtpExpiry: null },
+    });
+
+    res.status(200).json({ message: "Email verified successfully! Your account is now pending admin approval." });
+  } catch (error) {
+    console.error("Email verify error:", error);
+    res.status(500).json({ error: "Email verification failed." });
+  }
+};
+
+// ---- Resend OTP ----
+export const resendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required." });
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(404).json({ error: "Account not found." });
+    if (user.isEmailVerified) return res.status(400).json({ error: "Email already verified." });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { email },
+      data: { emailOtp: otp, emailOtpExpiry: otpExpiry },
+    });
+
+    await sendOtpEmail(email, user.name, otp);
+    res.status(200).json({ message: "A new OTP has been sent to your email." });
+  } catch (error) {
+    console.error("Resend OTP error:", error);
+    res.status(500).json({ error: "Failed to resend OTP." });
   }
 };
 

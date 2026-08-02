@@ -95,6 +95,18 @@ export default function AdminMessages() {
     }
   };
 
+  const handleDeleteMessage = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this message?")) return;
+    try {
+      await API.delete(`/admin/messages/${id}`);
+      setSentMessages((msgs) => msgs.filter((m) => m.id !== id));
+      setNotice("Message deleted.");
+    } catch (err) {
+      console.error("Failed to delete message:", err);
+      setError("Failed to delete message.");
+    }
+  };
+
   return (
     <div className="approval-page">
       <header className="approval-header">
@@ -201,25 +213,69 @@ export default function AdminMessages() {
         </article>
 
         <aside className="approval-card">
-          <h2>Queued Messages</h2>
+          <h2>Recent Activity</h2>
           <div className="approval-user-list">
-            {sentMessages.map((message) => (
+            {sentMessages.slice(0, 3).map((message) => (
               <div key={message.id} className="approval-user-row">
                 <div>
                   <strong>{message.recipientEmail}</strong>
                   <p>{message.body}</p>
                   <small>
-                    Sender email {message.showSenderEmail ? "visible" : "hidden"} -{" "}
                     {new Date(message.createdAt).toLocaleString()}
                   </small>
                 </div>
               </div>
             ))}
             {!sentMessages.length && (
-              <div className="approval-empty-state">No queued messages yet.</div>
+              <div className="approval-empty-state">No recent activity.</div>
             )}
           </div>
         </aside>
+      </section>
+
+      <section className="approval-card" style={{ marginTop: '24px' }}>
+        <h2>All Recent Messages</h2>
+        <div className="approval-table-wrap">
+          <table className="approval-table">
+            <thead>
+              <tr>
+                <th>Recipient</th>
+                <th>Message</th>
+                <th>Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sentMessages.map((message) => (
+                <tr key={message.id}>
+                  <td>
+                    <strong>{message.recipientEmail}</strong>
+                    <div style={{ fontSize: '0.8rem', color: '#777' }}>
+                      Sent by: {message.senderEmail} ({message.showSenderEmail ? "Visible" : "Hidden"})
+                    </div>
+                  </td>
+                  <td>{message.body}</td>
+                  <td>{new Date(message.createdAt).toLocaleString()}</td>
+                  <td className="approval-table-actions">
+                    <button 
+                      type="button" 
+                      className="action-secondary" 
+                      style={{ borderColor: '#c0392b', color: '#c0392b', padding: "4px 8px", fontSize: "0.75rem" }} 
+                      onClick={() => handleDeleteMessage(message.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {!sentMessages.length && (
+                <tr>
+                  <td colSpan="4" className="approval-empty-state" style={{ textAlign: 'center' }}>No messages found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

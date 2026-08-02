@@ -12,6 +12,9 @@ export default function AdminAdministration() {
   const [searchTerm, setSearchTerm] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [showSecretModal, setShowSecretModal] = useState(false);
+  const [secretTargetAdmin, setSecretTargetAdmin] = useState(null);
+  const [manualSecret, setManualSecret] = useState("");
   const currentAdmin = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "{}");
@@ -74,13 +77,21 @@ export default function AdminAdministration() {
     }
   };
 
-  const generateSecret = async (admin) => {
+  const openSecretModal = (admin) => {
+    setSecretTargetAdmin(admin);
+    setManualSecret("");
+    setShowSecretModal(true);
+  };
+
+  const generateSecret = async (admin, customSecret = null) => {
     setError("");
     setMessage("");
     try {
-      const res = await API.post(`/admin/admins/${admin.id}/secret`);
+      const payload = customSecret ? { manualSecret: customSecret } : {};
+      const res = await API.post(`/admin/admins/${admin.id}/secret`, payload);
       replaceAdmin(res.data.admin);
       setMessage(`New secret generated for ${admin.name}: ${res.data.secretCode}`);
+      setShowSecretModal(false);
     } catch (err) {
       console.error("Secret generation failed:", err);
       setError(err.response?.data?.error || "Unable to generate secret.");
@@ -210,7 +221,7 @@ export default function AdminAdministration() {
                       <div className="approval-table-actions">
                         <button
                           type="button"
-                          onClick={() => generateSecret(admin)}
+                          onClick={() => openSecretModal(admin)}
                           disabled={!canManage}
                         >
                           <FaKey /> Generate Secret
@@ -281,6 +292,43 @@ export default function AdminAdministration() {
           </div>
         </div>
       </section>
+
+      {showSecretModal && secretTargetAdmin && (
+        <div className="modal-overlay" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="approval-card" style={{ width: "90%", maxWidth: "450px", padding: "25px" }}>
+            <h2>Generate Secret for {secretTargetAdmin.name}</h2>
+            <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "15px" }}>
+              <button type="button" className="action-primary" onClick={() => generateSecret(secretTargetAdmin)}>
+                Auto-generate Secret
+              </button>
+              
+              {isRootOwner && (
+                <div style={{ padding: "15px", background: "#f9f9f9", borderRadius: "8px", border: "1px solid #ddd" }}>
+                  <h4 style={{ margin: "0 0 10px 0" }}>Manual Secret (Root Owner Only)</h4>
+                  <input
+                    type="text"
+                    placeholder="Enter custom secret"
+                    value={manualSecret}
+                    onChange={(e) => setManualSecret(e.target.value)}
+                    style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ccc", marginBottom: "10px" }}
+                  />
+                  <button 
+                    type="button" 
+                    className="action-secondary" 
+                    onClick={() => generateSecret(secretTargetAdmin, manualSecret)}
+                    disabled={!manualSecret.trim()}
+                  >
+                    Set Manual Secret
+                  </button>
+                </div>
+              )}
+            </div>
+            <div style={{ marginTop: "20px", textAlign: "right" }}>
+              <button type="button" className="action-secondary" onClick={() => setShowSecretModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

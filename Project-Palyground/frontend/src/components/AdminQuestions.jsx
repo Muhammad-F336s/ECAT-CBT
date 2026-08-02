@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import 'katex/dist/katex.min.css';
+import Latex from 'react-latex-next';
 import {
   FaPlus,
   FaSearch,
@@ -318,11 +320,11 @@ export default function AdminQuestions() {
                   <tr key={q.id}>
                     <td data-label="Question / Explanation">
                       <div style={{ fontWeight: 500, fontSize: "0.95rem", color: "var(--ecat-blue-dark)" }} className="mathjax-question-statement">
-                        {q.statement}
+                        <Latex>{q.statement}</Latex>
                       </div>
                       {q.explanation && (
                         <div style={{ fontSize: "0.8rem", color: "#666", marginTop: "4px" }}>
-                          <strong>Explanation:</strong> {q.explanation.replace(/===TRICK===/g, " | Trick: ")}
+                          <strong>Explanation:</strong> <Latex>{q.explanation.replace(/===TRICK===/g, " | Trick: ")}</Latex>
                         </div>
                       )}
                     </td>
@@ -330,7 +332,7 @@ export default function AdminQuestions() {
                     <td data-label="Chapter">{q.chapter?.name || "—"}</td>
                     <td data-label="Correct Solution">
                       <span className="approval-package-badge approval-package-badge--premium">
-                        {q.correctAnswer}
+                        <Latex>{q.correctAnswer}</Latex>
                       </span>
                     </td>
                     <td data-label="Actions">
