@@ -319,3 +319,31 @@ export const getUserTickets = async (req, res) => {
     res.status(500).json({ error: "Failed to retrieve tickets." });
   }
 };
+
+export const replyToTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reply } = req.body;
+    const userId = req.auth.id;
+
+    if (!reply) return res.status(400).json({ error: "Reply content is required." });
+
+    const ticket = await prisma.supportTicket.findUnique({ where: { id, userId } });
+    if (!ticket) return res.status(404).json({ error: "Ticket not found." });
+
+    let currentThread = ticket.thread ? (typeof ticket.thread === "string" ? JSON.parse(ticket.thread) : ticket.thread) : [];
+    if (!Array.isArray(currentThread)) currentThread = [];
+
+    currentThread.push({ sender: "student", message: reply, timestamp: new Date().toISOString() });
+
+    const updatedTicket = await prisma.supportTicket.update({
+      where: { id },
+      data: { thread: currentThread, status: "Pending" },
+    });
+
+    res.status(200).json({ message: "Reply sent successfully.", ticket: updatedTicket });
+  } catch (error) {
+    console.error("Reply to ticket error:", error);
+    res.status(500).json({ error: "Failed to send reply." });
+  }
+};

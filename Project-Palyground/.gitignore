@@ -16,6 +16,9 @@ dist-ssr
 *.local
 .claude
 resources
+# Security Reports (sensitive — do not expose)
+vulnerability.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

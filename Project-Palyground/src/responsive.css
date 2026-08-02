@@ -60,11 +60,11 @@ input, select, textarea, button {
 }
 
 /* ==========================================================================
-   Mobile Table-to-Card Transformation (<= 768px)
+   Mobile & Tablet Table-to-Card Transformation (<= 1100px)
    Converts wide tables into stacked cards so Edit/Delete/Action buttons 
-   are directly visible without side scrolling!
+   are directly visible without side scrolling on small laptops and tablets!
    ========================================================================== */
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
   /* Responsive Support Grid */
   .support-grid {
     grid-template-columns: 1fr !important;
@@ -82,6 +82,11 @@ input, select, textarea, button {
   .approval-table thead,
   .admin-student-table thead {
     display: none !important;
+  }
+  
+  .approval-table,
+  .admin-student-table {
+    min-width: 0 !important;
   }
 
   /* Table Body & Rows into Cards */
@@ -136,12 +141,36 @@ input, select, textarea, button {
   .admin-student-table td[data-label]::before {
     content: attr(data-label);
     font-weight: 700;
-    color: #315f38;
-    font-size: 0.82rem;
+    color: #647369;
+    font-size: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
     margin-right: 12px;
     flex-shrink: 0;
+  }
+
+  /* Make first column (Student/Name) act as Card Header */
+  .approval-table td:first-child,
+  .admin-student-table td:first-child {
+    background: #f8fbf8;
+    margin: -16px -16px 12px -16px;
+    padding: 16px 16px !important;
+    border-bottom: 1px solid rgba(85, 122, 97, 0.12) !important;
+    border-radius: 16px 16px 0 0;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  
+  .approval-table td:first-child::before,
+  .admin-student-table td:first-child::before {
+    display: none !important; /* Hide data-label for header */
+  }
+
+  .approval-table td:first-child strong,
+  .admin-student-table td:first-child strong {
+    font-size: 1.15rem;
+    color: #111713;
+    margin-bottom: 4px;
   }
 
   /* Full Width & Wrapped Action Buttons */
@@ -202,24 +231,33 @@ input, select, textarea, button {
     font-size: 1.6rem !important;
   }
 
-  .approval-table td,
-  .admin-student-table td {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .approval-table td[data-label]::before,
-  .admin-student-table td[data-label]::before {
-    margin-bottom: 2px;
+  /* Remove the stacking of td elements so they remain side-by-side key-values */
+  .approval-table td:not(:first-child):not(:last-child),
+  .admin-student-table td:not(:first-child):not(:last-child) {
+    padding: 8px 0 !important;
   }
 
   .approval-table-actions {
-    flex-direction: column;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
   }
 
   .approval-table-actions button {
     width: 100%;
+    margin: 0;
+    min-width: 0 !important;
+    font-size: 0.8rem !important;
+    padding: 8px 4px !important;
+    min-height: 38px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .approval-table-actions .approval-delete-action {
+    grid-column: 1 / -1;
   }
 
   /* Topbar search & filters */

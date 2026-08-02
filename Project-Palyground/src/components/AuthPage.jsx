@@ -82,6 +82,7 @@ const AuthPage = ({ onAuthSuccess }) => {
     confirmPassword: "",
   });
   const [error, setError] = useState("");
+  const [isFrozen, setIsFrozen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -163,11 +164,17 @@ const AuthPage = ({ onAuthSuccess }) => {
       localStorage.setItem("user", JSON.stringify(res.data.user));
       onAuthSuccess(res.data.user);
     } catch (error) {
-      setError(
-        error.response?.data?.error ||
-          error.message ||
-          "Unable to connect to authentication server. Please check your network or ensure backend engine is running on port 8787.",
-      );
+      if (error.response?.data?.isFrozen) {
+        setIsFrozen(true);
+        setError(error.response.data.error);
+      } else {
+        setIsFrozen(false);
+        setError(
+          error.response?.data?.error ||
+            error.message ||
+            "Unable to connect to authentication server. Please check your network or ensure backend engine is running on port 8787.",
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -249,7 +256,19 @@ const AuthPage = ({ onAuthSuccess }) => {
             {successMessage && (
               <div className="auth-success-alert">{successMessage}</div>
             )}
-            {error && <div className="auth-error-alert">{error}</div>}
+            {error && (
+              <div className={`auth-error-alert ${isFrozen ? "frozen-alert" : ""}`}>
+                {isFrozen ? (
+                  <>
+                    <strong>Account Frozen</strong>
+                    <br />
+                    {error}
+                  </>
+                ) : (
+                  error
+                )}
+              </div>
+            )}
 
             {isSignUp && (
               <div className="input-field-group">

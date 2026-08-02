@@ -364,6 +364,13 @@ export const login = async (req, res) => {
       where: { userId: user.id },
     });
 
+    if (user.frozenUntil && new Date(user.frozenUntil) > new Date()) {
+      return res.status(403).json({
+        error: user.freezeReason || "Your account is temporarily frozen.",
+        isFrozen: true
+      });
+    }
+
     if (!user.isApproved) {
       return res
         .status(403)

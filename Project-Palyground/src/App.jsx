@@ -51,6 +51,7 @@ import ContentLibrary from "./components/ContentLibrary";
 import HistoricalResultViewer from "./components/HistoricalResultViewer";
 import ResetPassword from "./components/ResetPassword";
 import DemoStudentToggle from "./components/DemoStudentToggle";
+import SupportPage from "./components/SupportPage";
 import VectorBotWidget from "./components/VectorBotWidget";
 import API from "./utils/api";
 
@@ -267,6 +268,8 @@ function AdminAppShell({ user, setUser }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [pendingQuestionCount, setPendingQuestionCount] = useState(0);
+  const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [loginMessages, setLoginMessages] = useState(user.loginMessages || []);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
 
@@ -274,13 +277,16 @@ function AdminAppShell({ user, setUser }) {
     let isMounted = true;
     const fetchCounts = async () => {
       try {
-        const [usersRes, questionsRes] = await Promise.all([
+        const [usersRes, questionsRes, notifRes] = await Promise.all([
           API.get("/user/pending-users"),
-          API.get("/admin/questions/pending")
+          API.get("/admin/questions/pending"),
+          API.get("/admin/notifications/counts")
         ]);
         if (isMounted) {
           setPendingApprovalCount(usersRes.data.length);
           setPendingQuestionCount(questionsRes.data.length);
+          setPendingTicketsCount(notifRes.data.pendingTickets);
+          setUnreadMessagesCount(notifRes.data.unreadMessages);
         }
       } catch (err) {
         console.error("Dashboard counts fetch failed:", err);
@@ -415,14 +421,7 @@ function AdminAppShell({ user, setUser }) {
             >
               <FaChartBar /> Analytics
             </button>
-            {user?.rank === "Root Owner" && (
-              <button
-                onClick={() => handleNavigate("/admin/features")}
-                className={`nav-button ${location.pathname === "/admin/features" ? "active" : ""}`}
-              >
-                <FaCog /> Feature Flags
-              </button>
-            )}
+
             <button
               onClick={() => handleNavigate("/admin/settings")}
               className={`nav-button ${location.pathname === "/admin/settings" ? "active" : ""}`}
@@ -467,14 +466,33 @@ function AdminAppShell({ user, setUser }) {
               element={
                 <AdminDashboard
                   user={user}
+                  onLogout={handleLogout}
+                  pendingTicketsCount={pendingTicketsCount}
+                  unreadMessagesCount={unreadMessagesCount}
                   headerActions={
                     <>
                       <DemoStudentToggle user={user} />
-                      <button type="button" className="admin-icon-button" aria-label="Notifications">
+                      <button 
+                        type="button" 
+                        className="admin-icon-button" 
+                        aria-label="Notifications"
+                        onClick={() => navigate("/admin/support")}
+                      >
                         <FaBell />
+                        {pendingTicketsCount > 0 && (
+                          <span className="notification-badge">{pendingTicketsCount}</span>
+                        )}
                       </button>
-                      <button type="button" className="admin-icon-button" aria-label="Messages">
+                      <button 
+                        type="button" 
+                        className="admin-icon-button" 
+                        aria-label="Messages"
+                        onClick={() => navigate("/admin/messages")}
+                      >
                         <FaCommentDots />
+                        {unreadMessagesCount > 0 && (
+                          <span className="notification-badge">{unreadMessagesCount}</span>
+                        )}
                       </button>
                     </>
                   }
@@ -504,8 +522,8 @@ function AdminAppShell({ user, setUser }) {
             <Route path="review-queue" element={<AdminReviewQueue />} />
             <Route path="approved-questions" element={<AdminApprovedQuestions />} />
             <Route path="analytics" element={<AdminAnalytics />} />
-            <Route path="features" element={<AdminFeatureFlags user={user} />} />
-            <Route path="settings" element={<AdminSettings />} />
+            <Route path="features" element={<Navigate to="/admin/settings" replace />} />
+            <Route path="settings" element={<AdminSettings user={user} />} />
             <Route path="support" element={<AdminSupport />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
@@ -518,44 +536,12 @@ function AdminAppShell({ user, setUser }) {
 function AppShell({ user, setUser }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showHint, setShowHint] = useState(false);
-  const [hintCount, setHintCount] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loginMessages, setLoginMessages] = useState(user.loginMessages || []);
-  const closeTimer = useRef(null);
-  const hintTimer = useRef(null);
 
   const view = location.pathname.split("/")[1] || "dashboard";
   const pageCopy = PAGE_COPY[view] || PAGE_COPY.dashboard;
   const isTestView = view === "test";
-
-  const showSidebarHint = useCallback(() => {
-    if (hintCount >= 3) return;
-    setShowHint(true);
-    if (hintTimer.current) window.clearTimeout(hintTimer.current);
-    hintTimer.current = window.setTimeout(() => {
-      setShowHint(false);
-      setHintCount((count) => count + 1);
-      hintTimer.current = null;
-    }, 1000);
-  }, [hintCount]);
-
-  const hideSidebarHint = useCallback(() => {
-    if (hintTimer.current) window.clearTimeout(hintTimer.current);
-    setShowHint(false);
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSidebarOpen(false);
-      showSidebarHint();
-    }, 2200);
-    return () => {
-      window.clearTimeout(timer);
-      if (closeTimer.current) window.clearTimeout(closeTimer.current);
-      if (hintTimer.current) window.clearTimeout(hintTimer.current);
-    };
-  }, [showSidebarHint]);
 
   const handleProfileSave = (updates) => {
     const updated = { ...user, ...updates };
@@ -567,29 +553,7 @@ function AppShell({ user, setUser }) {
     }
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => {
-      const next = !prev;
-      if (!next) showSidebarHint(); else hideSidebarHint();
-      return next;
-    });
-  };
-
-  const handleSidebarMouseEnter = () => {
-    if (closeTimer.current) window.clearTimeout(closeTimer.current);
-    closeTimer.current = null;
-    setSidebarOpen(true);
-    hideSidebarHint();
-  };
-
-  const handleSidebarMouseLeave = () => {
-    if (closeTimer.current) window.clearTimeout(closeTimer.current);
-    closeTimer.current = window.setTimeout(() => {
-      setSidebarOpen(false);
-      showSidebarHint();
-      closeTimer.current = null;
-    }, 280);
-  };
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -628,14 +592,7 @@ function AppShell({ user, setUser }) {
       {!isTestView && (
         <aside
           className={`sidebar ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}
-          onMouseEnter={handleSidebarMouseEnter}
-          onMouseLeave={handleSidebarMouseLeave}
         >
-          {!sidebarOpen && showHint && (
-            <div className="sidebar-hint-banner">
-              Hover your mouse here to access side panel
-            </div>
-          )}
           <div className="sidebar-top">
             <div className="sidebar-brand">
               <p>ECAT CBT</p>
@@ -692,9 +649,6 @@ function AppShell({ user, setUser }) {
                 <span>{user.rank || "Student"}</span>
               </div>
             </div>
-            <button type="button" className="support-button">
-              <FaHeadset /> Support
-            </button>
             <button onClick={handleLogout} className="logout-button">
               Logout
               <img src={logoutIcon} alt="Logout" className="logout-icon" />
@@ -768,6 +722,7 @@ function AppShell({ user, setUser }) {
                 <ProfilePage user={user} onSave={handleProfileSave} />
               }
             />
+            <Route path="support" element={<SupportPage user={user} />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>

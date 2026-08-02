@@ -1,17 +1,23 @@
 import { useEffect, useState } from "react";
+import { FaHeadset, FaPaperPlane, FaCheckCircle, FaHourglassHalf, FaCommentDots, FaRedo } from "react-icons/fa";
 import API from "../utils/api";
-import "./AdminApprovals.css"; // Reuse card styles
+import "./SupportPage.css";
 
-export default function SupportPage() {
+const CATEGORIES = ["Bug", "Account", "Content/Question Error", "Other"];
+
+const STATUS_META = {
+  Pending:  { color: "#f39c12", label: "Pending",  icon: <FaHourglassHalf /> },
+  Replied:  { color: "#3498db", label: "Replied",   icon: <FaCommentDots /> },
+  Resolved: { color: "#27ae60", label: "Resolved",  icon: <FaCheckCircle /> },
+};
+
+export default function SupportPage({ user }) {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
-    title: "",
-    category: "Bug",
-    description: "",
-  });
-  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({ title: "", category: "Bug", description: "" });
+  const [notice, setNotice] = useState({ type: "", text: "" });
+  const [replyTexts, setReplyTexts] = useState({});
 
   const fetchTickets = async () => {
     try {
@@ -24,121 +30,190 @@ export default function SupportPage() {
     }
   };
 
+  useEffect(() => { fetchTickets(); }, []);
+
   useEffect(() => {
-    const fetchOnMount = async () => {
-      await fetchTickets();
-    };
-    fetchOnMount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!notice.text) return;
+    const t = setTimeout(() => setNotice({ type: "", text: "" }), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    setMessage("");
+    if (!formData.title.trim() || !formData.description.trim()) return;
+    setSubmitting(true);
     try {
       await API.post("/user/support/ticket", formData);
-      setMessage("Ticket submitted successfully!");
+      setNotice({ type: "success", text: "Your request has been submitted! We'll get back to you soon." });
       setFormData({ title: "", category: "Bug", description: "" });
       fetchTickets();
-    } catch (err) {
-      console.error("Submit ticket error:", err);
-      setMessage("Failed to submit ticket.");
+      setTimeout(() => setNotice({ type: "", text: "" }), 5000);
+    } catch (error) {
+      console.error(error);
+      setNotice({ type: "error", text: "Failed to submit ticket. Try again." });
     } finally {
-      setSaving(false);
+      setSubmitting(false);
+    }
+  };
+
+  const handleReplySubmit = async (ticketId) => {
+    try {
+      const text = replyTexts[ticketId];
+      if (!text || text.trim() === "") return;
+      await API.post(`/user/support/tickets/${ticketId}/reply`, { reply: text });
+      setReplyTexts({ ...replyTexts, [ticketId]: "" });
+      fetchTickets();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to send reply");
     }
   };
 
   return (
-    <div className="approval-page" style={{ padding: "20px" }}>
-      <header className="approval-header">
-        <h1>Help & Support</h1>
-        <p>Report issues or ask questions directly to the admin team.</p>
-      </header>
+    <div className="support-page">
+      {/* Hero */}
+      <div className="support-hero">
+        <div className="support-hero-icon"><FaHeadset /></div>
+        <div>
+          <h1>Help &amp; Support</h1>
+          <p>Have a problem or question? Submit a ticket and our admin team will assist you promptly.</p>
+        </div>
+      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "30px", marginTop: "20px" }}>
-        {/* Submit Ticket Form */}
-        <section className="approval-card" style={{ padding: "25px" }}>
-          <h3>Submit a New Request</h3>
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px", marginTop: "15px" }}>
-            <div>
-              <label style={{ display: "block", marginBottom: "5px" }}>Subject</label>
-              <input 
-                type="text" 
-                required 
-                value={formData.title} 
-                onChange={(e) => setFormData({...formData, title: e.target.value})} 
-                style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ddd" }}
+      {notice.text && (
+        <div className={`support-notice support-notice--${notice.type}`}>{notice.text}</div>
+      )}
+
+      <div className="support-grid">
+        {/* ── Submit Form ── */}
+        <section className="support-card">
+          <h2 className="support-card-title"><FaPaperPlane /> New Request</h2>
+          <form className="support-form" onSubmit={handleSubmit}>
+            <div className="support-field">
+              <label htmlFor="sup-title">Subject</label>
+              <input
+                id="sup-title"
+                type="text"
+                required
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="e.g., Cannot load Physics test"
               />
             </div>
-            <div>
-              <label style={{ display: "block", marginBottom: "5px" }}>Category</label>
-              <select 
-                value={formData.category} 
-                onChange={(e) => setFormData({...formData, category: e.target.value})}
-                style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ddd" }}
+            <div className="support-field">
+              <label htmlFor="sup-cat">Category</label>
+              <select
+                id="sup-cat"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               >
-                <option value="Bug">Technical Bug</option>
-                <option value="Account">Account Issue</option>
-                <option value="Question">Content/Question Error</option>
-                <option value="Other">Other</option>
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div>
-              <label style={{ display: "block", marginBottom: "5px" }}>Description</label>
-              <textarea 
-                required 
-                rows="5" 
-                value={formData.description} 
-                onChange={(e) => setFormData({...formData, description: e.target.value})} 
-                style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ddd" }}
-                placeholder="Describe your issue in detail..."
+            <div className="support-field">
+              <label htmlFor="sup-desc">Description</label>
+              <textarea
+                id="sup-desc"
+                required
+                rows="6"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Describe your issue in detail so we can help you faster..."
               />
             </div>
-            <button type="submit" className="action-primary" disabled={submitting}>
-              {submitting ? "Submitting..." : "Submit Ticket"}
+            <button type="submit" className="support-submit" disabled={submitting}>
+              {submitting ? "Submitting…" : <><FaPaperPlane /> Submit Ticket</>}
             </button>
-            {message && <p style={{ color: "green", fontSize: "0.9rem" }}>{message}</p>}
           </form>
         </section>
 
-        {/* Previous Tickets */}
-        <section className="approval-card" style={{ padding: "25px" }}>
-          <h3>Your Recent Tickets</h3>
+        {/* ── Ticket History ── */}
+        <section className="support-card">
+          <div className="support-card-title-row">
+            <h2 className="support-card-title">Your Tickets</h2>
+            <button type="button" className="support-refresh" onClick={fetchTickets} aria-label="Refresh">
+              <FaRedo />
+            </button>
+          </div>
+
           {loading ? (
-            <p>Loading history...</p>
+            <div className="support-empty">Loading…</div>
           ) : tickets.length === 0 ? (
-            <p style={{ color: "#777", marginTop: "20px" }}>No support requests found.</p>
+            <div className="support-empty">
+              <FaHeadset />
+              <p>No tickets yet. Submit your first request!</p>
+            </div>
           ) : (
-            <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", gap: "15px" }}>
-              {tickets.map(ticket => (
-                <div key={ticket.id} style={{ padding: "15px", borderRadius: "8px", border: "1px solid #eee", background: "#fafafa" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div>
-                      <strong style={{ display: "block" }}>{ticket.title}</strong>
-                      <small style={{ color: "#888" }}>{ticket.category} • {new Date(ticket.createdAt).toLocaleDateString()}</small>
+            <div className="support-ticket-list">
+              {tickets.map((ticket) => {
+                const meta = STATUS_META[ticket.status] || STATUS_META.Pending;
+                return (
+                  <div key={ticket.id} className="support-ticket">
+                    <div className="support-ticket-header">
+                      <div>
+                        <strong>{ticket.title}</strong>
+                        <span className="support-ticket-meta">
+                          {ticket.category} &bull; {new Date(ticket.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <span className="support-status-badge" style={{ background: meta.color }}>
+                        {meta.icon} {meta.label}
+                      </span>
                     </div>
-                    <span style={{ 
-                      padding: "4px 10px", 
-                      borderRadius: "12px", 
-                      fontSize: "0.75rem", 
-                      fontWeight: "bold",
-                      background: ticket.status === "Resolved" ? "#2ecc71" : (ticket.status === "Replied" ? "#3498db" : "#f39c12"),
-                      color: "#fff"
-                    }}>
-                      {ticket.status}
-                    </span>
+                    <p className="support-ticket-desc">{ticket.description}</p>
+                    
+                    {/* Render legacy reply if exists and not in thread */}
+                    {ticket.reply && (
+                      <div className="support-admin-reply">
+                        <strong>Admin Reply:</strong>
+                        <p>{ticket.reply}</p>
+                      </div>
+                    )}
+
+                    {/* Render Thread */}
+                    {ticket.thread && Array.isArray(ticket.thread) && ticket.thread.length > 0 && (
+                      <div className="support-thread" style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {ticket.thread.map((msg, idx) => (
+                          <div key={idx} style={{
+                            padding: "8px 12px",
+                            borderRadius: "8px",
+                            background: msg.sender === "admin" ? "#e8f5e9" : "#f1f1f1",
+                            borderLeft: msg.sender === "admin" ? "3px solid #2ecc71" : "3px solid #95a5a6",
+                            fontSize: "0.85rem",
+                            alignSelf: msg.sender === "admin" ? "flex-start" : "flex-end",
+                            maxWidth: "90%"
+                          }}>
+                            <strong>{msg.sender === "admin" ? "Admin" : "You"}:</strong> 
+                            <span style={{ marginLeft: "5px" }}>{msg.message}</span>
+                            <div style={{ fontSize: "0.7rem", color: "#888", marginTop: "4px", textAlign: "right" }}>
+                              {new Date(msg.timestamp).toLocaleString()}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Reply Form */}
+                    {ticket.status !== "Resolved" && (
+                      <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+                        <input 
+                          type="text" 
+                          value={replyTexts[ticket.id] || ""}
+                          onChange={(e) => setReplyTexts({ ...replyTexts, [ticket.id]: e.target.value })}
+                          placeholder="Reply to this ticket..." 
+                          style={{ flex: 1, padding: "8px", borderRadius: "6px", border: "1px solid #ccc", fontSize: "0.85rem" }}
+                        />
+                        <button 
+                          onClick={() => handleReplySubmit(ticket.id)}
+                          style={{ background: "#2d6a4f", color: "#fff", border: "none", padding: "0 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.85rem" }}
+                        >
+                          Send
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <p style={{ fontSize: "0.9rem", marginTop: "10px", color: "#555" }}>{ticket.description}</p>
-                  {ticket.reply && (
-                    <div style={{ marginTop: "12px", padding: "10px", background: "#e1f5fe", borderRadius: "6px", borderLeft: "4px solid #03a9f4" }}>
-                      <strong style={{ fontSize: "0.85rem", color: "#0277bd" }}>Admin Reply:</strong>
-                      <p style={{ fontSize: "0.85rem", color: "#333", marginTop: "5px" }}>{ticket.reply}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

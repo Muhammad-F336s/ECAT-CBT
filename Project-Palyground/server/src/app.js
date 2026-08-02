@@ -16,19 +16,6 @@ const app = express();
 // Trust proxy if deployed behind Vercel, Render, or Cloudflare
 app.set("trust proxy", 1);
 
-// Security Headers
-app.use(helmet());
-
-// Global Rate Limiting: 300 requests per 15 minutes per IP
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 300,
-  message: { error: "Too many requests from this IP, please try again after 15 minutes" },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(globalLimiter);
-
 const corsOrigin = process.env.CLIENT_ORIGIN || "*";
 app.use(
   cors({
@@ -36,6 +23,19 @@ app.use(
     credentials: true,
   })
 );
+
+// Security Headers
+app.use(helmet());
+
+// Global Rate Limiting: 1000 requests per 15 minutes per IP (Allows for background polling)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  message: { error: "Too many requests from this IP, please try again after 15 minutes" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
 app.use(express.json());
 
 // Main App API Routes Mount Points

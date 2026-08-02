@@ -426,17 +426,84 @@ export const getPlatformTickets = async (req, res) => {
 export const updateTicketStatus = async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { status } = req.body;
+    const { status, reply, isFalse, deleteReply, freezeDays } = req.body;
 
-    const ticket = await prisma.supportTicket.update({
+    const ticket = await prisma.supportTicket.findUnique({
       where: { id: ticketId },
-      data: { status },
+      include: { user: true }
     });
 
-    res.status(200).json({ message: "Ticket status updated", ticket });
+    if (!ticket) return res.status(404).json({ error: "Ticket not found." });
+
+    let updateData = {};
+    if (status) updateData.status = status;
+    
+    let currentThread = ticket.thread ? (typeof ticket.thread === "string" ? JSON.parse(ticket.thread) : ticket.thread) : [];
+    if (!Array.isArray(currentThread)) currentThread = [];
+
+    if (reply !== undefined) {
+      updateData.reply = reply; // legacy field
+      if (reply.trim() !== "") {
+        currentThread.push({ sender: "admin", message: reply, timestamp: new Date().toISOString() });
+        updateData.thread = currentThread;
+      }
+    }
+    
+    if (deleteReply) {
+      updateData.reply = null;
+      updateData.thread = []; // Clear thread on delete
+    }
+
+    if (isFalse && !ticket.isFalse) {
+      updateData.isFalse = true;
+      updateData.status = "False";
+
+      const newFalseCount = ticket.user.falseReportCount + 1;
+      let userUpdate = { falseReportCount: newFalseCount };
+
+      if (newFalseCount >= 5) {
+        userUpdate.isApproved = false;
+        userUpdate.frozenUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days default
+        userUpdate.freezeReason = "Your account was frozen due to repeated false support reports.";
+      }
+
+      await prisma.user.update({
+        where: { id: ticket.userId },
+        data: userUpdate
+      });
+    }
+
+    if (freezeDays && freezeDays > 0) {
+      const frozenUntil = new Date(Date.now() + freezeDays * 24 * 60 * 60 * 1000);
+      const freezeReason = "Your account has been temporarily frozen by an administrator.";
+      await prisma.user.update({
+        where: { id: ticket.userId },
+        data: {
+          isApproved: false,
+          frozenUntil,
+          freezeReason
+        }
+      });
+      // Also send a login message so they see it
+      await prisma.loginMessage.create({
+        data: {
+          recipientEmail: ticket.user.email,
+          recipientRole: "Student",
+          body: `Admin action: Your account is frozen until ${frozenUntil.toLocaleDateString()}. Reason: Administrator manual freeze.`,
+          showSenderEmail: false
+        }
+      });
+    }
+
+    const updatedTicket = await prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: updateData,
+    });
+
+    res.status(200).json({ message: "Ticket updated", ticket: updatedTicket });
   } catch (error) {
-    console.error("Update ticket status error:", error);
-    res.status(500).json({ error: "Failed to update ticket status." });
+    console.error("Update ticket error:", error);
+    res.status(500).json({ error: "Failed to update ticket." });
   }
 };
 
@@ -507,3 +574,46 @@ export const impersonateUser = async (req, res) => {
   }
 };
 
+export const getNotificationCounts = async (req, res) => {
+  try {
+    const adminEmail = req.adminAuth?.email;
+    if (!adminEmail) return res.status(401).json({ error: "Unauthorized" });
+
+    const [pendingTickets, unreadMessages] = await Promise.all([
+      prisma.supportTicket.count({ where: { status: "Pending" } }),
+      prisma.loginMessage.count({
+        where: {
+          recipientEmail: adminEmail,
+          recipientRole: "Admin",
+          isRead: false,
+        },
+      }),
+    ]);
+
+    res.status(200).json({ pendingTickets, unreadMessages });
+  } catch (error) {
+    console.error("Get notification counts error:", error);
+    res.status(500).json({ error: "Failed to fetch notification counts" });
+  }
+};
+
+export const markMessagesAsRead = async (req, res) => {
+  try {
+    const adminEmail = req.adminAuth?.email;
+    if (!adminEmail) return res.status(401).json({ error: "Unauthorized" });
+
+    await prisma.loginMessage.updateMany({
+      where: {
+        recipientEmail: adminEmail,
+        recipientRole: "Admin",
+        isRead: false,
+      },
+      data: { isRead: true },
+    });
+
+    res.status(200).json({ message: "Messages marked as read" });
+  } catch (error) {
+    console.error("Mark messages as read error:", error);
+    res.status(500).json({ error: "Failed to mark messages as read" });
+  }
+};

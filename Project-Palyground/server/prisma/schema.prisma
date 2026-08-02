@@ -30,6 +30,9 @@ model User {
   isApproved        Boolean         @default(false)
   packageType       PackageType     @default(STANDARD)
   testAttemptsLimit Int             @default(0)
+  falseReportCount  Int             @default(0)
+  frozenUntil       DateTime?
+  freezeReason      String?         @db.Text
   attempts          TestAttempt[]   // Relation: User ne kitne tests diye
   tickets           SupportTicket[] // Relation: Support tickets submitted by the user
   createdAt         DateTime        @default(now())
@@ -160,8 +163,10 @@ model SupportTicket {
   title       String
   category    String   // Bug, Account, Payment, Other
   description String   @db.Text
-  status      String   @default("Pending") // Pending, Replied, Resolved
+  status      String   @default("Pending") // Pending, Replied, Resolved, False
   reply       String?  @db.Text
+  thread      Json?    @default("[]")
+  isFalse     Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

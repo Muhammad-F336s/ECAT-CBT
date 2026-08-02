@@ -19,6 +19,7 @@ export default function AdminMessages() {
       const [recipientsRes, messagesRes] = await Promise.all([
         API.get("/admin/recipients"),
         API.get("/admin/messages"),
+        API.post("/admin/messages/mark-read").catch(() => {}), // Fire and forget
       ]);
       setRecipients([...recipientsRes.data.users, ...recipientsRes.data.admins]);
       setSentMessages(messagesRes.data);

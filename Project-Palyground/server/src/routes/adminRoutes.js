@@ -14,6 +14,8 @@ import {
   getPlatformTickets,
   updateTicketStatus,
   impersonateUser,
+  getNotificationCounts,
+  markMessagesAsRead,
 } from "../controllers/adminController.js";
 import {
   getSubjectsAndChapters,
@@ -48,6 +50,8 @@ router.patch("/settings", updateSettings);
 router.get("/support/tickets", getPlatformTickets);
 router.patch("/support/tickets/:ticketId", updateTicketStatus);
 router.post("/impersonate", impersonateUser);
+router.get("/notifications/counts", getNotificationCounts);
+router.post("/messages/mark-read", markMessagesAsRead);
 
 
 

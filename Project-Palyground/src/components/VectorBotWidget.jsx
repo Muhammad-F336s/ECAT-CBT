@@ -11,18 +11,39 @@ const QUICK_PROMPTS = [
   "⏱️ ECAT Time Strategy",
 ];
 
+const STORAGE_KEY = "vectorbot_chat_history";
+
+const defaultWelcome = (name) => ({
+  id: "welcome",
+  sender: "bot",
+  text: `Hello ${name || "Aspirant"}! 🎯 I am **Vector Bot**, your 24/7 ECAT Study Mentor.\n\nI can help you with formula shortcuts, exam timing strategies, and subject doubts (Maths, Physics, Chemistry, CS, English).\n\nWhat would you like to review today?`,
+});
+
 export default function VectorBotWidget({ user }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: "bot",
-      text: `Hello ${user?.name?.split(" ")[0] || "Aspirant"}! 🎯 I am **Vector Bot**, your 24/7 ECAT Study Mentor.\n\nI can help you with formula shortcuts, exam timing strategies, and subject doubts (Maths, Physics, Chemistry, CS, English).\n\nWhat would you like to review today?`,
-    },
-  ]);
+  const userName = user?.name?.split(" ")[0] || "Aspirant";
+
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [defaultWelcome(userName)];
+  });
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
+
+  // Persist chat history
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-50)));
+    } catch {}
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -99,14 +120,27 @@ export default function VectorBotWidget({ user }) {
                 <p>ECAT Direction &amp; Magnitude</p>
               </div>
             </div>
-            <button
-              type="button"
-              className="vector-bot-close"
-              onClick={() => setIsOpen(false)}
-              aria-label="Close Vector Bot"
-            >
-              <FaTimes />
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem(STORAGE_KEY);
+                  setMessages([defaultWelcome(userName)]);
+                }}
+                title="Clear chat history"
+                style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "6px", color: "#fff", fontSize: "0.7rem", padding: "4px 8px", cursor: "pointer" }}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="vector-bot-close"
+                onClick={() => setIsOpen(false)}
+                aria-label="Close Vector Bot"
+              >
+                <FaTimes />
+              </button>
+            </div>
           </header>
 
           <div className="vector-bot-body">

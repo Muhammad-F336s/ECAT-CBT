@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaChartLine,
   FaChevronDown,
   FaCog,
   FaSearch,
+  FaSignOutAlt,
 } from "react-icons/fa";
 import API from "../utils/api";
 import "./AdminDashboard.css";
@@ -43,7 +44,7 @@ function RingMetric({ label, value, caption, progress }) {
   );
 }
 
-export default function AdminDashboard({ user, headerActions }) {
+export default function AdminDashboard({ user, headerActions, onLogout }) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -51,8 +52,20 @@ export default function AdminDashboard({ user, headerActions }) {
   const [pendingUsers, setPendingUsers] = useState([]);
   const [pendingQuestionsCount, setPendingQuestionsCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef(null);
   const adminName = user?.name || "Administrator";
   const initial = adminName.charAt(0).toUpperCase();
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(e.target)) {
+        setProfileDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -143,13 +156,44 @@ export default function AdminDashboard({ user, headerActions }) {
 
         <div className="admin-top-actions">
           {headerActions}
-          <div className="admin-user-chip">
-            <div className="admin-user-avatar">{initial}</div>
-            <div>
-              <strong>{adminName}</strong>
-              <span>Admin</span>
-            </div>
-            <FaChevronDown />
+          <div className="admin-user-chip" ref={profileDropdownRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setProfileDropdownOpen((prev) => !prev)}
+              style={{ display: "flex", alignItems: "center", gap: "8px", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              aria-label="Profile menu"
+            >
+              <div className="admin-user-avatar">{initial}</div>
+              <div>
+                <strong>{adminName}</strong>
+                <span>{user?.rank || "Admin"}</span>
+              </div>
+              <FaChevronDown style={{ fontSize: "0.75rem", transition: "transform 0.2s", transform: profileDropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
+            </button>
+            {profileDropdownOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 8px)", right: 0,
+                background: "#fff", border: "1px solid rgba(0,0,0,0.1)",
+                borderRadius: "10px", boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                minWidth: "160px", zIndex: 9999, overflow: "hidden"
+              }}>
+                <button
+                  type="button"
+                  onClick={() => { setProfileDropdownOpen(false); navigate("/admin/settings"); }}
+                  style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: "0.88rem", color: "#333" }}
+                >
+                  <FaCog /> Settings
+                </button>
+                <hr style={{ margin: 0, borderColor: "#f0f0f0" }} />
+                <button
+                  type="button"
+                  onClick={() => { setProfileDropdownOpen(false); if (onLogout) onLogout(); }}
+                  style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: "0.88rem", color: "#e74c3c" }}
+                >
+                  <FaSignOutAlt /> Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>

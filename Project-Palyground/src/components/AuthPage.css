@@ -389,3 +389,6 @@
     margin: 16px 0 20px;
   }
 }
+
+.frozen-alert { background: #fee2e2; color: #991b1b; border-left: 4px solid #ef4444; text-align: left; padding: 12px 16px; border-radius: 8px; } 
+.frozen-alert strong { display: block; margin-bottom: 4px; color: #7f1d1d; }
