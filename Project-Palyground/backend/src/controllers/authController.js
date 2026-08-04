@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 import prisma from "../db.js";
 import nodemailer from "nodemailer";
+import { getConfig } from "../configHelpers.js";
 
 // ---- Nodemailer transporter (reusable) ----
 const getMailTransporter = () => {
@@ -141,6 +142,16 @@ export const signup = async (req, res) => {
       }
     }
 
+    // 3b. Registration mode gate (Open / Approval / Invite)
+    const config = await getConfig();
+    if (config.registrationMode === "Invite") {
+      const { inviteCode } = req.body;
+      // Compare against an admin-provided invite code stored in env
+      if (!inviteCode || inviteCode !== process.env.PLATFORM_INVITE_CODE) {
+        return res.status(403).json({ error: "Registration is invite-only. A valid invite code is required." });
+      }
+    }
+
     // 4. Salt hashing password processing
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -150,7 +161,8 @@ export const signup = async (req, res) => {
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     const cleanCnic = role !== "admin" && cnic ? cnic.replace(/-/g, "") : null;
 
-    // 6. Secure DB row insertion
+    // 6. Secure DB row insertion — honor autoApproveStudents + defaultPackage config
+    const isApproved = role !== "admin" ? Boolean(config.autoApproveStudents) : false;
     const user = await prisma.user.create({
       data: {
         name,
@@ -159,10 +171,11 @@ export const signup = async (req, res) => {
         role: role || "student",
         domain: role !== "admin" ? domain : null,
         cnic: cleanCnic,
-        isApproved: false,
+        isApproved,
         isEmailVerified: false,
         emailOtp: otp,
         emailOtpExpiry: otpExpiry,
+        packageType: config.defaultPackage,
         testAttemptsLimit: 0,
       },
       select: {
@@ -299,13 +312,15 @@ export const googleAuth = async (req, res) => {
       const randomPassword = crypto.randomBytes(16).toString("hex");
       const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
+      const oauthConfig = await getConfig();
       user = await prisma.user.create({
         data: {
           name,
           email,
           password: hashedPassword,
           role: "student",
-          isApproved: false,
+          isApproved: Boolean(oauthConfig.autoApproveStudents),
+          packageType: oauthConfig.defaultPackage,
           testAttemptsLimit: 0,
         },
       });
@@ -493,6 +508,15 @@ export const login = async (req, res) => {
       return res
         .status(401)
         .json({ error: "Invalid credentials: incorrect password." });
+    }
+
+    // 3b. Email verification gate (configurable)
+    const loginConfig = await getConfig();
+    if (loginConfig.emailVerificationRequired && !user.isEmailVerified) {
+      return res.status(403).json({
+        error: "Email verification required. Please verify your email before logging in.",
+        needsVerification: true,
+      });
     }
 
     const attemptsUsed = await prisma.testAttempt.count({

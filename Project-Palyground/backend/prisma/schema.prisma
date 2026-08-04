@@ -7,13 +7,22 @@ generator client {
 }
 
 model PlatformConfig {
-  id                Int      @id @default(1)
-  defaultTimePerQ   Int      @default(60)
-  negativeMarking   Boolean  @default(false)
-  maintenanceMode   Boolean  @default(false)
-  vectorBotEnabled  Boolean  @default(true)
-  supportEmail      String   @default("support@ecat-cbt.com")
-  updatedAt         DateTime @updatedAt
+  id                       Int      @id @default(1)
+  defaultTimePerQ          Int      @default(60)
+  negativeMarking          Boolean  @default(false)
+  maintenanceMode          Boolean  @default(false)
+  vectorBotEnabled         Boolean  @default(true)
+  supportEmail             String   @default("support@ecat-cbt.com")
+  // Exam settings
+  defaultTestSize          Int      @default(40)
+  maxPracticeQuestions     Int      @default(100)
+  defaultPackage           String   @default("STANDARD")
+  // Security & access
+  registrationMode         String   @default("Open") // "Open" | "Approval" | "Invite"
+  emailVerificationRequired Boolean @default(false)
+  autoApproveStudents      Boolean  @default(true)
+  freezeThreshold          Int      @default(3)
+  updatedAt                DateTime @updatedAt
 }
 
 enum PackageType {

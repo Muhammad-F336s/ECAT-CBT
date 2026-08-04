@@ -12,6 +12,13 @@ import {
   FaSave,
   FaCheckCircle,
   FaExclamationCircle,
+  FaDownload,
+  FaTrashAlt,
+  FaClipboardList,
+  FaUserCheck,
+  FaUserShield,
+  FaSnowflake,
+  FaBox,
 } from "react-icons/fa";
 import API from "../utils/api";
 import "./AdminSettings.css";
@@ -20,6 +27,7 @@ export default function AdminSettings({ user }) {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [dangerBusy, setDangerBusy] = useState("");
   const [toast, setToast] = useState({ show: false, type: "", msg: "" });
 
   const isRoot = user?.rank === "Root Owner";
@@ -66,6 +74,57 @@ export default function AdminSettings({ user }) {
     } catch {
       showToast("error", "Failed to update feature flag.");
       setSettings(settings);
+    }
+  };
+
+  const handleResetAttempts = async () => {
+    const confirmed = window.confirm(
+      "⚠️ IRREVERSIBLE ACTION\n\nThis will permanently delete ALL student test attempt records from the database.\n\nAre you absolutely sure?",
+    );
+    if (!confirmed) return;
+
+    const doubleConfirm = window.prompt(
+      'Type "RESET" to confirm. This cannot be undone.',
+    );
+    if (doubleConfirm?.trim().toUpperCase() !== "RESET") {
+      showToast("error", "Reset cancelled — confirmation did not match.");
+      return;
+    }
+
+    setDangerBusy("reset");
+    try {
+      const res = await API.post("/admin/danger/reset-attempts");
+      showToast("success", res.data.message || "All test attempts cleared.");
+    } catch (err) {
+      console.error("Reset attempts failed:", err);
+      showToast("error", err.response?.data?.error || "Failed to reset attempts.");
+    } finally {
+      setDangerBusy("");
+    }
+  };
+
+  const handleExportData = async () => {
+    setDangerBusy("export");
+    try {
+      const res = await API.get("/admin/danger/export-data", {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      const disposition = res.headers["content-disposition"] || "";
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      link.setAttribute("download", match ? match[1] : "ecat-cbt-students.csv");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showToast("success", "CSV export downloaded successfully.");
+    } catch (err) {
+      console.error("Export data failed:", err);
+      showToast("error", err.response?.data?.error || "Failed to export data.");
+    } finally {
+      setDangerBusy("");
     }
   };
 
@@ -143,6 +202,149 @@ export default function AdminSettings({ user }) {
           </form>
         </section>
 
+        {/* Exam Configuration */}
+        {isRoot && (
+          <section className="settings-card">
+            <div className="settings-card-title">
+              <FaClipboardList className="settings-card-icon settings-card-icon--blue" />
+              <h2>Exam Configuration</h2>
+              <span className="settings-root-badge">Root Owner</span>
+            </div>
+            <p className="settings-card-desc">
+              Configure default test parameters for the CBT engine.
+            </p>
+            <form onSubmit={handleSaveGeneral} className="settings-form">
+              <div className="settings-field">
+                <label htmlFor="defaultTestSize">
+                  <FaClipboardList className="field-icon" /> Default Test Size
+                </label>
+                <div className="settings-input-row">
+                  <input
+                    id="defaultTestSize"
+                    type="number"
+                    min={5}
+                    max={200}
+                    value={settings?.defaultTestSize ?? 40}
+                    onChange={(e) =>
+                      setSettings({ ...settings, defaultTestSize: parseInt(e.target.value) || 40 })
+                    }
+                  />
+                  <span className="input-unit">questions per test</span>
+                </div>
+              </div>
+              <div className="settings-field">
+                <label htmlFor="maxPracticeQuestions">
+                  <FaClipboardList className="field-icon" /> Max Practice Questions
+                </label>
+                <div className="settings-input-row">
+                  <input
+                    id="maxPracticeQuestions"
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={settings?.maxPracticeQuestions ?? 100}
+                    onChange={(e) =>
+                      setSettings({ ...settings, maxPracticeQuestions: parseInt(e.target.value) || 100 })
+                    }
+                  />
+                  <span className="input-unit">per session</span>
+                </div>
+              </div>
+              <div className="settings-field">
+                <label htmlFor="defaultPackage">
+                  <FaBox className="field-icon" /> Default Package
+                </label>
+                <select
+                  id="defaultPackage"
+                  value={settings?.defaultPackage ?? "STANDARD"}
+                  onChange={(e) =>
+                    setSettings({ ...settings, defaultPackage: e.target.value })
+                  }
+                >
+                  <option value="STANDARD">Standard</option>
+                  <option value="PREMIUM">Premium</option>
+                </select>
+              </div>
+              <button type="submit" className="settings-save-btn" disabled={saving}>
+                <FaSave /> {saving ? "Saving..." : "Save Changes"}
+              </button>
+            </form>
+          </section>
+        )}
+
+        {/* Security & Access */}
+        {isRoot && (
+          <section className="settings-card">
+            <div className="settings-card-title">
+              <FaUserShield className="settings-card-icon settings-card-icon--green" />
+              <h2>Security & Access</h2>
+              <span className="settings-root-badge">Root Owner</span>
+            </div>
+            <p className="settings-card-desc">
+              Control registration, verification, and student access policies.
+            </p>
+            <div className="settings-toggles">
+              <ToggleRow
+                icon={<FaUserCheck />}
+                label="Auto-Approve Students"
+                desc="Newly registered students are instantly approved without admin review."
+                enabled={settings?.autoApproveStudents}
+                onToggle={() => handleToggle("autoApproveStudents")}
+              />
+              <ToggleRow
+                icon={<FaEnvelope />}
+                label="Email Verification Required"
+                desc="Students must verify their email via OTP before they can log in."
+                enabled={settings?.emailVerificationRequired}
+                onToggle={() => handleToggle("emailVerificationRequired")}
+                danger
+              />
+            </div>
+            <div className="settings-field" style={{ marginTop: "1.25rem" }}>
+              <label htmlFor="registrationMode">
+                <FaUserShield className="field-icon" /> Registration Mode
+              </label>
+              <select
+                id="registrationMode"
+                value={settings?.registrationMode ?? "Open"}
+                onChange={(e) =>
+                  setSettings({ ...settings, registrationMode: e.target.value })
+                }
+              >
+                <option value="Open">Open — Anyone can register</option>
+                <option value="Approval">Approval — Admin must approve each student</option>
+                <option value="Invite">Invite Only — Requires an invite code</option>
+              </select>
+            </div>
+            <div className="settings-field">
+              <label htmlFor="freezeThreshold">
+                <FaSnowflake className="field-icon" /> Freeze Threshold
+              </label>
+              <div className="settings-input-row">
+                <input
+                  id="freezeThreshold"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={settings?.freezeThreshold ?? 3}
+                  onChange={(e) =>
+                    setSettings({ ...settings, freezeThreshold: parseInt(e.target.value) || 3 })
+                  }
+                />
+                <span className="input-unit">false reports → auto-freeze</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="settings-save-btn"
+              disabled={saving}
+              onClick={handleSaveGeneral}
+            >
+              <FaSave /> {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </section>
+        )}
+
         {isRoot && (
           <section className="settings-card">
             <div className="settings-card-title">
@@ -176,14 +378,28 @@ export default function AdminSettings({ user }) {
                   <strong>Reset All Test Attempts</strong>
                   <p>Clears all student test attempt records from the database.</p>
                 </div>
-                <button type="button" className="settings-danger-btn" disabled>Coming Soon</button>
+                <button
+                  type="button"
+                  className="settings-danger-btn"
+                  disabled={dangerBusy === "reset"}
+                  onClick={handleResetAttempts}
+                >
+                  <FaTrashAlt /> {dangerBusy === "reset" ? "Resetting..." : "Reset Now"}
+                </button>
               </div>
               <div className="danger-row">
                 <div>
                   <strong>Export Platform Data</strong>
                   <p>Download a full CSV export of all student data and analytics.</p>
                 </div>
-                <button type="button" className="settings-danger-btn" disabled>Coming Soon</button>
+                <button
+                  type="button"
+                  className="settings-danger-btn"
+                  disabled={dangerBusy === "export"}
+                  onClick={handleExportData}
+                >
+                  <FaDownload /> {dangerBusy === "export" ? "Exporting..." : "Download CSV"}
+                </button>
               </div>
             </div>
           </section>

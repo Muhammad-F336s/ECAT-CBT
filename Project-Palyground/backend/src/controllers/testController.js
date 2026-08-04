@@ -1,5 +1,6 @@
 import prisma from "../db.js";
 import { generateAllQuestions } from "../services/groqService.js";
+import { getConfig } from "../configHelpers.js";
 
 const MARKS_PER_QUESTION = 20;
 
@@ -81,7 +82,8 @@ export const generateTest = async (req, res) => {
     } = req.body;
 
     const activeField = field || selectedField;
-    const activeTotalQuestions = Number(questionCount || totalQuestions || 10);
+    const config = await getConfig();
+    const activeTotalQuestions = Number(questionCount || totalQuestions || config.defaultTestSize);
     const activeSyllabusType = syllabusType || syllabusVersion;
     const activeNewSyllabusPercent = Number(newSyllabusPercentage !== undefined ? newSyllabusPercentage : (newSyllabusPercent !== undefined ? newSyllabusPercent : 50));
     const activeDifficulty = Number(difficulty !== undefined ? difficulty : (difficultyLevel !== undefined ? difficultyLevel : 5));
@@ -406,10 +408,21 @@ export const getContentLibrary = async (req, res) => {
 export const generateChapterPractice = async (req, res) => {
   try {
     const userId = req.auth.id;
-    const { chapterId, requestedCount = 10, difficulty = 5, syllabusType = "mixed", newSyllabusPercentage = 50 } = req.body;
+    const { chapterId, difficulty = 5, syllabusType = "mixed", newSyllabusPercentage = 50 } = req.body;
 
     if (!chapterId) {
       return res.status(400).json({ error: "chapterId is required." });
+    }
+
+    // Cap the requested count against the platform-configured maximum
+    const config = await getConfig();
+    const maxAllowed = config.maxPracticeQuestions;
+    let requestedCount = Number(req.body.requestedCount || 10);
+    if (requestedCount < 1) requestedCount = 1;
+    if (requestedCount > maxAllowed) {
+      return res.status(400).json({
+        error: `Maximum ${maxAllowed} practice questions are allowed per session.`,
+      });
     }
 
     const access = await loadStudentAccess(userId);

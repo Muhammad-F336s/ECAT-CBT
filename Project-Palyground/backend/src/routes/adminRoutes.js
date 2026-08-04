@@ -11,6 +11,8 @@ import {
   getPlatformAnalytics,
   getSettings,
   updateSettings,
+  resetAllTestAttempts,
+  exportPlatformData,
   getPlatformTickets,
   updateTicketStatus,
   impersonateUser,
@@ -49,6 +51,8 @@ router.get("/messages/inbox", getInboxMessages);
 router.get("/analytics", getPlatformAnalytics);
 router.get("/settings", getSettings);
 router.patch("/settings", updateSettings);
+router.post("/danger/reset-attempts", resetAllTestAttempts);
+router.get("/danger/export-data", exportPlatformData);
 router.get("/support/tickets", getPlatformTickets);
 router.patch("/support/tickets/:ticketId", updateTicketStatus);
 router.delete("/support/tickets/:ticketId", deleteTicket);

@@ -167,7 +167,8 @@
 }
 .field-icon { font-size: 0.8rem; color: #7a9b82; }
 
-.settings-field input {
+.settings-field input,
+.settings-field select {
   padding: 10px 14px;
   border: 1.5px solid rgba(40,80,50,0.18);
   border-radius: 10px;
@@ -178,9 +179,14 @@
   transition: border-color 0.2s, box-shadow 0.2s;
   font-family: inherit;
 }
-.settings-field input:focus {
+.settings-field input:focus,
+.settings-field select:focus {
   border-color: #2d6a4f;
   box-shadow: 0 0 0 3px rgba(45,106,79,0.1);
+}
+.settings-field select {
+  cursor: pointer;
+  appearance: auto;
 }
 
 .settings-input-row {

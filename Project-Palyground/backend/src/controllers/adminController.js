@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import prisma from "../db.js";
+import { getConfig } from "../configHelpers.js";
 
 const MAIN_ADMIN_EMAIL = "muhammad.f336s@gmail.com";
 const ROOT_OWNER_RANK = "Root Owner";
@@ -382,6 +383,13 @@ export const getSettings = async (req, res) => {
           maintenanceMode: false,
           vectorBotEnabled: true,
           supportEmail: "support@ecat-cbt.com",
+          defaultTestSize: 40,
+          maxPracticeQuestions: 100,
+          defaultPackage: "STANDARD",
+          registrationMode: "Open",
+          emailVerificationRequired: false,
+          autoApproveStudents: true,
+          freezeThreshold: 3,
         },
       });
     }
@@ -394,16 +402,138 @@ export const getSettings = async (req, res) => {
 
 export const updateSettings = async (req, res) => {
   try {
-    const { defaultTimePerQ, negativeMarking, maintenanceMode, supportEmail, vectorBotEnabled } =
-      req.body;
+    const {
+      defaultTimePerQ,
+      negativeMarking,
+      maintenanceMode,
+      supportEmail,
+      vectorBotEnabled,
+      defaultTestSize,
+      maxPracticeQuestions,
+      defaultPackage,
+      registrationMode,
+      emailVerificationRequired,
+      autoApproveStudents,
+      freezeThreshold,
+    } = req.body;
+
+    // Only include fields that were provided in the request (partial updates)
+    const updateData = {};
+    if (defaultTimePerQ !== undefined) updateData.defaultTimePerQ = defaultTimePerQ;
+    if (negativeMarking !== undefined) updateData.negativeMarking = negativeMarking;
+    if (maintenanceMode !== undefined) updateData.maintenanceMode = maintenanceMode;
+    if (supportEmail !== undefined) updateData.supportEmail = supportEmail;
+    if (vectorBotEnabled !== undefined) updateData.vectorBotEnabled = vectorBotEnabled;
+    if (defaultTestSize !== undefined) updateData.defaultTestSize = defaultTestSize;
+    if (maxPracticeQuestions !== undefined) updateData.maxPracticeQuestions = maxPracticeQuestions;
+    if (defaultPackage !== undefined) updateData.defaultPackage = defaultPackage;
+    if (registrationMode !== undefined) updateData.registrationMode = registrationMode;
+    if (emailVerificationRequired !== undefined)
+      updateData.emailVerificationRequired = emailVerificationRequired;
+    if (autoApproveStudents !== undefined) updateData.autoApproveStudents = autoApproveStudents;
+    if (freezeThreshold !== undefined) updateData.freezeThreshold = freezeThreshold;
+
     const config = await prisma.platformConfig.update({
       where: { id: 1 },
-      data: { defaultTimePerQ, negativeMarking, maintenanceMode, supportEmail, vectorBotEnabled },
+      data: updateData,
     });
     res.status(200).json(config);
   } catch (error) {
     console.error("Update settings error:", error);
     res.status(500).json({ error: "Failed to update settings." });
+  }
+};
+
+// Danger Zone: Delete ALL student test attempts (Root Owner only)
+export const resetAllTestAttempts = async (req, res) => {
+  try {
+    if (!requireRootOwner(req, res)) return;
+
+    // Count before deleting for the response message
+    const count = await prisma.testAttempt.count();
+    if (count === 0) {
+      return res.status(200).json({ message: "No test attempts to clear.", deletedCount: 0 });
+    }
+
+    await prisma.testAttempt.deleteMany({});
+    res.status(200).json({
+      message: "All student test attempt records have been permanently deleted.",
+      deletedCount: count,
+    });
+  } catch (error) {
+    console.error("Reset test attempts error:", error);
+    res.status(500).json({ error: "Failed to reset test attempts." });
+  }
+};
+
+// Danger Zone: Export all student data + analytics as CSV (Root Owner only)
+export const exportPlatformData = async (req, res) => {
+  try {
+    if (!requireRootOwner(req, res)) return;
+
+    const users = await prisma.user.findMany({
+      where: { role: "student" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isApproved: true,
+        packageType: true,
+        testAttemptsLimit: true,
+        falseReportCount: true,
+        createdAt: true,
+        _count: { select: { attempts: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const header = [
+      "ID",
+      "Name",
+      "Email",
+      "Approved",
+      "Package",
+      "Attempt Limit",
+      "Tests Taken",
+      "False Reports",
+      "Joined",
+    ].join(",");
+
+    const escapeCsv = (val) => {
+      const str = String(val ?? "");
+      // Wrap in quotes if it contains comma, quote, or newline; escape quotes by doubling
+      if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+      return str;
+    };
+
+    const rows = users.map((u) =>
+      [
+        u.id,
+        u.name,
+        u.email,
+        u.isApproved ? "Yes" : "No",
+        u.packageType,
+        u.testAttemptsLimit,
+        u._count.attempts,
+        u.falseReportCount,
+        u.createdAt.toISOString(),
+      ]
+        .map(escapeCsv)
+        .join(","),
+    );
+
+    const csv = [header, ...rows].join("\n");
+    const timestamp = new Date().toISOString().slice(0, 10);
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="ecat-cbt-students-${timestamp}.csv"`,
+    );
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error("Export platform data error:", error);
+    res.status(500).json({ error: "Failed to export platform data." });
   }
 };
 
@@ -462,7 +592,8 @@ export const updateTicketStatus = async (req, res) => {
       const newFalseCount = ticket.user.falseReportCount + 1;
       let userUpdate = { falseReportCount: newFalseCount };
 
-      if (newFalseCount >= 5) {
+      const ticketConfig = await getConfig();
+      if (newFalseCount >= ticketConfig.freezeThreshold) {
         userUpdate.isApproved = false;
         userUpdate.frozenUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days default
         userUpdate.freezeReason = "Your account was frozen due to repeated false support reports.";
