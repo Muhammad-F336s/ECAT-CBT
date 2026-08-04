@@ -324,6 +324,7 @@ export const googleAuth = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        isDemoAccount: user.isDemoAccount || false,
       },
     });
   } catch (error) {
@@ -537,6 +538,7 @@ export const login = async (req, res) => {
         email: user.email,
         role: user.role,
         isApproved: user.isApproved,
+        isDemoAccount: user.isDemoAccount || false,
         packageType: user.packageType ?? "STANDARD",
         testAttemptsLimit: user.testAttemptsLimit,
         loginMessages,

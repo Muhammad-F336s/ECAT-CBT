@@ -66,6 +66,15 @@ const getAccessStatus = (user) => {
   }
 
   const remaining = typeof user.testAttemptsLimit === "number" ? user.testAttemptsLimit : 0;
+  
+  if (user.isDemoAccount) {
+    return {
+      label: `Demo Account • ${remaining} test${remaining === 1 ? "" : "s"} left before expiration`,
+      icon: remaining > 0 ? remaining : "0",
+      badge: "DEMO",
+      type: "premium",
+    };
+  }
   return {
     label: `Standard Access • ${remaining} test${remaining === 1 ? "" : "s"} left`,
     icon: remaining > 0 ? remaining : "0",
@@ -234,6 +243,55 @@ const PTB_CHAPTERS = {
       "File Handling in C",
     ],
   },
+};
+
+const NEW_PTB_CHAPTERS = {
+  physics: {
+    part1: [
+      "Measurements", "Force and Motion", "Circular and Rotational Motion", "Work, Energy and Power", "Solids and Fluid Dynamics", "Heat and Thermodynamics", "Waves and Vibrations", "Physical Optics and Gravitational Waves", "Electrostatics and Current Electricity", "Electromagnetism", "Special Theory of Relativity", "Nuclear and Particle Physics"
+    ],
+    part2: [
+      "Thermal Physics", "Simple Harmonic Motion", "Physical Optics", "Electrostatics", "Alternating Current", "Quantum Physics", "Nuclear and Particle Physics", "Medical Physics", "Space and Environment"
+    ]
+  },
+  chemistry: {
+    part1: [
+      "Periodic Table and Periodic Properties", "Atomic Structure", "Chemical Bonding", "Stoichiometry", "States and Phases of Matter", "Chemical Energetics", "Reaction Kinetics", "Chemical Equilibrium", "Acid-Base Chemistry", "Electrochemistry", "Hydrocarbons", "Nitrogen and Sulfur", "Halogens", "Atmosphere", "Basic Separation Techniques", "Lab Safety and Practical Skills"
+    ],
+    part2: [
+      "Group 2 Elements", "Transition Metals", "Basics of Organic Chemistry", "Aromatic Hydrocarbons", "Halogenoalkanes", "Hydroxy Compounds", "Carbonyl Compounds and Carboxylic Acids", "Organic Nitrogen Compounds", "Organic Synthesis", "Polymers", "Biochemistry", "Chromatography", "Spectroscopy-1", "Spectroscopy-2 (NMR)", "Materials and Energy", "Medicine, Agriculture and Industry", "Water"
+    ]
+  },
+  biology: {
+    part1: [
+      "Biodiversity and Classification", "Bacteria and Viruses", "Cells and Subcellular Organelles", "Molecular Biology", "Enzymes", "Bioenergetics", "Structural and Computational Biology", "Plant Physiology", "Human Digestive System", "Human Respiratory System", "Human Circulatory System", "Human Skeletal and Muscular Systems"
+    ],
+    part2: [
+      "Homeostasis (Thermoregulation and Osmoregulation)", "Human Urinary System (Excretion)", "Human Nervous System", "Human Endocrine System", "Human Reproductive System", "Inheritance", "Chromosome and DNA", "Biotechnology", "Immunity", "Biostatistics", "Pharmacology", "Evolution", "Ecology"
+    ]
+  },
+  math: {
+    part1: [
+      "Complex Numbers", "Functions and Graphs", "Theory of Quadratic Functions", "Matrices and Determinants", "Partial Fractions", "Sequences and Series", "Permutations and Combinations", "Mathematical Induction and Binomial Theorem", "Division of Polynomials", "Trigonometric Identities", "Trigonometric Functions and their Graphs", "Limit and Continuity", "Differentiation", "Vectors in Space"
+    ],
+    part2: [
+      "Graphical Representation of Functions", "Further Differentiation", "Integration", "Differential Equations", "Analytical Geometry", "Conic Section", "Kinematics", "Numerical Method", "Inverse Trigonometric Functions and Their Graphs", "Solution of Trigonometric Equations", "Vector Valued Functions and Their Differentiations"
+    ]
+  },
+  computer: {
+    part1: [
+      "Introduction to Software Development", "Python Programming", "Algorithms and Problem Solving", "Computational Structures", "Data Analytics", "Emerging Technologies", "Legal and Ethical Aspects of Computing System", "Online Research and Digital Literacy", "Entrepreneurship in Digital Age"
+    ],
+    part2: [
+      "Computer Networks", "Computational Thinking & Algorithms", "Object Oriented Programming Using Python", "Development of Graphical User Interface (GUI)", "Code Testing and Debugging", "Data and Databases", "Software Testing", "Applications of Computer Science", "Cybersecurity and Safe Digital Collaboration"
+    ]
+  },
+  english: {
+    part1: [
+      "Grammar & Parts of Speech", "Vocabulary & Synonyms", "Sentence Correction", "Reading Comprehension"
+    ],
+    part2: []
+  }
 };
 
 const FIELDS = ["Pre-Engineering", "Pre-Medical", "ICS"];
@@ -429,6 +487,12 @@ export default function TestModeForm({ user }) {
           <span className="top-banner-label">{accessStatus.label}</span>
           <span className="top-banner-icon">{accessStatus.icon}</span>
         </div>
+        {user?.isDemoAccount && (
+          <div style={{ background: "#fffbeb", border: "1px solid #f59e0b", color: "#b45309", padding: "12px", borderRadius: "8px", margin: "16px 0", textAlign: "center", fontWeight: "bold" }}>
+            You are using a demo account which will expire when your test limit is reached.
+            {(user.testAttemptsLimit <= 0) && " Your demo account has expired. Please contact admin."}
+          </div>
+        )}
 
         <div className="form-heading">
           <h1>AI-Powered ECAT Test</h1>
@@ -574,12 +638,12 @@ export default function TestModeForm({ user }) {
             </div>
             <div className="chapter-groups">
               {visibleSubjects.map((subject) => {
-                const subChapters = PTB_CHAPTERS[subject.id] || { part1: [], part2: [] };
+                const activeChaptersSource = syllabusVersion.includes("New") ? NEW_PTB_CHAPTERS : PTB_CHAPTERS;
+                const subChapters = activeChaptersSource[subject.id] || { part1: [], part2: [] };
                 const parts = [
                   { key: "part1", label: "Part 1 — Class 11", chapters: subChapters.part1 || [] },
                   { key: "part2", label: "Part 2 — Class 12", chapters: subChapters.part2 || [] },
                 ];
-                // Filter by search
                 const filteredParts = parts.map((p) => ({
                   ...p,
                   chapters: p.chapters.filter((ch) =>
@@ -670,7 +734,11 @@ export default function TestModeForm({ user }) {
           </div>
 
           <div className="form-actions">
-            <button type="submit" className="primary-btn">
+            <button 
+              type="submit" 
+              className="primary-btn"
+              disabled={user && user.testAttemptsLimit !== -1 && user.testAttemptsLimit <= 0}
+            >
               Generate &amp; Start Test ({numberOfQuestions} MCQs)
             </button>
           </div>

@@ -15,7 +15,6 @@ export const getMe = async (req, res) => {
     if (!userId) return res.status(401).json({ error: "No user ID found in token." });
 
     // Handle synthetic demo student tokens (id starts with "demo-")
-    // (Legacy fallback — the real demo account should exist in DB now)
     if (userId.startsWith("demo-") && req.auth.isDemo) {
       return res.status(200).json({
         id: userId,
@@ -38,6 +37,7 @@ export const getMe = async (req, res) => {
         email: true,
         role: true,
         isApproved: true,
+        isDemoAccount: true,
         packageType: true,
         testAttemptsLimit: true,
         createdAt: true,
@@ -111,33 +111,31 @@ export const getUserAnalytics = async (req, res) => {
     const { userId } = req.params;
     if (!userId) return res.status(400).json({ error: "User ID parameter is required." });
 
-    const attempts = await prisma.testAttempt.findMany({ 
-      where: { userId }, 
-      orderBy: { createdAt: "desc" } 
+    const attempts = await prisma.testAttempt.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
     });
 
     if (attempts.length === 0) {
-      return res.status(200).json({ 
-        message: "No tests taken yet.", 
-        totalTests: 0, 
-        averagePercentage: 0, 
+      return res.status(200).json({
+        message: "No tests taken yet.",
+        totalTests: 0,
+        averagePercentage: 0,
         history: [],
-        subjectAnalytics: {} 
+        subjectAnalytics: {},
       });
     }
 
     const totalTests = attempts.length;
     let totalScoreObtained = 0;
     let totalPossibleMarks = 0;
-    
-    // Aggregation maps
-    const analytics = {}; // { [subjectName]: { total: 0, correct: 0, chapters: { [chapterId]: { total: 0, correct: 0 } } } }
+
+    const analytics = {};
 
     const history = attempts.map((attempt) => {
       totalScoreObtained += attempt.score;
       totalPossibleMarks += attempt.totalMarks;
 
-      // Process breakdown for subject/chapter analytics
       const breakdown = attempt.breakdown?.breakdown || [];
       const subjectName = attempt.breakdown?.subjectName || "Unknown";
 
@@ -145,12 +143,10 @@ export const getUserAnalytics = async (req, res) => {
         analytics[subjectName] = { total: 0, correct: 0, chapters: {} };
       }
 
-      breakdown.forEach(q => {
-        // Update subject stats
+      breakdown.forEach((q) => {
         analytics[subjectName].total++;
         if (q.isCorrect) analytics[subjectName].correct++;
 
-        // Update chapter stats
         const cid = q.chapterId || "Unknown";
         if (!analytics[subjectName].chapters[cid]) {
           analytics[subjectName].chapters[cid] = { total: 0, correct: 0 };
@@ -159,25 +155,25 @@ export const getUserAnalytics = async (req, res) => {
         if (q.isCorrect) analytics[subjectName].chapters[cid].correct++;
       });
 
-      return { 
-        attemptId: attempt.id, 
-        score: attempt.score, 
-        totalMarks: attempt.totalMarks, 
-        percentage: parseFloat(((attempt.score / attempt.totalMarks) * 100).toFixed(2)), 
-        date: attempt.createdAt 
+      return {
+        attemptId: attempt.id,
+        score: attempt.score,
+        totalMarks: attempt.totalMarks,
+        percentage: parseFloat(((attempt.score / attempt.totalMarks) * 100).toFixed(2)),
+        date: attempt.createdAt,
       };
     });
 
     const averagePercentage = parseFloat(((totalScoreObtained / totalPossibleMarks) * 100).toFixed(2));
-    
-    res.status(200).json({ 
-      userId, 
-      totalTests, 
-      averagePercentage, 
-      totalScoreObtained, 
-      totalPossibleMarks, 
+
+    res.status(200).json({
+      userId,
+      totalTests,
+      averagePercentage,
+      totalScoreObtained,
+      totalPossibleMarks,
       history,
-      subjectAnalytics: analytics
+      subjectAnalytics: analytics,
     });
   } catch (error) {
     console.error("Analytics error:", error);
@@ -218,7 +214,12 @@ export const listStudents = async (req, res) => {
     const users = await prisma.user.findMany({
       where: { role: "student" },
       orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, email: true, role: true, isApproved: true, packageType: true, testAttemptsLimit: true, createdAt: true, attempts: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, score: true, totalMarks: true, createdAt: true } }, _count: { select: { attempts: true } } },
+      select: {
+        id: true, name: true, email: true, role: true, isApproved: true, packageType: true,
+        testAttemptsLimit: true, createdAt: true,
+        attempts: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, score: true, totalMarks: true, createdAt: true } },
+        _count: { select: { attempts: true } },
+      },
     });
     res.status(200).json(users);
   } catch (error) {
@@ -231,13 +232,19 @@ export const approveUser = async (req, res) => {
   try {
     const { userId } = req.params;
     const { approve, attemptsLimit, adminSecretCode } = req.body;
-    const pendingUser = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true, password: true, role: true, createdAt: true } });
+    const pendingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, password: true, role: true, createdAt: true },
+    });
     if (!pendingUser) return res.status(404).json({ error: "User not found." });
     if (pendingUser.role === "admin") {
       if (req.adminAuth?.email !== MAIN_ADMIN_EMAIL) return res.status(403).json({ error: "Only root owner can approve admins." });
       const secretCode = String(adminSecretCode || generateSecret()).trim().toUpperCase();
       const secretHash = await bcrypt.hash(secretCode, 10);
-      const admin = await prisma.admin.create({ data: { name: pendingUser.name, email: pendingUser.email, password: pendingUser.password, secretHash, secretCode, rank: "Admin" }, select: { id: true, name: true, email: true, rank: true, secretCode: true, createdAt: true } });
+      const admin = await prisma.admin.create({
+        data: { name: pendingUser.name, email: pendingUser.email, password: pendingUser.password, secretHash, secretCode, rank: "Admin" },
+        select: { id: true, name: true, email: true, rank: true, secretCode: true, createdAt: true },
+      });
       await prisma.user.delete({ where: { id: userId } });
       return res.status(200).json({ message: "Admin approved", user: { ...admin, role: "admin", isApproved: true, testAttemptsLimit: -1, _count: { attempts: 0 } } });
     }
@@ -267,6 +274,15 @@ export const rejectUser = async (req, res) => {
     const user = await prisma.user.delete({ where: { id: userId }, select: { id: true, name: true, email: true } });
     res.status(200).json({ message: "User rejected", user });
   } catch (error) {
+    console.error("Reject user error:", error);
+    res.status(500).json({ error: "Failed to reject user." });
+  }
+};
+
+export const createTicket = async (req, res) => {
+  try {
+    const userId = req.auth.id;
+    const { title, category, description } = req.body;
     if (!title || !category || !description) {
       return res.status(400).json({ error: "All fields are required." });
     }

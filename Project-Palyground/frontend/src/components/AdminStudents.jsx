@@ -156,6 +156,57 @@ export default function AdminStudents({ onPendingCountChange }) {
     }
   };
 
+  const approveDemo = async (student) => {
+    setSavingId(student.id);
+    setError("");
+    setMessage("");
+    try {
+      const res = await API.post(`/user/approve-demo/${student.id}`);
+      setStudents((items) =>
+        items.map((item) => (item.id === student.id ? { ...item, ...res.data.user } : item)),
+      );
+      onPendingCountChange?.(
+        students.filter((item) => item.id !== student.id && getStatus(item) === "Pending").length,
+      );
+      setMessage(`${student.name} approved as Demo.`);
+    } catch (err) {
+      console.error("Demo approval failed:", err);
+      setError(err.response?.data?.error || "Unable to approve demo student.");
+    } finally {
+      setSavingId("");
+    }
+  };
+
+  const reviveDemo = async (student) => {
+    const nextLimit = window.prompt(
+      `Set new test creation limit for ${student.name} (Demo).`,
+      "3",
+    );
+    if (nextLimit === null) return;
+    const normalizedLimit = Number(nextLimit);
+    if (!Number.isFinite(normalizedLimit) || normalizedLimit < 1) {
+      setError("Enter a valid test limit greater than 0.");
+      return;
+    }
+
+    setSavingId(student.id);
+    setError("");
+    setMessage("");
+    try {
+      const res = await API.post(`/user/revive-demo/${student.id}`, { newLimit: normalizedLimit });
+      setStudents((items) =>
+        items.map((item) => (item.id === student.id ? { ...item, ...res.data.user } : item)),
+      );
+      setMessage(`${student.name}'s demo account revived.`);
+    } catch (err) {
+      console.error("Revive demo failed:", err);
+      setError(err.response?.data?.error || "Unable to revive demo account.");
+    } finally {
+      setSavingId("");
+    }
+  };
+
+
   const editLimit = (student) => {
     const nextLimit = window.prompt(
       "Set test creation limit. Use -1 for unlimited.",
@@ -280,6 +331,9 @@ export default function AdminStudents({ onPendingCountChange }) {
                         {student.email?.toLowerCase() === "demo@cbt.com" && (
                           <span style={{ fontSize: "0.7rem", background: "#1b5e20", color: "#fff", padding: "2px 6px", borderRadius: "4px", marginLeft: "6px", verticalAlign: "middle" }}>🛡️ Root</span>
                         )}
+                        {student.isDemoAccount && (
+                          <span style={{ fontSize: "0.7rem", background: "#f59e0b", color: "#fff", padding: "2px 6px", borderRadius: "4px", marginLeft: "6px", verticalAlign: "middle" }}>DEMO</span>
+                        )}
                         <span>{student.email}</span>
                       </td>
                       <td data-label="Status">
@@ -296,12 +350,22 @@ export default function AdminStudents({ onPendingCountChange }) {
                       <td data-label="Actions">
                         <div className="approval-table-actions">
                           {status === "Pending" ? (
-                            <button type="button" disabled={savingId === student.id} onClick={() => approveStudent(student)}>
-                              <FaUserCheck /> Approve
-                            </button>
+                            <>
+                              <button type="button" disabled={savingId === student.id} onClick={() => approveStudent(student)}>
+                                <FaUserCheck /> Approve
+                              </button>
+                              <button type="button" style={{ background: "#f59e0b", color: "#fff", border: "none" }} disabled={savingId === student.id} onClick={() => approveDemo(student)}>
+                                DEMO
+                              </button>
+                            </>
                           ) : (
                             <>
 
+                              {student.isDemoAccount && student.testAttemptsLimit >= 0 && attemptsUsed(student) >= student.testAttemptsLimit && (
+                                <button type="button" style={{ background: "#3b82f6", color: "#fff", border: "none" }} disabled={savingId === student.id} onClick={() => reviveDemo(student)}>
+                                  Revive
+                                </button>
+                              )}
                               <button type="button" disabled={savingId === student.id || student.packageType === "PREMIUM"} onClick={() => updateStudent(student, { packageType: "PREMIUM" })}>
                                 Premium
                               </button>

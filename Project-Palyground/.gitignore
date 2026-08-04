@@ -18,6 +18,7 @@ dist-ssr
 resources
 # Security Reports (sensitive — do not expose)
 vulnerability.md
+New Syllabus.md
 
 # Editor directories and files
 .vscode/*

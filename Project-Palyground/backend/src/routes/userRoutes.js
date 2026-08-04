@@ -6,6 +6,8 @@ import {
   listApprovedUsers,
   listStudents,
   approveUser,
+  approveDemoUser,
+  reviveDemoUser,
   rejectUser,
   updateUserPackage,
   getMe,
@@ -31,6 +33,8 @@ router.get("/pending-users", requireAdminAuth, listPendingUsers);
 router.get("/approved-users", requireAdminAuth, listApprovedUsers);
 router.get("/students", requireAdminAuth, listStudents);
 router.post("/approve/:userId", requireAdminAuth, approveUser);
+router.post("/approve-demo/:userId", requireAdminAuth, approveDemoUser);
+router.post("/revive-demo/:userId", requireAdminAuth, reviveDemoUser);
 router.post("/update-package/:userId", requireAdminAuth, updateUserPackage);
 router.delete("/reject/:userId", requireAdminAuth, rejectUser);
 
