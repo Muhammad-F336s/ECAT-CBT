@@ -228,6 +228,95 @@ export const listStudents = async (req, res) => {
   }
 };
 
+// Approve a user as a Demo account (marks them as a protected demo student)
+export const approveDemoUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const existing = await prisma.user.findUnique({ where: { id: userId } });
+    if (!existing) return res.status(404).json({ error: "User not found." });
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        isApproved: true,
+        isDemoAccount: true,
+        packageType: "PREMIUM",
+        testAttemptsLimit: -1,
+      },
+      select: {
+        id: true, name: true, email: true, role: true, isApproved: true,
+        isDemoAccount: true, packageType: true, testAttemptsLimit: true,
+        createdAt: true, _count: { select: { attempts: true } },
+      },
+    });
+    res.status(200).json({ message: "Demo student approved.", user });
+  } catch (error) {
+    console.error("Approve demo user error:", error);
+    res.status(500).json({ error: "Failed to approve demo user." });
+  }
+};
+
+// Revive an exhausted/frozen demo account by resetting its attempt limit
+export const reviveDemoUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { newLimit } = req.body;
+    const normalizedLimit =
+      newLimit === "unlimited" || newLimit === -1 ? -1 : Number(newLimit ?? 3);
+    if (!Number.isFinite(normalizedLimit) || (normalizedLimit !== -1 && normalizedLimit < 1)) {
+      return res.status(400).json({ error: "Invalid attempt limit." });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { testAttemptsLimit: normalizedLimit, frozenUntil: null, freezeReason: null },
+      select: {
+        id: true, name: true, email: true, role: true, isApproved: true,
+        isDemoAccount: true, packageType: true, testAttemptsLimit: true,
+        createdAt: true, _count: { select: { attempts: true } },
+      },
+    });
+    res.status(200).json({ message: "Demo account revived.", user });
+  } catch (error) {
+    console.error("Revive demo user error:", error);
+    res.status(500).json({ error: "Failed to revive demo account." });
+  }
+};
+
+// Update a student's package type and/or attempt limit (admin management)
+export const updateUserPackage = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { attemptsLimit, packageType, isApproved } = req.body;
+
+    const updateData = {};
+    if (attemptsLimit !== undefined) {
+      updateData.testAttemptsLimit =
+        attemptsLimit === "unlimited" || attemptsLimit === -1 ? -1 : Number(attemptsLimit);
+    }
+    if (typeof packageType === "string") {
+      updateData.packageType = packageType;
+    }
+    if (typeof isApproved === "boolean") {
+      updateData.isApproved = isApproved;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true, name: true, email: true, role: true, isApproved: true,
+        isDemoAccount: true, packageType: true, testAttemptsLimit: true,
+        createdAt: true, _count: { select: { attempts: true } },
+      },
+    });
+    res.status(200).json({ message: "User package updated.", user });
+  } catch (error) {
+    console.error("Update user package error:", error);
+    res.status(500).json({ error: "Failed to update user package." });
+  }
+};
+
 export const approveUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -279,7 +368,7 @@ export const rejectUser = async (req, res) => {
   }
 };
 
-export const createTicket = async (req, res) => {
+export const createSupportTicket = async (req, res) => {
   try {
     const userId = req.auth.id;
     const { title, category, description } = req.body;
