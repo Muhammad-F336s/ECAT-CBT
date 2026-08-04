@@ -1,6 +1,12 @@
 body {
   margin: 0;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   background: #eef7ef;
   color: #1f2b27;
 }
@@ -19,19 +25,25 @@ select {
 }
 
 .sidebar {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 40;
   width: 300px;
   flex: 0 0 auto;
-  height: 100vh;
-  max-height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  align-self: flex-start;
   background: #ffffff;
   border-right: 1px solid rgba(115, 143, 116, 0.12);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   overflow: hidden;
-  transition: width 0.22s ease, background 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
+  transition:
+    width 0.22s ease,
+    background 0.22s ease,
+    border-color 0.22s ease,
+    transform 0.22s ease;
 }
 
 .mobile-sidebar-button,
@@ -64,7 +76,9 @@ select {
   cursor: pointer;
   display: grid;
   place-items: center;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 .sidebar-toggle-button:hover {
@@ -118,7 +132,9 @@ select {
   box-shadow: 0 15px 30px rgba(34, 58, 41, 0.12);
   opacity: 1;
   pointer-events: none;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
 }
 
 .sidebar-closed .sidebar-hint-banner {
@@ -267,7 +283,9 @@ select {
   cursor: pointer;
   font-size: 0.98rem;
   font-weight: 700;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -301,7 +319,10 @@ select {
   max-height: 0;
   overflow: hidden;
   opacity: 0;
-  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  transition:
+    max-height 0.3s ease,
+    opacity 0.3s ease,
+    padding 0.3s ease;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -435,7 +456,9 @@ select {
   font-size: 1rem;
   color: #1c3022;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .test-state-message,
@@ -744,8 +767,12 @@ select {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-text {
@@ -754,4 +781,3 @@ select {
   font-weight: 600;
   letter-spacing: 0.05em;
 }
-

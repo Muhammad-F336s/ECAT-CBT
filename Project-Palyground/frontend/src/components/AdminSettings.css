@@ -58,6 +58,10 @@
   gap: 18px;
   margin-bottom: 32px;
 }
+.settings-save-btn--header {
+  margin-left: auto;
+  flex-shrink: 0;
+}
 .settings-header-icon {
   width: 54px;
   height: 54px;
@@ -188,6 +192,9 @@
   cursor: pointer;
   appearance: auto;
 }
+.settings-field--spaced {
+  margin-top: 1.25rem;
+}
 
 .settings-input-row {
   display: flex;
@@ -270,6 +277,37 @@
 .toggle-btn--off { background: #f0f0f0; color: #888; }
 .toggle-btn:hover { filter: brightness(0.95); transform: scale(1.03); }
 
+.settings-admin-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.settings-admin-links button {
+  min-height: 48px;
+  border: 1px solid rgba(45, 106, 79, 0.14);
+  border-radius: 12px;
+  background: #f5fbf6;
+  color: #1a472a;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.settings-admin-links button:hover {
+  background: #e8f5e9;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(26, 71, 42, 0.1);
+}
+
 /* Danger Zone */
 .danger-actions { display: flex; flex-direction: column; gap: 16px; }
 .danger-row {
@@ -314,8 +352,19 @@
 .info-item span { display: block; font-size: 0.72rem; color: #7a9b82; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
 .info-item strong { font-size: 0.86rem; color: #1a2e1f; }
 
+/* Bottom Save Bar */
+.settings-bottom-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 20px 0 8px;
+}
+.settings-save-btn--bottom {
+  align-self: flex-end;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .settings-page { padding: 18px 16px 32px; }
   .settings-grid { grid-template-columns: 1fr; }
+  .settings-admin-links { grid-template-columns: 1fr; }
 }

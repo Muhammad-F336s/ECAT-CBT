@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Routes,
   Route,
@@ -40,7 +40,6 @@ import AdminMessages from "./components/AdminMessages";
 import AdminStudents from "./components/AdminStudents";
 import AdminSettings from "./components/AdminSettings";
 import AdminSupport from "./components/AdminSupport";
-import AdminFeatureFlags from "./components/AdminFeatureFlags";
 import UserDashboard from "./components/UserDashboard";
 import ProgressPage from "./components/ProgressPage";
 import ProfilePage from "./components/ProfilePage";
@@ -59,6 +58,12 @@ import logoutIcon from "./assets/logout-pypojw37dhfwhy26x2wxze.webp";
 import "./App.css";
 
 const ACTIVE_SUBJECT_ID = "630cd83e-318f-41f8-89dc-64c503f0e216";
+
+const normalizeRole = (role) =>
+  typeof role === "string" ? role.toLowerCase() : "";
+
+const isAdminUser = (userPayload) =>
+  normalizeRole(userPayload?.role) === "admin";
 
 const PAGE_COPY = {
   dashboard: {
@@ -108,12 +113,6 @@ function App() {
 
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const normalizeRole = (role) =>
-    typeof role === "string" ? role.toLowerCase() : "";
-
-  const isAdminUser = (userPayload) =>
-    normalizeRole(userPayload?.role) === "admin";
 
   const verifyUserSession = useCallback(async (initialUser = null) => {
     console.log("[AuthDebug] verifyUserSession started. InitialUser provided:", !!initialUser);
@@ -173,7 +172,7 @@ function App() {
     navigate(isAdminUser(normalizedUser) ? "/admin/dashboard" : "/dashboard", {
       replace: true,
     });
-  }, [navigate, isAdminUser]);
+  }, [navigate]);
 
   if (isLoading) {
     return (
