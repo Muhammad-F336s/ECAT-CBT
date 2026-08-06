@@ -285,6 +285,12 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
     return () => clearTimeout(timer);
   }, [currentIdx, questions]);
 
+  const currentQuestion = questions[currentIdx];
+  const currentAnswer = answers[currentQuestion?.id] || "";
+  const isCurrentLocked = lockedIds.has(currentQuestion?.id);
+  const hasUnsavedSelection =
+    Boolean(currentQuestion?.id && currentAnswer && !isCurrentLocked);
+
   const getQuestionStatus = (idx) => {
     const question = questions[idx];
     if (!question) return "locked";
@@ -297,6 +303,8 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
   };
 
   const canNavigateTo = (idx) => {
+    if (hasUnsavedSelection && idx !== currentIdx) return false;
+
     const question = questions[idx];
     if (!question || lockedIds.has(question.id)) return false;
 
@@ -350,11 +358,9 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
 
   const handleSkipAndNext = () => {
     const question = questions[currentIdx];
-    if (!question || lockedIds.has(question.id)) return;
+    if (!question || lockedIds.has(question.id) || answers[question.id]) return;
 
-    if (!answers[question.id]) {
-      setSkippedIds((prev) => new Set(prev).add(question.id));
-    }
+    setSkippedIds((prev) => new Set(prev).add(question.id));
 
     if (currentIdx < questions.length - 1) {
       const nextIdx = currentIdx + 1;
@@ -486,9 +492,6 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
     );
   }
 
-  const currentQuestion = questions[currentIdx];
-  const currentAnswer = answers[currentQuestion?.id] || "";
-  const isCurrentLocked = lockedIds.has(currentQuestion?.id);
   const isLastQuestion = currentIdx === questions.length - 1;
   const hasAnyAnswer = questions.some((q) => answers[q.id]);
   const totalAllocated = questions.length * secondsPerQuestion;

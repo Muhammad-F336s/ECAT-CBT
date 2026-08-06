@@ -9,10 +9,7 @@ export default function AdminFeatureFlags({ user }) {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (user?.rank !== "Root Owner") {
-      setLoading(false);
-      return;
-    }
+    if (user?.rank !== "Root Owner") return;
     const fetchOnMount = async () => {
       try {
         const res = await API.get("/admin/settings");

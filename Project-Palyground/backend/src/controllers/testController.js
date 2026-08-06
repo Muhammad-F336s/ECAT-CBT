@@ -1,8 +1,19 @@
 import prisma from "../db.js";
+import crypto from "crypto";
 import { generateAllQuestions } from "../services/groqService.js";
 import { getConfig } from "../configHelpers.js";
 
 const MARKS_PER_QUESTION = 20;
+
+// Crypto-secure Fisher-Yates shuffle
+const secureShuffle = (array) => {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(0, i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
 
 const stripQuestionForClient = (question) => ({
   id: question.id,
@@ -157,7 +168,7 @@ export const generateTest = async (req, res) => {
       }
 
       // Shuffle final set
-      selectedQuestions = allAiQuestions.sort(() => Math.random() - 0.5).map(stripQuestionForClient);
+      selectedQuestions = secureShuffle(allAiQuestions).map(stripQuestionForClient);
       
       console.log("\n================ [GROQ AI GENERATED TEST] ================\n");
       console.log(JSON.stringify(selectedQuestions, null, 2));
@@ -205,11 +216,7 @@ export const generateTest = async (req, res) => {
           .json({ error: "No questions found for the selected criteria." });
       }
 
-      const shuffled = [...availableQuestions];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
+      const shuffled = secureShuffle(availableQuestions);
 
       selectedQuestions = shuffled
         .slice(0, Number(activeTotalQuestions))
@@ -479,7 +486,7 @@ export const generateChapterPractice = async (req, res) => {
       options: q.options,
     }));
 
-    const shuffled = stripped.sort(() => Math.random() - 0.5).slice(0, requestedCount);
+    const shuffled = secureShuffle(stripped).slice(0, requestedCount);
 
     res.status(200).json({
       message: "Chapter practice test generated",

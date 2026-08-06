@@ -41,7 +41,6 @@ export default function AdminContentLibrary() {
       await loadResources();
     };
     fetchOnMount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getFileIcon = (type) => {

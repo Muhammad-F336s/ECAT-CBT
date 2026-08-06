@@ -30,7 +30,9 @@ export default function VectorBotWidget({ user }) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-    } catch {}
+    } catch (e) {
+      console.warn("Failed to load chat history:", e);
+    }
     return [defaultWelcome(userName)];
   });
 
@@ -42,7 +44,9 @@ export default function VectorBotWidget({ user }) {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-50)));
-    } catch {}
+    } catch (e) {
+      console.warn("Failed to persist chat history:", e);
+    }
   }, [messages]);
 
   const scrollToBottom = () => {

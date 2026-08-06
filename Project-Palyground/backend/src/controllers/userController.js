@@ -1,12 +1,10 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import prisma from "../db.js";
 import { DEMO_ACCOUNT_EMAIL } from "./adminController.js";
 
 const generateSecret = () =>
-  `ADM-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random()
-    .toString(36)
-    .slice(2, 6)
-    .toUpperCase()}`;
+  `ADM-${crypto.randomBytes(3).toString("hex").toUpperCase()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
 const MAIN_ADMIN_EMAIL = "muhammad.f336s@gmail.com";
 
 export const getMe = async (req, res) => {

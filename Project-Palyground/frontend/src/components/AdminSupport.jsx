@@ -22,7 +22,10 @@ export default function AdminSupport() {
   };
 
   useEffect(() => {
-    fetchAllTickets();
+    const fetchOnMount = async () => {
+      await fetchAllTickets();
+    };
+    fetchOnMount();
   }, []);
 
   const handleUpdateTicket = async (e) => {

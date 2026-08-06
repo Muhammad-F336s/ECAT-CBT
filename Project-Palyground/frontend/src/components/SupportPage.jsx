@@ -11,7 +11,7 @@ const STATUS_META = {
   Resolved: { color: "#27ae60", label: "Resolved",  icon: <FaCheckCircle /> },
 };
 
-export default function SupportPage({ user }) {
+export default function SupportPage() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -30,7 +30,12 @@ export default function SupportPage({ user }) {
     }
   };
 
-  useEffect(() => { fetchTickets(); }, []);
+  useEffect(() => {
+    const fetchOnMount = async () => {
+      await fetchTickets();
+    };
+    fetchOnMount();
+  }, []);
 
   useEffect(() => {
     if (!notice.text) return;
