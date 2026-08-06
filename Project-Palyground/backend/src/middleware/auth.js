@@ -1,10 +1,5 @@
 import jwt from "jsonwebtoken";
-
-if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
-  console.error("FATAL ERROR: JWT_SECRET is not defined in production.");
-  process.exit(1);
-}
-const JWT_SECRET = process.env.JWT_SECRET || "super_secret_fallback_key_123";
+import { JWT_SECRET } from "../jwtSecret.js";
 
 export const requireAuth = (req, res, next) => {
   const authHeader = req.headers.authorization || "";
@@ -18,8 +13,7 @@ export const requireAuth = (req, res, next) => {
     const payload = jwt.verify(token, JWT_SECRET);
     req.auth = payload;
     return next();
-  } catch (error) {
-    console.error("Auth error:", error);
+  } catch {
     return res.status(401).json({ error: "Invalid or expired token." });
   }
 };

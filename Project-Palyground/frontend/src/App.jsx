@@ -95,17 +95,12 @@ const PAGE_COPY = {
 
 const parseAuthFromUrl = () => {
   const params = new URLSearchParams(window.location.search);
-  const token = params.get("token");
-  const userParam = params.get("user");
-  if (!token || !userParam) return null;
-
-  try {
-    const user = JSON.parse(decodeURIComponent(userParam));
-    return { token, user };
-  } catch (err) {
-    console.error("Failed to parse auth callback", err);
-    return null;
-  }
+  // VULN-07 FIX: OAuth redirects now use a short-lived code, not a raw JWT in the URL.
+  // The exchange happens in AuthPage on mount. This parser is kept for compatibility
+  // but no longer handles raw tokens.
+  const code = params.get("code");
+  if (!code) return null;
+  return { code };
 };
 
 function App() {
@@ -153,11 +148,10 @@ function App() {
   useEffect(() => {
     const initAuth = async () => {
       const authFromUrl = parseAuthFromUrl();
-      if (authFromUrl) {
-        localStorage.setItem("token", authFromUrl.token);
-        localStorage.setItem("user", JSON.stringify(authFromUrl.user));
-        window.history.replaceState({}, "", authFromUrl.user.role === "admin" ? "/admin/dashboard" : "/dashboard");
-        await verifyUserSession(authFromUrl.user);
+      if (authFromUrl?.code) {
+        // Code exchange is handled by AuthPage component — just clean the URL
+        window.history.replaceState({}, "", window.location.pathname);
+        await verifyUserSession();
       } else {
         await verifyUserSession();
       }

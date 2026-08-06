@@ -2,9 +2,12 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
-import prisma from "../db.js";
 import nodemailer from "nodemailer";
+import prisma from "../db.js";
 import { getConfig } from "../configHelpers.js";
+import { JWT_SECRET } from "../jwtSecret.js";
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // ---- Nodemailer transporter (reusable) ----
 const getMailTransporter = () => {
@@ -19,7 +22,8 @@ const getMailTransporter = () => {
 const sendOtpEmail = async (to, name, otp) => {
   const transporter = getMailTransporter();
   if (!transporter) {
-    console.warn("[Email] EMAIL_USER/PASS not configured — OTP:", otp);
+    // Dev-only: log OTP to console when email is not configured
+    console.warn("[Email] EMAIL_USER/PASS not configured — OTP for dev:", otp);
     return;
   }
   await transporter.sendMail({
@@ -39,32 +43,22 @@ const sendOtpEmail = async (to, name, otp) => {
   });
 };
 
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
+// ---- Pull unread login messages on login ----
 export const pullLoginMessages = async (email, role) => {
   const recipientRole = role === "admin" ? "Admin" : "User";
   try {
     const loginMessages = await prisma.loginMessage.findMany({
-      where: {
-        recipientEmail: email,
-        recipientRole,
-        isRead: false,
-      },
+      where: { recipientEmail: email, recipientRole, isRead: false },
       orderBy: { createdAt: "desc" },
     });
-
     if (loginMessages.length) {
       await prisma.loginMessage.updateMany({
-        where: {
-          id: { in: loginMessages.map((message) => message.id) },
-        },
+        where: { id: { in: loginMessages.map((m) => m.id) } },
         data: { isRead: true },
       });
     }
-
     return loginMessages;
-  } catch (error) {
-    console.error("Login message fallback:", error);
+  } catch {
     return [];
   }
 };
@@ -73,27 +67,12 @@ const findAdminForLogin = async (email) => {
   try {
     return await prisma.admin.findUnique({
       where: { email },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        password: true,
-        secretHash: true,
-        rank: true,
-        isFrozen: true,
-      },
+      select: { id: true, name: true, email: true, password: true, secretHash: true, rank: true, isFrozen: true },
     });
-  } catch (error) {
-    console.error("Admin login extended fields fallback:", error);
+  } catch {
     return prisma.admin.findUnique({
       where: { email },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        password: true,
-        secretHash: true,
-      },
+      select: { id: true, name: true, email: true, password: true, secretHash: true },
     });
   }
 };
@@ -102,20 +81,15 @@ export const signup = async (req, res) => {
   try {
     const { name, email, password, role, domain, cnic } = req.body;
 
-    // 1. Data input verification
     if (!name || !email || !password) {
       return res.status(400).json({ error: "All fields are required." });
     }
-
     if (role !== "admin" && !domain) {
       return res.status(400).json({ error: "Please select your domain (Engineering, Medical, or Computer Science)." });
     }
-
     if (role !== "admin" && !cnic) {
       return res.status(400).json({ error: "CNIC is required." });
     }
-
-    // Validate CNIC format (Pakistan: 13 digits, XXXXX-XXXXXXX-X)
     if (role !== "admin" && cnic) {
       const cleanCnic = cnic.replace(/-/g, "");
       if (!/^\d{13}$/.test(cleanCnic)) {
@@ -123,46 +97,37 @@ export const signup = async (req, res) => {
       }
     }
 
-    // 2. Email duplication check across both user and admin identities
     const [existingUser, existingAdmin] = await Promise.all([
       prisma.user.findUnique({ where: { email } }),
       prisma.admin.findUnique({ where: { email } }),
     ]);
-
     if (existingUser || existingAdmin) {
       return res.status(400).json({ error: "This email is already registered." });
     }
 
-    // 3. CNIC uniqueness check
     if (role !== "admin" && cnic) {
       const cleanCnic = cnic.replace(/-/g, "");
       const existingCnic = await prisma.user.findUnique({ where: { cnic: cleanCnic } });
       if (existingCnic) {
-        return res.status(400).json({ error: "An account is already registered with this CNIC. You cannot create multiple accounts." });
+        return res.status(400).json({ error: "An account is already registered with this CNIC." });
       }
     }
 
-    // 3b. Registration mode gate (Open / Approval / Invite)
     const config = await getConfig();
     if (config.registrationMode === "Invite") {
       const { inviteCode } = req.body;
-      // Compare against an admin-provided invite code stored in env
       if (!inviteCode || inviteCode !== process.env.PLATFORM_INVITE_CODE) {
         return res.status(403).json({ error: "Registration is invite-only. A valid invite code is required." });
       }
     }
 
-    // 4. Salt hashing password processing
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // 5. Generate OTP for email verification
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const hashedPassword = await bcrypt.hash(password, 10);
+    // VULN-09 FIX: Use crypto.randomInt instead of Math.random for OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     const cleanCnic = role !== "admin" && cnic ? cnic.replace(/-/g, "") : null;
-
-    // 6. Secure DB row insertion — honor autoApproveStudents + defaultPackage config
     const isApproved = role !== "admin" ? Boolean(config.autoApproveStudents) : false;
+
     const user = await prisma.user.create({
       data: {
         name,
@@ -178,33 +143,21 @@ export const signup = async (req, res) => {
         packageType: config.defaultPackage,
         testAttemptsLimit: 0,
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        domain: true,
-        isApproved: true,
-        isEmailVerified: true,
-        testAttemptsLimit: true,
-        createdAt: true,
-      },
+      select: { id: true, name: true, email: true, role: true, domain: true, isApproved: true, isEmailVerified: true, testAttemptsLimit: true, createdAt: true },
     });
 
-    // 7. Send OTP email
     await sendOtpEmail(email, name, otp);
 
     res.status(201).json({
-      message:
-        role === "admin"
-          ? "Admin registration submitted. Main admin will approve and allocate your secret key."
-          : "Registration submitted! Please check your email for a verification code.",
+      message: role === "admin"
+        ? "Admin registration submitted. Main admin will approve and allocate your secret key."
+        : "Registration submitted! Please check your email for a verification code.",
       user,
       requiresOtp: role !== "admin",
     });
   } catch (error) {
-    console.error("Signup Endpoint Error:", error);
-    res.status(500).json({ error: "Internal Server Error. Runtime processing failure." });
+    console.error("Signup error:", error.message);
+    res.status(500).json({ error: "Internal Server Error." });
   }
 };
 
@@ -216,19 +169,14 @@ export const verifyEmail = async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(404).json({ error: "Account not found." });
-
-    if (user.isEmailVerified) {
-      return res.status(200).json({ message: "Email already verified." });
-    }
+    if (user.isEmailVerified) return res.status(200).json({ message: "Email already verified." });
 
     if (!user.emailOtp || !user.emailOtpExpiry) {
       return res.status(400).json({ error: "No OTP found. Please register again." });
     }
-
     if (new Date() > new Date(user.emailOtpExpiry)) {
       return res.status(400).json({ error: "OTP has expired. Please contact admin or re-register." });
     }
-
     if (user.emailOtp !== otp.toString()) {
       return res.status(400).json({ error: "Invalid OTP. Please try again." });
     }
@@ -237,10 +185,9 @@ export const verifyEmail = async (req, res) => {
       where: { email },
       data: { isEmailVerified: true, emailOtp: null, emailOtpExpiry: null },
     });
-
     res.status(200).json({ message: "Email verified successfully! Your account is now pending admin approval." });
   } catch (error) {
-    console.error("Email verify error:", error);
+    console.error("Email verify error:", error.message);
     res.status(500).json({ error: "Email verification failed." });
   }
 };
@@ -255,18 +202,15 @@ export const resendOtp = async (req, res) => {
     if (!user) return res.status(404).json({ error: "Account not found." });
     if (user.isEmailVerified) return res.status(400).json({ error: "Email already verified." });
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // VULN-09 FIX: crypto.randomInt for OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    await prisma.user.update({
-      where: { email },
-      data: { emailOtp: otp, emailOtpExpiry: otpExpiry },
-    });
-
+    await prisma.user.update({ where: { email }, data: { emailOtp: otp, emailOtpExpiry: otpExpiry } });
     await sendOtpEmail(email, user.name, otp);
     res.status(200).json({ message: "A new OTP has been sent to your email." });
   } catch (error) {
-    console.error("Resend OTP error:", error);
+    console.error("Resend OTP error:", error.message);
     res.status(500).json({ error: "Failed to resend OTP." });
   }
 };
@@ -274,44 +218,34 @@ export const resendOtp = async (req, res) => {
 export const googleAuth = async (req, res) => {
   try {
     const { credential } = req.body;
-
-    if (!credential) {
-      return res.status(400).json({ error: "Google credential is required." });
-    }
+    if (!credential) return res.status(400).json({ error: "Google credential is required." });
 
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
-
     const payload = ticket.getPayload();
     const email = payload?.email;
     const name = payload?.name;
     const emailVerified = payload?.email_verified;
 
     if (!email || !name || !emailVerified) {
-      return res
-        .status(400)
-        .json({ error: "Google authentication failed: invalid profile data." });
+      return res.status(400).json({ error: "Google authentication failed: invalid profile data." });
     }
 
     const [existingUser, existingAdmin] = await Promise.all([
       prisma.user.findUnique({ where: { email } }),
       prisma.admin.findUnique({ where: { email } }),
     ]);
-
     if (existingAdmin) {
-      return res.status(400).json({
-        error: "This email is already registered with an admin account.",
-      });
+      return res.status(400).json({ error: "This email is already registered with an admin account." });
     }
 
     let user = existingUser;
-
     if (!user) {
-      const randomPassword = crypto.randomBytes(16).toString("hex");
+      // VULN-04 FIX: Store a hashed random password, not an empty string
+      const randomPassword = crypto.randomBytes(32).toString("hex");
       const hashedPassword = await bcrypt.hash(randomPassword, 10);
-
       const oauthConfig = await getConfig();
       user = await prisma.user.create({
         data: {
@@ -328,95 +262,110 @@ export const googleAuth = async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || "super_secret_fallback_key_123",
-      { expiresIn: "7d" },
+      JWT_SECRET,
+      { expiresIn: "7d" }
     );
-
     res.status(200).json({
       message: "Google sign-in successful.",
       token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        isDemoAccount: user.isDemoAccount || false,
-      },
+      user: { id: user.id, name: user.name, email: user.email, isDemoAccount: user.isDemoAccount || false },
     });
   } catch (error) {
-    console.error("Google verify error:", error);
+    console.error("Google auth error:", error.message);
     res.status(500).json({ error: "Google authentication engine unavailable." });
   }
 };
 
+// ---- VULN-01 & VULN-02 FIX: Secure password reset ----
+// Token = crypto.randomBytes(32) raw value (sent via email only)
+// DB stores = bcrypt hash of that token + expiry
+// API response = NEVER leaks token or resetLink
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required." });
+
     const user = await prisma.user.findUnique({ where: { email } });
-    
+
+    // Always return a generic message to prevent email enumeration
     if (!user) {
-      return res.status(404).json({ error: "No account found with this email address." });
+      return res.status(200).json({ message: "If that email is registered, a password reset link has been sent." });
     }
 
-    const resetLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/reset-password?token=${user.id}`;
-    
-    // Attempt dynamic loading of nodemailer to notify if installed
-    try {
-      const nodemailer = await import("nodemailer");
-      if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        const transporter = nodemailer.createTransport({
-          service: "gmail",
-          auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-        });
+    // Generate a cryptographically secure token
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = await bcrypt.hash(rawToken, 10);
+    const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject: "🛒 ECAT CBT - Password Reset Request",
-          html: `<div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 600px;">
-            <h2 style="color: #003366;">Password Reset Request</h2>
+    await prisma.user.update({
+      where: { email },
+      data: { passwordResetToken: tokenHash, passwordResetExpiry: expiry },
+    });
+
+    const resetLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
+
+    const transporter = getMailTransporter();
+    if (transporter) {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: "ECAT CBT – Password Reset Request",
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:600px;padding:30px;border:1px solid #eee;border-radius:10px">
+            <h2 style="color:#003366">Password Reset Request</h2>
             <p>Hi <strong>${user.name}</strong>,</p>
-            <p>We received a request to reset your password. Click the button below to proceed to the secure reset page:</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetLink}" style="background-color: #00509d; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset My Password</a>
+            <p>Click the button below to reset your password. This link expires in <strong>1 hour</strong>.</p>
+            <div style="text-align:center;margin:30px 0">
+              <a href="${resetLink}" style="background:#00509d;color:white;padding:12px 25px;text-decoration:none;border-radius:5px;font-weight:bold">Reset My Password</a>
             </div>
-            <p>If the button doesn't work, copy and paste this link into your browser:</p>
-            <p style="color: #666; font-size: 0.9rem;">${resetLink}</p>
-          </div>`
-        });
-      }
-    } catch(_err) {
-      // Graceful fallback if nodemailer not installed locally yet
+            <p style="color:#888;font-size:0.85rem">If you did not request this, ignore this email. Your password will not change.</p>
+          </div>`,
+      });
+    } else {
+      // Dev fallback: print to console, never to API response
+      console.warn("[Dev] Password reset link (email not configured):", resetLink);
     }
 
-    res.json({ message: "A real password reset email has been sent to your account!", resetLink });
-  } catch(error) {
-    console.error("Forgot password API error:", error);
-    res.status(500).json({ error: "Failed to issue password reset logic." });
+    // VULN-02 FIX: Never return resetLink or token in the API response
+    res.status(200).json({ message: "If that email is registered, a password reset link has been sent." });
+  } catch (error) {
+    console.error("Forgot password error:", error.message);
+    res.status(500).json({ error: "Failed to process password reset request." });
   }
 };
 
 export const resetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
-
-    // The basic fallback format from PLAIN.2 (UserId used as token)
-    const user = await prisma.user.findUnique({ where: { id: token } });
-    
-    if (!user) {
-      return res.status(404).json({ error: "Invalid or expired reset link." });
+    const { token, email, newPassword } = req.body;
+    if (!token || !email || !newPassword) {
+      return res.status(400).json({ error: "Token, email, and new password are required." });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters." });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !user.passwordResetToken || !user.passwordResetExpiry) {
+      return res.status(400).json({ error: "Invalid or expired reset link." });
+    }
+    if (new Date() > new Date(user.passwordResetExpiry)) {
+      return res.status(400).json({ error: "Reset link has expired. Please request a new one." });
+    }
 
+    // VULN-01 FIX: Compare raw token against stored bcrypt hash
+    const isValid = await bcrypt.compare(token, user.passwordResetToken);
+    if (!isValid) {
+      return res.status(400).json({ error: "Invalid or expired reset link." });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
-      where: { id: token },
-      data: { password: hashedPassword },
+      where: { email },
+      data: { password: hashedPassword, passwordResetToken: null, passwordResetExpiry: null },
     });
-
-    res.json({ message: "Password updated successfully. You can now sign in with your new password." });
-  } catch(error) {
-    console.error("Reset password error:", error);
+    res.status(200).json({ message: "Password updated successfully. You can now sign in." });
+  } catch (error) {
+    console.error("Reset password error:", error.message);
     res.status(500).json({ error: "Failed to reset password." });
   }
 };
@@ -424,53 +373,38 @@ export const resetPassword = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password, role, secretCode } = req.body;
-
-    // 1. Validation
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ error: "Email and password are required." });
+      return res.status(400).json({ error: "Email and password are required." });
     }
 
     const requestedRole = role || "student";
 
     if (requestedRole === "admin") {
       const admin = await findAdminForLogin(email);
-
-      if (!admin) {
-        return res.status(401).json({ error: "Invalid admin credentials." });
-      }
+      if (!admin) return res.status(401).json({ error: "Invalid admin credentials." });
 
       const normalizedSecretCode = String(secretCode || "").trim().toUpperCase();
-      
       if (!admin.password || !admin.secretHash) {
-        return res.status(500).json({
-          error: "Admin account configuration is incomplete. Please contact the root owner.",
-        });
+        return res.status(500).json({ error: "Admin account configuration is incomplete." });
       }
 
-      const isPasswordValid = await bcrypt.compare(password, admin.password);
-      const isSecretValid = await bcrypt.compare(normalizedSecretCode, admin.secretHash);
-
+      const [isPasswordValid, isSecretValid] = await Promise.all([
+        bcrypt.compare(password, admin.password),
+        bcrypt.compare(normalizedSecretCode, admin.secretHash),
+      ]);
       if (!isPasswordValid || !isSecretValid) {
-        return res.status(403).json({
-          error: "Invalid admin credentials or secret code.",
-        });
+        return res.status(403).json({ error: "Invalid admin credentials or secret code." });
       }
-
       if (admin.isFrozen) {
-        return res.status(403).json({
-          error: "Your admin account is frozen by the main admin.",
-        });
+        return res.status(403).json({ error: "Your admin account is frozen by the main admin." });
       }
 
       const token = jwt.sign(
         { id: admin.id, email: admin.email, role: "admin" },
-        process.env.JWT_SECRET || "super_secret_fallback_key_123",
-        { expiresIn: "7d" },
+        JWT_SECRET,
+        { expiresIn: "7d" }
       );
       const loginMessages = await pullLoginMessages(admin.email, "admin");
-
       return res.status(200).json({
         message: "Admin login successful!",
         token,
@@ -479,10 +413,7 @@ export const login = async (req, res) => {
           name: admin.name,
           email: admin.email,
           role: "admin",
-          rank:
-            admin.email === "muhammad.f336s@gmail.com"
-              ? "Root Owner"
-              : admin.rank || "Standard Admin",
+          rank: admin.email === "muhammad.f336s@gmail.com" ? "Root Owner" : admin.rank || "Standard Admin",
           isApproved: true,
           testAttemptsLimit: -1,
           loginMessages,
@@ -490,27 +421,12 @@ export const login = async (req, res) => {
       });
     }
 
-    // 2. Find regular user in Neon DB
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(401).json({ error: "Invalid credentials: user not found." });
 
-    if (!user) {
-      return res
-        .status(401)
-        .json({ error: "Invalid credentials: user not found." });
-    }
-
-    // 3. Verify Hashed Password via bcrypt
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) return res.status(401).json({ error: "Invalid credentials: incorrect password." });
 
-    if (!isPasswordValid) {
-      return res
-        .status(401)
-        .json({ error: "Invalid credentials: incorrect password." });
-    }
-
-    // 3b. Email verification gate (configurable)
     const loginConfig = await getConfig();
     if (loginConfig.emailVerificationRequired && !user.isEmailVerified) {
       return res.status(403).json({
@@ -519,37 +435,22 @@ export const login = async (req, res) => {
       });
     }
 
-    const attemptsUsed = await prisma.testAttempt.count({
-      where: { userId: user.id },
-    });
-
     if (user.frozenUntil && new Date(user.frozenUntil) > new Date()) {
-      return res.status(403).json({
-        error: user.freezeReason || "Your account is temporarily frozen.",
-        isFrozen: true
-      });
+      return res.status(403).json({ error: user.freezeReason || "Your account is temporarily frozen.", isFrozen: true });
     }
-
     if (!user.isApproved) {
-      return res
-        .status(403)
-        .json({ error: "Your account is pending approval by admin." });
+      return res.status(403).json({ error: "Your account is pending approval by admin." });
     }
 
-    if (
-      user.testAttemptsLimit >= 0 &&
-      attemptsUsed >= user.testAttemptsLimit
-    ) {
-      return res.status(403).json({
-        error: "Your test attempts have been completed. Renew your package or contact admin.",
-      });
+    const attemptsUsed = await prisma.testAttempt.count({ where: { userId: user.id } });
+    if (user.testAttemptsLimit >= 0 && attemptsUsed >= user.testAttemptsLimit) {
+      return res.status(403).json({ error: "Your test attempts have been completed. Renew your package or contact admin." });
     }
 
-    // 4. Generate JWT Token
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || "super_secret_fallback_key_123",
-      { expiresIn: "7d" },
+      JWT_SECRET,
+      { expiresIn: "7d" }
     );
     const loginMessages = await pullLoginMessages(user.email, "student");
 
@@ -569,9 +470,7 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login Engine Error:", error);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error. Processing failed." });
+    console.error("Login error:", error.message);
+    res.status(500).json({ error: "Internal Server Error." });
   }
 };

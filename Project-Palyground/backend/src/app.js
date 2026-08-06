@@ -11,15 +11,33 @@ import resourceRoutes from "./routes/resourceRoutes.js";
 
 dotenv.config();
 
+// ---- CORS origin: must be explicitly configured in production ----
+const isProduction = process.env.NODE_ENV === "production";
+const corsOriginRaw = process.env.CLIENT_ORIGIN;
+
+if (isProduction && !corsOriginRaw) {
+  throw new Error(
+    "[FATAL] CLIENT_ORIGIN environment variable is not set in production. " +
+      "Set it to your frontend URL, e.g. CLIENT_ORIGIN=https://your-app.vercel.app"
+  );
+}
+
+// Dev fallback is safe — only localhost is allowed when env is absent
+const corsOrigins = corsOriginRaw
+  ? corsOriginRaw.split(",").map((o) => o.trim())
+  : ["http://localhost:5173", "http://localhost:3000"];
+
 const app = express();
 
-// Trust proxy if deployed behind Vercel, Render, or Cloudflare
-app.set("trust proxy", 1);
+// Trust proxy only in production (behind Vercel/Render/Cloudflare)
+// In dev, this is off so X-Forwarded-For cannot be spoofed to bypass rate limiting
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
 
-const corsOrigin = process.env.CLIENT_ORIGIN || "*";
 app.use(
   cors({
-    origin: corsOrigin === "*" ? "*" : corsOrigin.split(",").map((o) => o.trim()),
+    origin: corsOrigins,
     credentials: true,
   })
 );

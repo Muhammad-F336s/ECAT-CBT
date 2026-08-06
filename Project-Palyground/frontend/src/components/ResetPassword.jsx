@@ -6,6 +6,7 @@ import "./AuthPage.css";
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
+  const email = searchParams.get("email"); // Required by new secure reset flow
   const navigate = useNavigate();
 
   const [password, setPassword] = useState("");
@@ -22,7 +23,7 @@ export default function ResetPassword() {
     setError("");
     setLoading(true);
     try {
-      await API.post("/auth/reset-password", { token, newPassword: password });
+      await API.post("/auth/reset-password", { token, email, newPassword: password });
       setSuccess(true);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to reset password.");
@@ -31,10 +32,10 @@ export default function ResetPassword() {
     }
   };
 
-  if (!token) {
+  if (!token || !email) {
     return (
       <div className="auth-page-container" style={{ justifyContent: "center", alignItems: "center", display: "flex", width: "100%", height: "100vh" }}>
-        <h2 style={{ color: "red" }}>Invalid or missing reset token!</h2>
+        <h2 style={{ color: "red" }}>Invalid or missing reset link. Please request a new one.</h2>
       </div>
     );
   }

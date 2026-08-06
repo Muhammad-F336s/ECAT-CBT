@@ -4,21 +4,18 @@ import "./AuthPage.css";
 import googleIcon from "../assets/google-icon.svg";
 
 const OPEN_OPTIONS = "popup=yes,width=600,height=700,top=100,left=100";
-const API_ORIGIN = "http://localhost:8787";
+const API_ORIGIN = (import.meta.env.VITE_API_URL || "http://localhost:8787/api").replace(
+  /\/api\/?$/,
+  "",
+);
 
 const parsePopupAuth = () => {
   const params = new URLSearchParams(window.location.search);
-  const token = params.get("token");
-  const userParam = params.get("user");
-  if (!token || !userParam) return null;
-
-  try {
-    const user = JSON.parse(decodeURIComponent(userParam));
-    return { token, user };
-  } catch (error) {
-    console.error("Error parsing popup auth:", error);
-    return null;
-  }
+  // VULN-07 FIX: OAuth now redirects with a short-lived code, not the JWT directly.
+  // Exchange the code for the real token via POST /auth/exchange-code.
+  const code = params.get("code");
+  if (!code) return null;
+  return { code };
 };
 
 const openAuthPopup = (url, onSuccess) => {
@@ -28,7 +25,7 @@ const openAuthPopup = (url, onSuccess) => {
     return null;
   }
 
-  const interval = window.setInterval(() => {
+  const interval = window.setInterval(async () => {
     if (!popup || popup.closed) {
       window.clearInterval(interval);
       return;
@@ -38,19 +35,29 @@ const openAuthPopup = (url, onSuccess) => {
       const popupUrl = new URL(popup.location.href);
       if (popupUrl.origin !== window.location.origin) return;
 
-      const params = popupUrl.searchParams;
-      const token = params.get("token");
-      const userParam = params.get("user");
-      if (token && userParam) {
-        const user = JSON.parse(decodeURIComponent(userParam));
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
-        onSuccess(user);
+      // VULN-07 FIX: Exchange the short-lived code for the real JWT
+      const code = popupUrl.searchParams.get("code");
+      if (code) {
         popup.close();
         window.clearInterval(interval);
+        try {
+          const res = await fetch(`${API_ORIGIN}/api/auth/exchange-code`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code }),
+          });
+          const data = await res.json();
+          if (data.token && data.user) {
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("user", JSON.stringify(data.user));
+            onSuccess(data.user);
+          }
+        } catch (err) {
+          console.error("Code exchange failed:", err);
+        }
       }
-    } catch (error) {
-      console.error("Error parsing popup auth:", error);
+    } catch {
+      // Cross-origin access — popup is still on the OAuth provider page, keep polling
     }
   }, 500);
 
@@ -100,10 +107,22 @@ const AuthPage = ({ onAuthSuccess }) => {
 
   useEffect(() => {
     const popupAuth = parsePopupAuth();
-    if (popupAuth) {
-      localStorage.setItem("token", popupAuth.token);
-      localStorage.setItem("user", JSON.stringify(popupAuth.user));
-      onAuthSuccess(popupAuth.user);
+    if (popupAuth?.code) {
+      // Exchange the one-time code for the real JWT (same-tab redirect flow)
+      fetch(`${API_ORIGIN}/api/auth/exchange-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: popupAuth.code }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.token && data.user) {
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("user", JSON.stringify(data.user));
+            onAuthSuccess(data.user);
+          }
+        })
+        .catch((err) => console.error("Code exchange failed:", err));
     }
   }, [onAuthSuccess]);
 

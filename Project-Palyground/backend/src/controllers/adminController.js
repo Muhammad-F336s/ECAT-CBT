@@ -1,7 +1,9 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import prisma from "../db.js";
 import { getConfig } from "../configHelpers.js";
+import { JWT_SECRET } from "../jwtSecret.js";
 
 const MAIN_ADMIN_EMAIL = "muhammad.f336s@gmail.com";
 const ROOT_OWNER_RANK = "Root Owner";
@@ -11,11 +13,9 @@ const STANDARD_ADMIN_RANK = "Standard Admin";
 // ── Protected Demo Account ─────────────────────────────────────────
 export const DEMO_ACCOUNT_EMAIL = "demo@cbt.com";
 
+// VULN-09 FIX: Use crypto instead of Math.random for admin secret generation
 const generateSecret = () =>
-  `ADM-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random()
-    .toString(36)
-    .slice(2, 6)
-    .toUpperCase()}`;
+  `ADM-${crypto.randomBytes(3).toString("hex").toUpperCase()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
 
 const adminSelect = {
   id: true,
@@ -683,7 +683,7 @@ export const impersonateUser = async (req, res) => {
     // 4. Issue temporary student JWT (2-hour session)
     const token = jwt.sign(
       { id: demoStudent.id, email: demoStudent.email, role: "student", isDemo: true },
-      process.env.JWT_SECRET || "super_secret_fallback_key_123",
+      JWT_SECRET,
       { expiresIn: "2h" }
     );
 

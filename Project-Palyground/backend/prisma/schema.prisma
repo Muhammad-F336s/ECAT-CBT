@@ -41,8 +41,10 @@ model User {
   isDemoAccount     Boolean         @default(false)
   domain            String?         // e.g., "Engineering", "Medical", "Computer Science"
   cnic              String?         @unique // CNIC - prevents re-registration with same national ID
-  emailOtp          String?         // One-time password for email verification
-  emailOtpExpiry    DateTime?       // OTP expiry time
+  emailOtp              String?         // One-time password for email verification
+  emailOtpExpiry        DateTime?       // OTP expiry time
+  passwordResetToken    String?         // Hashed secure password reset token
+  passwordResetExpiry   DateTime?       // Token expiry (1 hour from issue)
   packageType       PackageType     @default(STANDARD)
   testAttemptsLimit Int             @default(0)
   falseReportCount  Int             @default(0)

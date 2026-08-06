@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import API from "../utils/api";
 import { convertMathPlaceholders } from "../utils/mathUtils";
@@ -19,10 +19,10 @@ const formatTime = (totalSeconds) => {
 const formatClock = (date) =>
   date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-const TestWindow = ({ subjectId: _subjectId, userId, user, onTestComplete }) => {
+const TestWindow = ({ userId, user, onTestComplete }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const formData = location.state?.formData || {};
+  const formData = useMemo(() => location.state?.formData || {}, [location.state]);
 
   const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -52,11 +52,10 @@ const TestWindow = ({ subjectId: _subjectId, userId, user, onTestComplete }) => 
   const timerRef = useRef(null);
   const autoSubmittedRef = useRef(false);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (!loading) {
-      setLoadProgress(0);
-      return;
+      const timer = window.setTimeout(() => setLoadProgress(0), 0);
+      return () => window.clearTimeout(timer);
     }
 
     const steps = [
@@ -67,8 +66,10 @@ const TestWindow = ({ subjectId: _subjectId, userId, user, onTestComplete }) => 
       { pct: 95, text: "Building simulator window interface..." },
     ];
 
-    setLoadProgress(5);
-    setLoadStepName("Initializing test configuration...");
+    const startTimer = window.setTimeout(() => {
+      setLoadProgress(5);
+      setLoadStepName("Initializing test configuration...");
+    }, 0);
 
     let active = true;
     let index = 0;
@@ -86,6 +87,7 @@ const TestWindow = ({ subjectId: _subjectId, userId, user, onTestComplete }) => 
 
     return () => {
       active = false;
+      clearTimeout(startTimer);
       clearInterval(interval);
     };
   }, [loading]);
@@ -149,35 +151,36 @@ const TestWindow = ({ subjectId: _subjectId, userId, user, onTestComplete }) => 
       setPhase("error");
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [formData]);
 
   // Auto-invoke test generation on mount, with localStorage session recovery
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    let restoreTimer;
     const savedSessionRaw = localStorage.getItem("ecat_active_test_session");
     if (savedSessionRaw) {
       try {
         const saved = JSON.parse(savedSessionRaw);
         if (saved && saved.userId === userId && saved.questions && saved.questions.length > 0) {
           console.log("[CBT] Restoring active test session from page refresh...");
-          setQuestions(saved.questions);
-          setAnswers(saved.answers || {});
-          setLockedIds(new Set(saved.lockedIds || []));
-          setSkippedIds(new Set(saved.skippedIds || []));
-          setMaxReachedIdx(saved.maxReachedIdx || 0);
-          setCurrentIdx(saved.currentIdx || 0);
-          setTimeLeft(saved.timeLeft || 0);
-          setSubjectName(saved.subjectName || "ECAT Practice");
-          setTimeBoostsUsed(saved.timeBoostsUsed || 0);
-          setPausesUsed(saved.pausesUsed || 0);
-          setIsPaused(saved.isPaused || false);
-          if (saved.paperStartTime) {
-            setPaperStartTime(new Date(saved.paperStartTime));
-          }
-          setPhase("active");
-          setLoading(false);
-          return;
+          restoreTimer = window.setTimeout(() => {
+            setQuestions(saved.questions);
+            setAnswers(saved.answers || {});
+            setLockedIds(new Set(saved.lockedIds || []));
+            setSkippedIds(new Set(saved.skippedIds || []));
+            setMaxReachedIdx(saved.maxReachedIdx || 0);
+            setCurrentIdx(saved.currentIdx || 0);
+            setTimeLeft(saved.timeLeft || 0);
+            setSubjectName(saved.subjectName || "ECAT Practice");
+            setTimeBoostsUsed(saved.timeBoostsUsed || 0);
+            setPausesUsed(saved.pausesUsed || 0);
+            setIsPaused(saved.isPaused || false);
+            if (saved.paperStartTime) {
+              setPaperStartTime(new Date(saved.paperStartTime));
+            }
+            setPhase("active");
+            setLoading(false);
+          }, 0);
+          return () => window.clearTimeout(restoreTimer);
         }
       } catch (err) {
         console.error("Failed to parse saved session", err);
@@ -189,9 +192,9 @@ const TestWindow = ({ subjectId: _subjectId, userId, user, onTestComplete }) => 
       navigate("/test/form", { replace: true });
       return;
     }
-    loadTest();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+    const loadTimer = window.setTimeout(loadTest, 0);
+    return () => window.clearTimeout(loadTimer);
+  }, [formData, loadTest, navigate, userId]);
 
   // Save active test state to localStorage to protect against page refreshes
   useEffect(() => {
@@ -412,7 +415,9 @@ const TestWindow = ({ subjectId: _subjectId, userId, user, onTestComplete }) => 
       autoSubmittedRef.current = true;
       handleFinishExam(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // handleFinishExam is defined inside the component and changes on every render.
+  // Including it would cause an infinite loop; the eslint-disable is intentional.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, phase, questions.length]);
 
   const handleZoomIn = () =>
