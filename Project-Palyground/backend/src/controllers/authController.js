@@ -9,6 +9,9 @@ import { JWT_SECRET } from "../jwtSecret.js";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// Store pending signups in memory so they are not saved in DB until verified
+const pendingSignups = new Map();
+
 // ---- Nodemailer transporter (reusable) ----
 const getMailTransporter = () => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return null;
@@ -39,6 +42,7 @@ const sendOtpEmail = async (to, name, otp) => {
           <span style="font-size:2.4rem;font-weight:bold;letter-spacing:10px;color:#1b4332;background:#d8f3dc;padding:14px 28px;border-radius:10px">${otp}</span>
         </div>
         <p style="color:#555;font-size:0.88rem">This code expires in <strong>10 minutes</strong>. Do not share it with anyone.</p>
+        <p style="color:#d9534f;font-size:0.85rem;margin-top:15px;"><strong>Note:</strong> If you did not request this, please ignore it. Check your Spam or Junk folder if you have trouble finding future emails.</p>
       </div>`,
   });
 };
@@ -128,31 +132,30 @@ export const signup = async (req, res) => {
     const cleanCnic = role !== "admin" && cnic ? cnic.replace(/-/g, "") : null;
     const isApproved = role !== "admin" ? Boolean(config.autoApproveStudents) : false;
 
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        role: role || "student",
-        domain: role !== "admin" ? domain : null,
-        cnic: cleanCnic,
-        isApproved,
-        isEmailVerified: false,
-        emailOtp: otp,
-        emailOtpExpiry: otpExpiry,
-        packageType: config.defaultPackage,
-        testAttemptsLimit: 0,
-      },
-      select: { id: true, name: true, email: true, role: true, domain: true, isApproved: true, isEmailVerified: true, testAttemptsLimit: true, createdAt: true },
+    // Store in memory instead of DB
+    pendingSignups.set(email, {
+      name,
+      email,
+      password: hashedPassword,
+      role: role || "student",
+      domain: role !== "admin" ? domain : null,
+      cnic: cleanCnic,
+      isApproved,
+      isEmailVerified: false,
+      otp,
+      otpExpiry,
+      packageType: config.defaultPackage,
+      testAttemptsLimit: 0,
+      secretHash: role === "admin" ? await bcrypt.hash(adminSecretCode, 10) : undefined // if admin
     });
 
-    await sendOtpEmail(email, name, otp);
+    // Send email without awaiting to speed up response
+    sendOtpEmail(email, name, otp).catch(err => console.error("Async OTP Email Failed:", err.message));
 
     res.status(201).json({
       message: role === "admin"
         ? "Admin registration submitted. Main admin will approve and allocate your secret key."
         : "Registration submitted! Please check your email for a verification code.",
-      user,
       requiresOtp: role !== "admin",
     });
   } catch (error) {
@@ -167,25 +170,48 @@ export const verifyEmail = async (req, res) => {
     const { email, otp } = req.body;
     if (!email || !otp) return res.status(400).json({ error: "Email and OTP are required." });
 
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.status(404).json({ error: "Account not found." });
-    if (user.isEmailVerified) return res.status(200).json({ message: "Email already verified." });
+    const pendingUser = pendingSignups.get(email);
+    if (!pendingUser) return res.status(404).json({ error: "No pending signup found for this email. Please register again." });
 
-    if (!user.emailOtp || !user.emailOtpExpiry) {
-      return res.status(400).json({ error: "No OTP found. Please register again." });
+    if (new Date() > new Date(pendingUser.otpExpiry)) {
+      pendingSignups.delete(email);
+      return res.status(400).json({ error: "OTP has expired. Please re-register." });
     }
-    if (new Date() > new Date(user.emailOtpExpiry)) {
-      return res.status(400).json({ error: "OTP has expired. Please contact admin or re-register." });
-    }
-    if (user.emailOtp !== otp.toString()) {
+    if (pendingUser.otp !== otp.toString()) {
       return res.status(400).json({ error: "Invalid OTP. Please try again." });
     }
 
-    await prisma.user.update({
-      where: { email },
-      data: { isEmailVerified: true, emailOtp: null, emailOtpExpiry: null },
-    });
-    res.status(200).json({ message: "Email verified successfully! Your account is now pending admin approval." });
+    // OTP is valid. Now save to database
+    if (pendingUser.role === "admin") {
+      await prisma.admin.create({
+        data: {
+          name: pendingUser.name,
+          email: pendingUser.email,
+          password: pendingUser.password,
+          secretHash: pendingUser.secretHash || "",
+          rank: "Admin",
+          isFrozen: false
+        }
+      });
+    } else {
+      await prisma.user.create({
+        data: {
+          name: pendingUser.name,
+          email: pendingUser.email,
+          password: pendingUser.password,
+          role: pendingUser.role,
+          domain: pendingUser.domain,
+          cnic: pendingUser.cnic,
+          isApproved: pendingUser.isApproved,
+          isEmailVerified: true,
+          packageType: pendingUser.packageType,
+          testAttemptsLimit: pendingUser.testAttemptsLimit,
+        }
+      });
+    }
+
+    pendingSignups.delete(email);
+    res.status(200).json({ message: "Email verified successfully! You can now log in." });
   } catch (error) {
     console.error("Email verify error:", error.message);
     res.status(500).json({ error: "Email verification failed." });
@@ -198,16 +224,17 @@ export const resendOtp = async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: "Email is required." });
 
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.status(404).json({ error: "Account not found." });
-    if (user.isEmailVerified) return res.status(400).json({ error: "Email already verified." });
+    const pendingUser = pendingSignups.get(email);
+    if (!pendingUser) return res.status(404).json({ error: "No pending signup found. Please register again." });
 
-    // VULN-09 FIX: crypto.randomInt for OTP
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    await prisma.user.update({ where: { email }, data: { emailOtp: otp, emailOtpExpiry: otpExpiry } });
-    await sendOtpEmail(email, user.name, otp);
+    pendingUser.otp = otp;
+    pendingUser.otpExpiry = otpExpiry;
+    pendingSignups.set(email, pendingUser);
+
+    sendOtpEmail(email, pendingUser.name, otp).catch(err => console.error("Async OTP Resend Failed:", err.message));
     res.status(200).json({ message: "A new OTP has been sent to your email." });
   } catch (error) {
     console.error("Resend OTP error:", error.message);
@@ -285,50 +312,111 @@ export const forgotPassword = async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: "Email is required." });
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    // ✅ Case-insensitive: always compare lowercase
+    const normalizedEmail = email.trim().toLowerCase();
 
-    // Always return a generic message to prevent email enumeration
-    if (!user) {
-      return res.status(200).json({ message: "If that email is registered, a password reset link has been sent." });
-    }
+    const frontendBase = process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.replace(/\/$/, "")
+      : "http://localhost:5173";
 
-    // Generate a cryptographically secure token
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const tokenHash = await bcrypt.hash(rawToken, 10);
-    const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const generateResetToken = async () => {
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = await bcrypt.hash(rawToken, 10);
+      const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      return { rawToken, tokenHash, expiry };
+    };
 
-    await prisma.user.update({
-      where: { email },
-      data: { passwordResetToken: tokenHash, passwordResetExpiry: expiry },
+    const sendResetEmail = async (toEmail, toName, resetLink) => {
+      const transporter = getMailTransporter();
+      if (transporter) {
+        try {
+          await transporter.sendMail({
+            from: `"ECAT CBT Platform" <${process.env.EMAIL_USER}>`,
+            to: toEmail,
+            subject: "ECAT CBT – Password Reset Request",
+            html: `
+              <div style="font-family:Arial,sans-serif;max-width:600px;padding:30px;border:1px solid #eee;border-radius:10px">
+                <h2 style="color:#003366">Password Reset Request</h2>
+                <p>Hi <strong>${toName}</strong>,</p>
+                <p>Click the button below to reset your password. This link expires in <strong>1 hour</strong>.</p>
+                <div style="text-align:center;margin:30px 0">
+                  <a href="${resetLink}" style="background:#00509d;color:white;padding:12px 25px;text-decoration:none;border-radius:5px;font-weight:bold">Reset My Password</a>
+                </div>
+                <p style="color:#555;font-size:0.88rem">Or copy this link into your browser:</p>
+                <p style="word-break:break-all;font-size:0.82rem;color:#888">${resetLink}</p>
+                <p style="color:#888;font-size:0.85rem">If you did not request this, ignore this email. Your password will not change.</p>
+              </div>`,
+          });
+        } catch (mailErr) {
+          // SMTP rejected the address (e.g. 550 no such user)
+          console.error("[Email] Delivery failed to:", toEmail, mailErr.message);
+          // Re-throw with a user-friendly message so caller can respond with 400
+          const err = new Error("EMAIL_DELIVERY_FAILED");
+          err.recipientEmail = toEmail;
+          throw err;
+        }
+      } else {
+        console.warn("[Dev] Password reset link:", resetLink);
+      }
+    };
+
+    // 1. Check User table (case-insensitive)
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: normalizedEmail, mode: "insensitive" } },
     });
 
-    const resetLink = `${process.env.FRONTEND_URL || "http://localhost:5173"}/reset-password?token=${rawToken}&email=${encodeURIComponent(email)}`;
-
-    const transporter = getMailTransporter();
-    if (transporter) {
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: "ECAT CBT – Password Reset Request",
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:600px;padding:30px;border:1px solid #eee;border-radius:10px">
-            <h2 style="color:#003366">Password Reset Request</h2>
-            <p>Hi <strong>${user.name}</strong>,</p>
-            <p>Click the button below to reset your password. This link expires in <strong>1 hour</strong>.</p>
-            <div style="text-align:center;margin:30px 0">
-              <a href="${resetLink}" style="background:#00509d;color:white;padding:12px 25px;text-decoration:none;border-radius:5px;font-weight:bold">Reset My Password</a>
-            </div>
-            <p style="color:#888;font-size:0.85rem">If you did not request this, ignore this email. Your password will not change.</p>
-          </div>`,
+    if (user) {
+      const { rawToken, tokenHash, expiry } = await generateResetToken();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordResetToken: tokenHash, passwordResetExpiry: expiry },
       });
-    } else {
-      // Dev fallback: print to console, never to API response
-      console.warn("[Dev] Password reset link (email not configured):", resetLink);
+      const resetLink = `${frontendBase}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+      try {
+        await sendResetEmail(user.email, user.name, resetLink);
+      } catch (mailErr) {
+        if (mailErr.message === "EMAIL_DELIVERY_FAILED") {
+          // Clear the token — it's useless if email never arrived
+          await prisma.user.update({ where: { id: user.id }, data: { passwordResetToken: null, passwordResetExpiry: null } });
+          return res.status(400).json({ error: `❌ Email delivery failed. The address "${user.email}" could not receive mail. Please contact ECAT-CBT support.` });
+        }
+        throw mailErr;
+      }
+      return res.status(200).json({ message: "✅ Password reset link has been sent to your email." });
     }
 
-    // VULN-02 FIX: Never return resetLink or token in the API response
-    res.status(200).json({ message: "If that email is registered, a password reset link has been sent." });
+    // 2. Check Admin table (case-insensitive)
+    const admin = await prisma.admin.findFirst({
+      where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+      select: { id: true, name: true, email: true },
+    });
+
+    if (admin) {
+      const { rawToken, tokenHash, expiry } = await generateResetToken();
+      await prisma.admin.update({
+        where: { id: admin.id },
+        data: { passwordResetToken: tokenHash, passwordResetExpiry: expiry },
+      });
+      const resetLink = `${frontendBase}/reset-password?token=${rawToken}&email=${encodeURIComponent(admin.email)}&role=admin`;
+      try {
+        await sendResetEmail(admin.email, admin.name, resetLink);
+      } catch (mailErr) {
+        if (mailErr.message === "EMAIL_DELIVERY_FAILED") {
+          await prisma.admin.update({ where: { id: admin.id }, data: { passwordResetToken: null, passwordResetExpiry: null } });
+          return res.status(400).json({ error: `❌ Email delivery failed. The address "${admin.email}" could not receive mail. Please contact ECAT-CBT support.` });
+        }
+        throw mailErr;
+      }
+      return res.status(200).json({ message: "✅ Password reset link has been sent to your email." });
+    }
+
+    // Email not found in either table
+    return res.status(404).json({ error: "❌ No account found with this email address. Please check and try again." });
+
   } catch (error) {
+    if (error.message === "EMAIL_DELIVERY_FAILED") {
+      return res.status(400).json({ error: `❌ Email delivery failed. The address could not receive mail. Please contact ECAT-CBT support.` });
+    }
     console.error("Forgot password error:", error.message);
     res.status(500).json({ error: "Failed to process password reset request." });
   }
@@ -336,7 +424,7 @@ export const forgotPassword = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
-    const { token, email, newPassword } = req.body;
+    const { token, email, newPassword, role } = req.body;
     if (!token || !email || !newPassword) {
       return res.status(400).json({ error: "Token, email, and new password are required." });
     }
@@ -344,23 +432,47 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ error: "Password must be at least 8 characters." });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = email.trim().toLowerCase();
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Admin reset flow
+    if (role === "admin") {
+      const admin = await prisma.admin.findFirst({
+        where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+      });
+      if (!admin || !admin.passwordResetToken || !admin.passwordResetExpiry) {
+        return res.status(400).json({ error: "Invalid or expired reset link." });
+      }
+      if (new Date() > new Date(admin.passwordResetExpiry)) {
+        return res.status(400).json({ error: "Reset link has expired. Please request a new one." });
+      }
+      const isValid = await bcrypt.compare(token, admin.passwordResetToken);
+      if (!isValid) {
+        return res.status(400).json({ error: "Invalid or expired reset link." });
+      }
+      await prisma.admin.update({
+        where: { id: admin.id },
+        data: { password: hashedPassword, passwordResetToken: null, passwordResetExpiry: null },
+      });
+      return res.status(200).json({ message: "Password updated successfully. You can now sign in." });
+    }
+
+    // Student/user reset flow
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: normalizedEmail, mode: "insensitive" } },
+    });
     if (!user || !user.passwordResetToken || !user.passwordResetExpiry) {
       return res.status(400).json({ error: "Invalid or expired reset link." });
     }
     if (new Date() > new Date(user.passwordResetExpiry)) {
       return res.status(400).json({ error: "Reset link has expired. Please request a new one." });
     }
-
-    // VULN-01 FIX: Compare raw token against stored bcrypt hash
     const isValid = await bcrypt.compare(token, user.passwordResetToken);
     if (!isValid) {
       return res.status(400).json({ error: "Invalid or expired reset link." });
     }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
-      where: { email },
+      where: { id: user.id },
       data: { password: hashedPassword, passwordResetToken: null, passwordResetExpiry: null },
     });
     res.status(200).json({ message: "Password updated successfully. You can now sign in." });
@@ -466,6 +578,7 @@ export const login = async (req, res) => {
         isDemoAccount: user.isDemoAccount || false,
         packageType: user.packageType ?? "STANDARD",
         testAttemptsLimit: user.testAttemptsLimit,
+        hasCompletedOnboarding: user.hasCompletedOnboarding ?? false,
         loginMessages,
       },
     });

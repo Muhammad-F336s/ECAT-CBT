@@ -2,10 +2,12 @@ import Dashboard from "./Dashboard";
 import API from "../utils/api";
 import { useEffect, useState } from "react";
 import "./UserDashboard.css";
+import OnboardingScreen from "./OnboardingScreen";
 
 export default function UserDashboard({ user, onStartTest, onOpenAccount }) {
   const initials = user?.name?.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "U";
   const [metrics, setMetrics] = useState({ totalTests: 0, averagePercentage: 0 });
+  const [showOnboarding, setShowOnboarding] = useState(!user?.hasCompletedOnboarding);
 
   useEffect(() => {
     let mounted = true;
@@ -27,6 +29,19 @@ export default function UserDashboard({ user, onStartTest, onOpenAccount }) {
       mounted = false;
     };
   }, [user?.id]);
+
+  if (showOnboarding) {
+    return (
+      <OnboardingScreen 
+        onComplete={() => {
+          setShowOnboarding(false);
+          // update user in local storage so it persists
+          const updatedUser = { ...user, hasCompletedOnboarding: true };
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        }} 
+      />
+    );
+  }
 
   return (
     <div className="dashboard-page-container">

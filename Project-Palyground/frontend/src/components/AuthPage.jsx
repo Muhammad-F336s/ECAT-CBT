@@ -97,6 +97,7 @@ const AuthPage = ({ onAuthSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showSecretCode, setShowSecretCode] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
 
   // OTP verification state
   const [otpStep, setOtpStep] = useState(false);
@@ -180,8 +181,14 @@ const AuthPage = ({ onAuthSuccess }) => {
 
     try {
       if (isForgotPassword) {
-        const resetRes = await API.post("/auth/forgot-password", { email: formData.email });
-        setSuccessMessage(resetRes.data.message || "Reset link dispatched.");
+        try {
+          const resetRes = await API.post("/auth/forgot-password", { email: formData.email });
+          setSuccessMessage(resetRes.data.message || "✅ Reset link dispatched.");
+        } catch (fpErr) {
+          // 404 = email not found — show clear error
+          const errMsg = fpErr.response?.data?.error || "Something went wrong. Please try again.";
+          setError(errMsg);
+        }
         setLoading(false);
         return;
       }
@@ -213,11 +220,18 @@ const AuthPage = ({ onAuthSuccess }) => {
       localStorage.setItem("user", JSON.stringify(res.data.user));
       onAuthSuccess(res.data.user);
     } catch (error) {
-      if (error.response?.data?.isFrozen) {
+      if (error.response?.data?.needsVerification) {
+        setNeedsVerification(true);
+        setIsFrozen(false);
+        setPendingEmail(formData.email);
+        setError(error.response.data.error);
+      } else if (error.response?.data?.isFrozen) {
         setIsFrozen(true);
+        setNeedsVerification(false);
         setError(error.response.data.error);
       } else {
         setIsFrozen(false);
+        setNeedsVerification(false);
         setError(
           error.response?.data?.error ||
             error.message ||
@@ -265,8 +279,11 @@ const AuthPage = ({ onAuthSuccess }) => {
             <form onSubmit={handleVerifyOtp} className="auth-core-form">
               <div className="otp-icon">✉️</div>
               <h2 className="form-main-title">Verify Your Email</h2>
-              <p className="form-subtext" style={{ textAlign: "center", marginBottom: "18px" }}>
+              <p className="form-subtext" style={{ textAlign: "center", marginBottom: "8px" }}>
                 We sent a 6-digit code to <strong>{pendingEmail}</strong>. Enter it below.
+              </p>
+              <p className="form-subtext" style={{ textAlign: "center", marginBottom: "18px", color: "#c53030", fontSize: "0.85rem" }}>
+                <strong>Note:</strong> Check your Spam / Junk folder if you don't see it!
               </p>
 
               {successMessage && <div className="auth-success-alert">{successMessage}</div>}
@@ -290,17 +307,24 @@ const AuthPage = ({ onAuthSuccess }) => {
                 {otpLoading ? "Verifying..." : "Verify Email"}
               </button>
 
-              <div style={{ textAlign: "center", marginTop: "14px" }}>
-                <button
-                  type="button"
-                  className="auth-mobile-toggle-btn"
-                  onClick={handleResendOtp}
-                  disabled={resendCooldown > 0}
-                  style={{ opacity: resendCooldown > 0 ? 0.5 : 1 }}
-                >
-                  {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Resend OTP"}
-                </button>
-              </div>
+              <button
+                type="button"
+                className="auth-action-submit-btn auth-back-login-btn"
+                onClick={handleResendOtp}
+                disabled={resendCooldown > 0}
+                style={{ marginTop: "10px", opacity: resendCooldown > 0 ? 0.7 : 1 }}
+              >
+                {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : "Resend OTP"}
+              </button>
+
+              <button
+                type="button"
+                className="auth-action-submit-btn auth-back-login-btn"
+                onClick={() => setOtpStep(false)}
+                style={{ marginTop: "10px" }}
+              >
+                ← Back to Signup
+              </button>
             </form>
           </div>
         </div>
@@ -372,7 +396,32 @@ const AuthPage = ({ onAuthSuccess }) => {
                     {error}
                   </>
                 ) : (
-                  error
+                  <>
+                    {error}
+                    {needsVerification && (
+                      <div style={{ marginTop: "10px" }}>
+                        <button
+                          type="button"
+                          className="auth-action-submit-btn"
+                          style={{ padding: "8px", fontSize: "14px" }}
+                          onClick={async () => {
+                            setError("");
+                            try {
+                              await API.post("/auth/resend-otp", { email: pendingEmail });
+                              setResendCooldown(60);
+                              setOtpStep(true);
+                              setSuccessMessage("A new OTP has been sent to your email.");
+                              setNeedsVerification(false);
+                            } catch (err) {
+                              setError(err.response?.data?.error || "Failed to resend OTP.");
+                            }
+                          }}
+                        >
+                          Verify Email Now
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -484,20 +533,6 @@ const AuthPage = ({ onAuthSuccess }) => {
               </div>
             )}
 
-            {!isSignUp && (
-              <div className="forgot-password-link">
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setIsForgotPassword(!isForgotPassword);
-                  }}
-                >
-                  {isForgotPassword ? "Back to Login" : "Forgot your password?"}
-                </a>
-              </div>
-            )}
-
             <button type="submit" disabled={loading} className="auth-action-submit-btn">
               {loading
                 ? "Processing..."
@@ -507,6 +542,31 @@ const AuthPage = ({ onAuthSuccess }) => {
                     ? "Sign Up"
                     : "Sign In"}
             </button>
+
+            {!isSignUp && isForgotPassword && (
+              <button
+                type="button"
+                className="auth-action-submit-btn auth-back-login-btn"
+                onClick={() => setIsForgotPassword(false)}
+              >
+                ← Back to Login
+              </button>
+            )}
+
+            {!isSignUp && !isForgotPassword && (
+              <div className="forgot-password-link">
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsForgotPassword(true);
+                  }}
+                >
+                  Forgot your password?
+                </a>
+              </div>
+            )}
+
             {!isForgotPassword && (
               <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="auth-mobile-toggle-btn">
                 {isSignUp ? "Already have an account? Sign in" : "Need an account? Sign up"}

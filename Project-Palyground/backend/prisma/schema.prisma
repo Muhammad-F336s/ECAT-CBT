@@ -50,6 +50,9 @@ model User {
   falseReportCount  Int             @default(0)
   frozenUntil       DateTime?
   freezeReason      String?         @db.Text
+  hasCompletedOnboarding Boolean    @default(false)
+  selectedUniversities University[]
+  selectedExams        EntryExam[]
   attempts          TestAttempt[]   // Relation: User ne kitne tests diye
   tickets           SupportTicket[] // Relation: Support tickets submitted by the user
   createdAt         DateTime        @default(now())
@@ -58,15 +61,17 @@ model User {
 
 // 2. Admin Table (Dedicated admin identity and access controls)
 model Admin {
-  id          String   @id @default(uuid())
-  name        String
-  email       String   @unique
-  password    String
-  secretHash  String
-  secretCode  String?
-  rank        String   @default("Admin")
-  isFrozen    Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id                   String    @id @default(uuid())
+  name                 String
+  email                String    @unique
+  password             String
+  secretHash           String
+  secretCode           String?
+  rank                 String    @default("Admin")
+  isFrozen             Boolean   @default(false)
+  passwordResetToken   String?   // Hashed secure password reset token
+  passwordResetExpiry  DateTime? // Token expiry (1 hour from issue)
+  createdAt            DateTime  @default(now())
 }
 
 model LoginMessage {
@@ -188,4 +193,31 @@ model SupportTicket {
   updatedAt   DateTime @updatedAt
 }
 
+model ExamCategory {
+  id    String      @id @default(uuid())
+  name  String      @unique // e.g., "Engineering", "Medical", "Computer Science"
+  tests EntryExam[]
+}
 
+model University {
+  id          String      @id @default(uuid())
+  name        String      @unique // e.g., "NUST", "FAST", "LUMS"
+  logoUrl     String?
+  location    String?
+  tests       EntryExam[]
+  users       User[]
+  createdAt   DateTime    @default(now())
+}
+
+model EntryExam {
+  id           String       @id @default(uuid())
+  name         String       // e.g., "NUST NET Series 4", "National MDCAT"
+  categoryId   String?
+  category     ExamCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  universityId String?
+  university   University?  @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  examDate     DateTime?    // Crucial for the countdown timer
+  isActive     Boolean      @default(true)
+  users        User[]
+  createdAt    DateTime     @default(now())
+}

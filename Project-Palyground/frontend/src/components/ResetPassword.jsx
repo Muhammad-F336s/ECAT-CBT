@@ -6,7 +6,8 @@ import "./AuthPage.css";
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
-  const email = searchParams.get("email"); // Required by new secure reset flow
+  const email = searchParams.get("email");
+  const role = searchParams.get("role"); // "admin" for admin resets, null for students
   const navigate = useNavigate();
 
   const [password, setPassword] = useState("");
@@ -23,7 +24,7 @@ export default function ResetPassword() {
     setError("");
     setLoading(true);
     try {
-      await API.post("/auth/reset-password", { token, email, newPassword: password });
+      await API.post("/auth/reset-password", { token, email, newPassword: password, role });
       setSuccess(true);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to reset password.");

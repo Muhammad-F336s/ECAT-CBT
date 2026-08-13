@@ -8,6 +8,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import testRoutes from "./routes/testRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import resourceRoutes from "./routes/resourceRoutes.js";
+import examRoutes from "./routes/examRoutes.js";
 
 dotenv.config();
 
@@ -62,11 +63,10 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/resources", resourceRoutes);
+app.use("/api/exams", examRoutes);
 
 app.get("/api/health", (req, res) => {
-  res
-    .status(200)
-    .json({ status: "active", engine: "Prisma Neon Fully Operational" });
+  res.status(200).json({ status: "active", engine: "Prisma Neon Fully Operational" });
 });
 
 const PORT = process.env.PORT || 8787;

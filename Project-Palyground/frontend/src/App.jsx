@@ -43,6 +43,7 @@ import AdminSupport from "./components/AdminSupport";
 import UserDashboard from "./components/UserDashboard";
 import ProgressPage from "./components/ProgressPage";
 import ProfilePage from "./components/ProfilePage";
+import OnboardingScreen from "./components/OnboardingScreen";
 import TestWindow from "./components/TestWindow";
 import TestModeSelection from "./components/TestModeSelection";
 import TestModeForm from "./components/TestModeForm";
@@ -612,7 +613,7 @@ function AppShell({ user, setUser }) {
                 onClick={() => handleNavigate("/library")}
                 className={`nav-button ${view === "library" ? "active" : ""}`}
               >
-                <FaBook /> Content Library
+                Content Library
               </button>
               <button
                 onClick={() => handleNavigate("/progress")}
@@ -630,7 +631,14 @@ function AppShell({ user, setUser }) {
                 onClick={() => handleNavigate("/support")}
                 className={`nav-button ${view === "support" ? "active" : ""}`}
               >
-                <FaHeadset /> Support
+                Support
+              </button>
+              <div className="sidebar-section-label" style={{ marginTop: "16px" }}>Preferences</div>
+              <button
+                onClick={() => handleNavigate("/interests")}
+                className={`nav-button ${view === "interests" ? "active" : ""}`}
+              >
+                Change Target
               </button>
             </div>
           </div>
@@ -716,6 +724,19 @@ function AppShell({ user, setUser }) {
               }
             />
             <Route path="support" element={<SupportPage user={user} />} />
+            <Route
+              path="interests"
+              element={
+                <OnboardingScreen
+                  onComplete={() => {
+                    const updated = { ...user, hasCompletedOnboarding: true };
+                    setUser(updated);
+                    localStorage.setItem("user", JSON.stringify(updated));
+                    navigate("/dashboard");
+                  }}
+                />
+              }
+            />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>

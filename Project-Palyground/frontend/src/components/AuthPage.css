@@ -297,6 +297,19 @@
   cursor: not-allowed;
 }
 
+.auth-back-login-btn {
+  background-color: transparent;
+  color: #557a61;
+  border: 2px solid #557a61;
+  box-shadow: none;
+  margin-top: 10px;
+}
+
+.auth-back-login-btn:hover {
+  background-color: #557a61;
+  color: #ffffff;
+}
+
 .auth-mobile-toggle-btn {
   display: none;
   margin-top: 14px;
