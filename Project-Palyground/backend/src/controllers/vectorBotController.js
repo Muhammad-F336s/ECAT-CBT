@@ -65,7 +65,7 @@ export const handleVectorBotChat = async (req, res) => {
       ];
 
       const completion = await openai.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages,
         temperature: 0.5,
         max_tokens: 600,

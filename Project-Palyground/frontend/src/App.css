@@ -19,9 +19,9 @@ select {
 
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(180deg, #f5faf5 0%, #edf5ee 100%);
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -362,6 +362,9 @@ select {
   flex: 1;
   min-width: 0;
   padding: 40px 52px;
+  overflow-y: auto;
+  height: 100vh;
+  box-sizing: border-box;
 }
 
 .test-shell {

@@ -204,20 +204,37 @@ model University {
   name        String      @unique // e.g., "NUST", "FAST", "LUMS"
   logoUrl     String?
   location    String?
+  status      String      @default("PUBLISHED") // PUBLISHED, ARCHIVED
   tests       EntryExam[]
   users       User[]
   createdAt   DateTime    @default(now())
 }
 
 model EntryExam {
-  id           String       @id @default(uuid())
+  id           String        @id @default(uuid())
   name         String       // e.g., "NUST NET Series 4", "National MDCAT"
   categoryId   String?
   category     ExamCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   universityId String?
-  university   University?  @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  university   University?   @relation(fields: [universityId], references: [id], onDelete: Cascade)
   examDate     DateTime?    // Crucial for the countdown timer
-  isActive     Boolean      @default(true)
+  isActive     Boolean      @default(true) // Kept for backwards compatibility
+  status       String        @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
   users        User[]
-  createdAt    DateTime     @default(now())
+  pattern      TestPattern?
+  createdAt    DateTime      @default(now())
+}
+
+model TestPattern {
+  id              String      @id @default(uuid())
+  examId          String      @unique
+  exam            EntryExam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+  totalMarks      Int         @default(0)
+  totalQuestions  Int         @default(0)
+  negativeMarking Float       @default(0)
+  sections        Json        @default("[]")
+  rawPatternText  String?     @db.Text
+  pastPapers      Json?       @default("[]") // Stores URLs/paths to past papers
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }

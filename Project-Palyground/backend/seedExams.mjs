@@ -65,7 +65,7 @@ async function main() {
       });
       if (!existing) {
         await prisma.entryExam.create({
-          data: { ...test, universityId: created.id, isActive: true }
+          data: { ...test, universityId: created.id, status: 'PUBLISHED' }
         });
       }
     }

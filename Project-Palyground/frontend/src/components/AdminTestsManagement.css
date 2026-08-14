@@ -1,0 +1,341 @@
+.admin-tests-page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-tests-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-primary, .btn-secondary, .btn-refresh {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.btn-refresh {
+  background: var(--surface-2, #374151);
+  color: #9ca3af;
+  border: 1px solid #4b5563;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  color: white;
+  border-color: #6b7280;
+}
+
+.btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--primary, #3b82f6);
+  color: white;
+}
+
+.btn-secondary {
+  background: var(--surface-2, #374151);
+  color: white;
+}
+
+.tests-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border, #374151);
+  padding-bottom: 8px;
+}
+
+.tests-tabs button {
+  background: none;
+  border: none;
+  color: var(--text-muted, #9ca3af);
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+.tests-tabs button.active {
+  background: var(--surface-2, #374151);
+  color: white;
+}
+
+.tests-table-container {
+  background: var(--surface, #1f2937);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.tests-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tests-table th, .tests-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border, #374151);
+  color: white;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.draft { background: #4b5563; color: #d1d5db; }
+.status-badge.published { background: #065f46; color: #34d399; }
+.status-badge.archived { background: #991b1b; color: #fca5a5; }
+
+.pattern-ok { color: #34d399; font-size: 0.875rem; }
+.pattern-missing { color: #f87171; font-size: 0.875rem; }
+
+/* University Table */
+.uni-table td {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.uni-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.uni-mini-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: #fff;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.uni-mini-logo-fallback {
+  width: 30px;
+  height: 30px;
+  background: #374151;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.muted-cell {
+  color: #9ca3af;
+}
+
+.tests-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.tests-count-badge.has-tests {
+  background: #065f46;
+  color: #34d399;
+}
+
+.tests-count-badge.no-tests {
+  background: #374151;
+  color: #9ca3af;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-action {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+
+.btn-action.edit { background: #3b82f6; color: white; }
+.btn-action.pattern { background: #8b5cf6; color: white; }
+.btn-action.delete { background: #ef4444; color: white; }
+.btn-action.pause { background: #d97706; color: white; }
+.btn-action.resume { background: #10b981; color: white; }
+
+/* Resume Modal */
+.resume-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.resume-icon {
+  font-size: 1.25rem;
+  color: #10b981;
+}
+
+.resume-modal-desc {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--surface, #1f2937);
+  padding: 24px;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 400px;
+  color: white;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #4b5563;
+  background: #374151;
+  color: white;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.modal-actions button[type="button"] {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+/* Pattern Editor */
+.pattern-editor-container {
+  background: var(--surface, #1f2937);
+  padding: 24px;
+  border-radius: 8px;
+  color: white;
+}
+
+.pattern-missing-alert {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 24px;
+}
+
+.pattern-info-card {
+  background: #374151;
+  padding: 16px;
+  border-radius: 6px;
+  margin-bottom: 24px;
+}
+
+.sections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.section-card {
+  background: #1f2937;
+  padding: 12px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.pattern-input-section label {
+  display: block;
+  margin-bottom: 8px;
+  color: #9ca3af;
+}
+
+.pattern-input-section textarea {
+  width: 100%;
+  background: #374151;
+  border: 1px solid #4b5563;
+  color: white;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  resize: vertical;
+}
+
+.file-upload-section {
+  margin-bottom: 24px;
+}
+
+.file-upload-section input {
+  display: block;
+  margin-top: 8px;
+}
+
+.pattern-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+}

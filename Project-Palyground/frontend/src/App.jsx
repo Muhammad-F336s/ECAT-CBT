@@ -26,6 +26,7 @@ import {
   FaList,
   FaEye,
   FaArchive,
+  FaGraduationCap,
 } from "react-icons/fa";
 import AuthPage from "./components/AuthPage";
 import AdminAdministration from "./components/AdminAdministration";
@@ -48,6 +49,8 @@ import TestWindow from "./components/TestWindow";
 import TestModeSelection from "./components/TestModeSelection";
 import TestModeForm from "./components/TestModeForm";
 import ContentLibrary from "./components/ContentLibrary";
+import TestResultPage from "./components/TestResultPage";
+import AdminTestsManagement from "./components/AdminTestsManagement";
 import HistoricalResultViewer from "./components/HistoricalResultViewer";
 import ResetPassword from "./components/ResetPassword";
 import DemoStudentToggle from "./components/DemoStudentToggle";
@@ -415,6 +418,12 @@ function AdminAppShell({ user, setUser }) {
             >
               <FaChartBar /> Analytics
             </button>
+            <button
+              className={`nav-button ${location.pathname === "/admin/tests" ? "active" : ""}`}
+              onClick={() => handleNavigate("/admin/tests")}
+            >
+              <FaGraduationCap /> Entry Tests
+            </button>
 
             <button
               onClick={() => handleNavigate("/admin/settings")}
@@ -516,6 +525,7 @@ function AdminAppShell({ user, setUser }) {
             <Route path="review-queue" element={<AdminReviewQueue />} />
             <Route path="approved-questions" element={<AdminApprovedQuestions />} />
             <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="tests" element={<AdminTestsManagement />} />
             <Route path="features" element={<Navigate to="/admin/settings" replace />} />
             <Route path="settings" element={<AdminSettings user={user} />} />
             <Route path="support" element={<AdminSupport />} />
@@ -658,7 +668,7 @@ function AppShell({ user, setUser }) {
         </aside>
       )}
       <main className="main-panel">
-        {!isTestView && (
+        {!isTestView && view !== "interests" && (
           <div className="page-header">
             <span>{pageCopy.label}</span>
             <h2>{pageCopy.title}</h2>

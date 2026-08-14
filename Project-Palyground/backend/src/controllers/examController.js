@@ -10,7 +10,7 @@ export const getOnboardingData = async (req, res) => {
     });
 
     const exams = await prisma.entryExam.findMany({
-      where: { isActive: true },
+      where: { status: 'PUBLISHED' },
       include: {
         category: true,
         university: true

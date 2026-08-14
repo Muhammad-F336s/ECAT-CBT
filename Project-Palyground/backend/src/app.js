@@ -57,9 +57,12 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 app.use(express.json());
 
+import adminTestRoutes from "./routes/adminTestRoutes.js";
+
 // Main App API Routes Mount Points
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin-tests", adminTestRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/resources", resourceRoutes);

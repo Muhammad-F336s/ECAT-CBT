@@ -77,42 +77,92 @@ const OnboardingScreen = ({ onComplete }) => {
 
   return (
     <div className="ob-fullscreen">
-      <div className="ob-wrapper">
 
-        {/* Header */}
-        <div className="ob-header">
-          <div className="ob-logo-mark">🎯</div>
-          <h1 className="ob-title">Select Your Interest</h1>
+      {/* ── Hero Banner ── */}
+      <div className="ob-hero">
+        <div className="ob-hero-text">
+          <div className="ob-hero-eyebrow">Personalize Your Experience</div>
+          <h1 className="ob-title">
+            Select Your <span>Interest</span>
+          </h1>
           <p className="ob-subtitle">
-            Choose your target universities or specific entry tests.<br/>
+            Choose your target universities or specific entry tests.
             We'll personalize your entire dashboard just for you.
           </p>
         </div>
+        <div className="ob-hero-visual">
+          <svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Outer ring */}
+            <circle cx="80" cy="80" r="72" stroke="rgba(110,207,138,0.15)" strokeWidth="1.5"/>
+            <circle cx="80" cy="80" r="58" stroke="rgba(110,207,138,0.12)" strokeWidth="1"/>
 
-        {/* Mode Toggle */}
-        <div className="ob-toggle-bar">
-          <button
-            className={`ob-toggle-btn ${searchMode === "university" ? "ob-toggle-active" : ""}`}
-            onClick={() => setSearchMode("university")}
-          >
-            🏛️ Search by University
-          </button>
-          <button
-            className={`ob-toggle-btn ${searchMode === "exam" ? "ob-toggle-active" : ""}`}
-            onClick={() => setSearchMode("exam")}
-          >
-            📝 Search by Entry Test
-          </button>
+            {/* Graduation cap */}
+            <g transform="translate(80,80)">
+              {/* Cap base / board */}
+              <ellipse cx="0" cy="-4" rx="34" ry="10" fill="rgba(110,207,138,0.9)"/>
+              {/* Cap top */}
+              <path d="M-24 -4 L0 -20 L24 -4" fill="rgba(80,170,108,0.9)"/>
+              {/* Cap top board */}
+              <ellipse cx="0" cy="-20" rx="26" ry="7" fill="rgba(110,207,138,0.95)"/>
+              {/* Tassel string */}
+              <line x1="24" y1="-4" x2="34" y2="10" stroke="rgba(200,230,210,0.7)" strokeWidth="1.5" strokeLinecap="round"/>
+              {/* Tassel ball */}
+              <circle cx="34" cy="13" r="4" fill="rgba(200,230,210,0.85)"/>
+              {/* Body / scroll */}
+              <rect x="-18" y="-3" width="36" height="22" rx="3" fill="rgba(255,255,255,0.12)"/>
+              <line x1="-10" y1="5" x2="10" y2="5" stroke="rgba(255,255,255,0.25)" strokeWidth="1.2" strokeLinecap="round"/>
+              <line x1="-10" y1="10" x2="6" y2="10" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" strokeLinecap="round"/>
+              <line x1="-10" y1="15" x2="8" y2="15" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" strokeLinecap="round"/>
+            </g>
+
+            {/* Floating small accents */}
+            <circle cx="22" cy="40" r="3" fill="rgba(110,207,138,0.3)"/>
+            <circle cx="138" cy="54" r="2" fill="rgba(110,207,138,0.25)"/>
+            <circle cx="30" cy="118" r="2.5" fill="rgba(110,207,138,0.2)"/>
+            <circle cx="130" cy="112" r="4" fill="rgba(110,207,138,0.18)"/>
+
+            {/* Sparkle top-right */}
+            <g transform="translate(126, 32)">
+              <line x1="0" y1="-7" x2="0" y2="7" stroke="rgba(110,207,138,0.5)" strokeWidth="1.2" strokeLinecap="round"/>
+              <line x1="-7" y1="0" x2="7" y2="0" stroke="rgba(110,207,138,0.5)" strokeWidth="1.2" strokeLinecap="round"/>
+              <line x1="-5" y1="-5" x2="5" y2="5" stroke="rgba(110,207,138,0.3)" strokeWidth="0.8" strokeLinecap="round"/>
+              <line x1="5" y1="-5" x2="-5" y2="5" stroke="rgba(110,207,138,0.3)" strokeWidth="0.8" strokeLinecap="round"/>
+            </g>
+            {/* Sparkle bottom-left */}
+            <g transform="translate(34, 128)">
+              <line x1="0" y1="-5" x2="0" y2="5" stroke="rgba(110,207,138,0.35)" strokeWidth="1" strokeLinecap="round"/>
+              <line x1="-5" y1="0" x2="5" y2="0" stroke="rgba(110,207,138,0.35)" strokeWidth="1" strokeLinecap="round"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div className="ob-wrapper">
+
+        {/* ── Mode Toggle ── */}
+        <div className="ob-controls">
+          <div className="ob-toggle-bar">
+            <button
+              className={`ob-toggle-btn ${searchMode === "university" ? "ob-toggle-active" : ""}`}
+              onClick={() => setSearchMode("university")}
+            >
+              🏛️ Search by University
+            </button>
+            <button
+              className={`ob-toggle-btn ${searchMode === "exam" ? "ob-toggle-active" : ""}`}
+              onClick={() => setSearchMode("exam")}
+            >
+              📝 Search by Entry Test
+            </button>
+          </div>
+          <p className="ob-hint">
+            {searchMode === "university"
+              ? "Click to select multiple universities. Your dashboard will be tailored accordingly."
+              : "Select one or more entry tests you are preparing for."}
+          </p>
         </div>
 
-        {/* Selection hint */}
-        <p className="ob-hint">
-          {searchMode === "university"
-            ? "Click to select multiple universities. Your dashboard will be tailored accordingly."
-            : "Select one or more entry tests you are preparing for."}
-        </p>
-
-        {/* Grid */}
+        {/* ── Grid ── */}
         <div className="ob-grid">
           {searchMode === "university" ? (
             universities.map((uni) => {
@@ -122,8 +172,8 @@ const OnboardingScreen = ({ onComplete }) => {
                 <div
                   key={uni.id}
                   className={`ob-card ${isSelected ? "ob-card-selected" : ""}`}
-                  onClick={() => toggle(uni.id, selectedUniversities, setSelectedUniversities)}
                   style={{ "--card-color": bgColor }}
+                  onClick={() => toggle(uni.id, selectedUniversities, setSelectedUniversities)}
                 >
                   {isSelected && <div className="ob-checkmark">✓</div>}
                   <div className="ob-card-logo-wrap">
@@ -143,7 +193,7 @@ const OnboardingScreen = ({ onComplete }) => {
                   <h3 className="ob-card-name">{uni.name}</h3>
                   <p className="ob-card-sub">📍 {uni.location}</p>
                   <p className="ob-card-tests">
-                    {uni.tests?.length || 0} Test{uni.tests?.length !== 1 ? "s" : ""}
+                    {uni.tests?.filter(t => t.status === "PUBLISHED").length || 0} Test{uni.tests?.filter(t => t.status === "PUBLISHED").length !== 1 ? "s" : ""}
                   </p>
                 </div>
               );
@@ -174,7 +224,54 @@ const OnboardingScreen = ({ onComplete }) => {
           )}
         </div>
 
-        {/* Footer */}
+        {/* ── Selected Tests Panel (always visible in university mode) ── */}
+        {searchMode === "university" && (
+          <div className="ob-selected-tests-section">
+            <h2 className="ob-section-title">Select Tests to Practice</h2>
+            <p className="ob-section-subtitle">Pick the specific tests for your selected universities</p>
+
+            {selectedUniversities.length === 0 ? (
+              <div className="ob-empty-hint">
+                <span>🏫</span>
+                <span>No institute selected — choose a university above to see its available tests.</span>
+              </div>
+            ) : (
+              <div className="ob-uni-test-groups">
+                {selectedUniversities.map(uniId => {
+                  const uni = universities.find(u => u.id === uniId);
+                  if (!uni) return null;
+                  const publishedTests = uni.tests?.filter(t => t.status === "PUBLISHED") || [];
+
+                  return (
+                    <div key={uni.id} className="ob-uni-test-group">
+                      <h3 className="ob-uni-name">{uni.name}</h3>
+                      {publishedTests.length > 0 ? (
+                        <div className="ob-test-pills">
+                          {publishedTests.map(test => {
+                            const isTestSelected = selectedExams.includes(test.id);
+                            return (
+                              <button
+                                key={test.id}
+                                className={`ob-test-pill ${isTestSelected ? "active" : ""}`}
+                                onClick={() => toggle(test.id, selectedExams, setSelectedExams)}
+                              >
+                                {test.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span className="ob-no-tests">⚠️ No upcoming tests added by admin</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Footer ── */}
         <div className="ob-footer">
           {totalSelected > 0 && (
             <p className="ob-selected-count">
