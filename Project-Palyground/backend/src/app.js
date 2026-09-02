@@ -9,6 +9,7 @@ import testRoutes from "./routes/testRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import resourceRoutes from "./routes/resourceRoutes.js";
 import examRoutes from "./routes/examRoutes.js";
+import adminTestRoutes from "./routes/adminTestRoutes.js";
 
 dotenv.config();
 
@@ -56,8 +57,6 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 app.use(express.json());
-
-import adminTestRoutes from "./routes/adminTestRoutes.js";
 
 // Main App API Routes Mount Points
 app.use("/api/auth", authRoutes);

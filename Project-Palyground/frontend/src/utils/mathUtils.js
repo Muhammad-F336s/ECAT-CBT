@@ -1,7 +1,7 @@
 export function convertMathPlaceholders(text) {
   if (!text || typeof text !== "string") return text;
 
-  return text.replace(/MATH\[([\s\S]*?)\]/g, (match, p1) => {
+  const converted = text.replace(/MATH\[([\s\S]*?)\]/g, (match, p1) => {
     let latex = p1
       .replace(/[\u00D7×]/g, "\\times ")
       .replace(/÷/g, "\\div ")
@@ -31,4 +31,28 @@ export function convertMathPlaceholders(text) {
 
     return `$${latex}$`;
   });
+
+  // AI responses sometimes contain a matrix as a JavaScript-style nested
+  // array, e.g. [[0, 1], [2, 3]]. Turn it into real LaTeX before rendering.
+  const withMatrices = converted.replace(
+    /\[\s*\[\s*(.*?)\s*\](?:\s*,\s*\[\s*(.*?)\s*\])+\s*\]/g,
+    (matrix) => {
+      const matrixRows = matrix.slice(1, -1);
+      const rows = [...matrixRows.matchAll(/\[\s*(.*?)\s*\]/g)]
+        .map((row) => row[1].split(",").map((value) => value.trim()).join(" & "));
+      return `$\\begin{bmatrix}${rows.join(" \\\\ ")}\\end{bmatrix}$`;
+    },
+  );
+
+  // Some AI models return valid LaTex directly instead of the requested
+  // MATH[...] wrapper. React-Latex needs `$...$` delimiters, so preserve the
+  // surrounding sentence while placing the LaTex expression into math mode.
+  if (!withMatrices.includes("$") && /\\(?:int|sum|frac|sqrt|sin|cos|tan|log|ln|pi|theta|alpha|beta|gamma|Delta|infty|times|div|leq|geq)/.test(withMatrices)) {
+    return withMatrices.replace(
+      /(\\(?:int|sum|frac|sqrt|sin|cos|tan|log|ln|pi|theta|alpha|beta|gamma|Delta|infty|times|div|leq|geq)[^.,;!?]*)(?=[.,;!?]|$)/g,
+      "$$1$",
+    );
+  }
+
+  return withMatrices;
 }

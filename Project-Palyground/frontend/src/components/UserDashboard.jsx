@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import "./UserDashboard.css";
 import OnboardingScreen from "./OnboardingScreen";
 
-export default function UserDashboard({ user, onStartTest, onOpenAccount }) {
+export default function UserDashboard({ user, onStartTest, onOpenAccount, onCompleteOnboarding }) {
   const initials = user?.name?.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "U";
   const [metrics, setMetrics] = useState({ totalTests: 0, averagePercentage: 0 });
   const [showOnboarding, setShowOnboarding] = useState(!user?.hasCompletedOnboarding);
@@ -35,9 +35,7 @@ export default function UserDashboard({ user, onStartTest, onOpenAccount }) {
       <OnboardingScreen 
         onComplete={() => {
           setShowOnboarding(false);
-          // update user in local storage so it persists
-          const updatedUser = { ...user, hasCompletedOnboarding: true };
-          localStorage.setItem("user", JSON.stringify(updatedUser));
+          if (onCompleteOnboarding) onCompleteOnboarding();
         }} 
       />
     );

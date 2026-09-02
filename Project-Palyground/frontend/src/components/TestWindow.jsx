@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import Latex from "react-latex-next";
+import "katex/dist/katex.min.css";
 import API from "../utils/api";
 import { convertMathPlaceholders } from "../utils/mathUtils";
 import TestResultPage from "./TestResultPage";
@@ -51,6 +53,7 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
   const isStudyMode = formData.mode === "study";
   const timerRef = useRef(null);
   const autoSubmittedRef = useRef(false);
+  const generationAbortRef = useRef(null);
 
   useEffect(() => {
     if (!loading) {
@@ -96,6 +99,9 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
 
   // ===== FIXED: Use API.post (axios) instead of EventSource (GET) =====
   const loadTest = useCallback(async () => {
+    generationAbortRef.current?.abort();
+    const controller = new AbortController();
+    generationAbortRef.current = controller;
     setLoading(true);
     setError("");
     setPhase("loading");
@@ -122,7 +128,7 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
           chapters: formData.chapters || [],
           topicBatches: formData.topicBatches || [],
           useAI: true,
-        });
+        }, { signal: controller.signal });
 
         const data = res.data;
         loaded = data.questions || [];
@@ -144,12 +150,15 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
       setPhase("active");
       setLoading(false);
     } catch (err) {
+      if (err.code === "ERR_CANCELED" || err.name === "CanceledError") return;
       console.error("Test generation failed:", err);
       setError(
         err.response?.data?.error || "Failed to generate test. Please retry."
       );
       setPhase("error");
       setLoading(false);
+    } finally {
+      if (generationAbortRef.current === controller) generationAbortRef.current = null;
     }
   }, [formData]);
 
@@ -452,19 +461,36 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
     navigate("/test");
   };
 
+  const handleCancelGeneration = () => {
+    generationAbortRef.current?.abort();
+    generationAbortRef.current = null;
+    navigate("/test/form", { replace: true });
+  };
+
   // ===== Phase-based conditional renders =====
   if (phase === "loading" || loading) {
     return (
-      <div className="cbt-state-message" style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "40px" }}>
-        <h2 style={{ margin: 0, fontSize: "1.35rem", color: "var(--ecat-blue)" }}>🚀 Generating your AI-powered test... Please wait.</h2>
-        <div className="cbt-progress-wrapper" style={{ width: "100%", maxWidth: "480px", margin: "15px auto 0" }}>
-          <div className="cbt-progress-step-text">
-            <span>{loadStepName}</span>
-            <span>{loadProgress}%</span>
+      <div className="cbt-loading-screen" role="status" aria-live="polite">
+        <div className="cbt-loading-card">
+          <div className="cbt-loading-orb" aria-hidden="true"><span>✦</span></div>
+          <p className="cbt-loading-kicker">AI TEST ENGINE</p>
+          <h2>Preparing your personalised test</h2>
+          <p className="cbt-loading-copy">We are selecting, validating and arranging your MCQs.</p>
+          <div className="cbt-progress-wrapper">
+            <div className="cbt-progress-step-text">
+              <span>{loadStepName}</span>
+              <span>{loadProgress}%</span>
+            </div>
+            <div className="cbt-progress-track">
+              <div className="cbt-progress-bar" style={{ width: `${loadProgress}%` }} />
+            </div>
           </div>
-          <div className="cbt-progress-track">
-            <div className="cbt-progress-bar" style={{ width: `${loadProgress}%` }} />
+          <div className="cbt-loading-dots" aria-hidden="true">
+            <i /><i /><i />
           </div>
+          <button type="button" className="cbt-loading-cancel" onClick={handleCancelGeneration}>
+            Cancel test generation
+          </button>
         </div>
       </div>
     );
@@ -567,10 +593,6 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
         </div>
       </header>
 
-      {isPaused && (
-        <div className="cbt-pause-banner">Test is paused. Click Resume Test to continue.</div>
-      )}
-
       {error && <div className="cbt-inline-error">{error}</div>}
 
       <section className="cbt-legend">
@@ -601,7 +623,7 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
             <h3 className="cbt-question-title">
               Question {currentIdx + 1} of {questions.length}
             </h3>
-            <p className="cbt-question-text">{renderedQuestionText}</p>
+            <p className="cbt-question-text"><Latex>{renderedQuestionText}</Latex></p>
 
             <div className="cbt-options-list">
               {currentQuestion.options.map((option, index) => {
@@ -622,7 +644,7 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
                       onChange={() => handleSelectOption(option.text)}
                     />
                     <span className="cbt-option-label">{label}.</span>
-                    <span className="cbt-option-text">{renderedOptionText}</span>
+                    <span className="cbt-option-text"><Latex>{renderedOptionText}</Latex></span>
                   </label>
                 );
               })}
@@ -635,7 +657,7 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
             <main className="cbt-question-panel cbt-split-container" style={{ fontSize: `${zoomLevel}rem` }}>
               <div className="cbt-passage-panel">
                 <h4 className="cbt-passage-title">Reading Comprehension Passage</h4>
-                <div className="cbt-passage-body">{renderedPassageText}</div>
+                <div className="cbt-passage-body"><Latex>{renderedPassageText}</Latex></div>
               </div>
               <div className="cbt-question-content">
                 {renderQuestionBody()}
@@ -761,6 +783,20 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
               onClick={() => setShowStudentDetails(false)}
             >
               Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isPaused && (
+        <div className="cbt-pause-overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+          <div className="cbt-pause-card">
+            <div className="cbt-pause-icon" aria-hidden="true">Ⅱ</div>
+            <p className="cbt-pause-kicker">TEST PAUSED</p>
+            <h2 id="pause-title">You have paused this test</h2>
+            <p>Your timer is stopped. Click below whenever you are ready to continue.</p>
+            <button type="button" className="cbt-btn cbt-btn--resume" onClick={handlePauseTest}>
+              Resume Test <span aria-hidden="true">→</span>
             </button>
           </div>
         </div>

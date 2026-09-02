@@ -13,7 +13,6 @@ import {
   FaChartBar,
   FaChevronDown,
   FaChevronLeft,
-  FaChevronRight,
   FaCog,
   FaCommentDots,
   FaHeadset,
@@ -49,7 +48,6 @@ import TestWindow from "./components/TestWindow";
 import TestModeSelection from "./components/TestModeSelection";
 import TestModeForm from "./components/TestModeForm";
 import ContentLibrary from "./components/ContentLibrary";
-import TestResultPage from "./components/TestResultPage";
 import AdminTestsManagement from "./components/AdminTestsManagement";
 import HistoricalResultViewer from "./components/HistoricalResultViewer";
 import ResetPassword from "./components/ResetPassword";
@@ -334,7 +332,7 @@ function AdminAppShell({ user, setUser }) {
       >
         <div className="sidebar-top">
           <div className="sidebar-brand">
-            <p>ECAT CBT</p>
+            <p>Entrace.pk</p>
             <h1>Admin</h1>
           </div>
           <div className="sidebar-links">
@@ -445,11 +443,16 @@ function AdminAppShell({ user, setUser }) {
             type="button" 
             className="support-button"
             onClick={() => handleNavigate("/admin/support")}
+            style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
           >
-            <FaHeadset /> Support
+            <span><FaHeadset /> Support</span>
+            {pendingTicketsCount > 0 && (
+              <span className="nav-count">{pendingTicketsCount}</span>
+            )}
           </button>
           <button onClick={handleLogout} className="logout-button">
-            Logout <img src={logoutIcon} alt="Logout" className="logout-icon" />
+            <span>Logout</span>
+            <img src={logoutIcon} alt="Logout" className="logout-icon" />
           </button>
         </div>
       </aside>
@@ -542,10 +545,33 @@ function AppShell({ user, setUser }) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loginMessages, setLoginMessages] = useState(user.loginMessages || []);
+  const [unreadRepliesCount, setUnreadRepliesCount] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchUserTickets = async () => {
+      try {
+        const res = await API.get("/user/support/tickets");
+        if (isMounted) {
+          const repliedCount = res.data.filter(t => t.hasUnreadReply === true).length;
+          setUnreadRepliesCount(repliedCount);
+        }
+      } catch (err) {
+        console.error("Failed to fetch user tickets for count", err);
+      }
+    };
+    fetchUserTickets();
+    const intervalId = window.setInterval(fetchUserTickets, 10000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const view = location.pathname.split("/")[1] || "dashboard";
   const pageCopy = PAGE_COPY[view] || PAGE_COPY.dashboard;
   const isTestView = view === "test";
+  const hideVectorBot = ["/test/form", "/test/cbt"].some((path) => location.pathname.startsWith(path)) || location.pathname.startsWith("/test/result/");
 
   const handleProfileSave = (updates) => {
     const updated = { ...user, ...updates };
@@ -599,11 +625,11 @@ function AppShell({ user, setUser }) {
         >
           <div className="sidebar-top">
             <div className="sidebar-brand">
-              <p>ECAT CBT</p>
+              <p>Entrace.pk</p>
               <h1>Simulator</h1>
             </div>
             <button className="sidebar-toggle-button" onClick={toggleSidebar}>
-              {sidebarOpen ? <FaChevronLeft /> : <FaChevronRight />}
+              {sidebarOpen ? <FaChevronLeft /> : <FaBars />}
             </button>
             <div className="sidebar-links">
               <div className="sidebar-section-label">Workspace</div>
@@ -640,8 +666,12 @@ function AppShell({ user, setUser }) {
               <button
                 onClick={() => handleNavigate("/support")}
                 className={`nav-button ${view === "support" ? "active" : ""}`}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
               >
-                Support
+                <span>Support</span>
+                {unreadRepliesCount > 0 && (
+                  <span className="nav-count">{unreadRepliesCount}</span>
+                )}
               </button>
               <div className="sidebar-section-label" style={{ marginTop: "16px" }}>Preferences</div>
               <button
@@ -661,7 +691,7 @@ function AppShell({ user, setUser }) {
               </div>
             </div>
             <button onClick={handleLogout} className="logout-button">
-              Logout
+              <span>Logout</span>
               <img src={logoutIcon} alt="Logout" className="logout-icon" />
             </button>
           </div>
@@ -693,6 +723,11 @@ function AppShell({ user, setUser }) {
                   user={user}
                   onStartTest={() => navigate("/test")}
                   onOpenAccount={() => navigate("/profile")}
+                  onCompleteOnboarding={() => {
+                    const updated = { ...user, hasCompletedOnboarding: true };
+                    setUser(updated);
+                    localStorage.setItem("user", JSON.stringify(updated));
+                  }}
                 />
               }
             />
@@ -751,7 +786,7 @@ function AppShell({ user, setUser }) {
           </Routes>
         </div>
       </main>
-      <VectorBotWidget user={user} />
+      {!hideVectorBot && <VectorBotWidget user={user} />}
     </div>
   );
 }

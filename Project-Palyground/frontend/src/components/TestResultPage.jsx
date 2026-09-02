@@ -4,6 +4,8 @@ import { Doughnut } from "react-chartjs-2";
 import { getAiFeedback, getProTip } from "../utils/aiFeedback";
 import { printFullPaper } from "../utils/printFullPaper";
 import { convertMathPlaceholders } from "../utils/mathUtils";
+import Latex from "react-latex-next";
+import "katex/dist/katex.min.css";
 import "./TestResultPage.css";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -86,7 +88,7 @@ const TestResultPage = ({
       </section>
 
       <section className="ecat-result-header no-print-actions">
-        <h1>Official ECAT Result</h1>
+        <h1>Official Entrace.pk Result</h1>
         <p className="ecat-result-student">
           {user?.name || "Student"} | {results.track || "Pre-Engineering"}
         </p>
@@ -263,7 +265,7 @@ const TestResultPage = ({
           visibleItems.map((item) => (
             <article key={item.questionId} className="ecat-review-card">
               <h4>
-                Q{item.questionNumber}: {convertMathPlaceholders(item.statement)}
+                Q{item.questionNumber}: <Latex>{convertMathPlaceholders(item.statement)}</Latex>
               </h4>
 
               <div className="ecat-review-options">
@@ -280,7 +282,7 @@ const TestResultPage = ({
                         isCorrect ? "correct" : ""
                       } ${isSelected && !isCorrect ? "wrong-selected" : ""}`}
                     >
-                      <strong>{label}.</strong> {convertMathPlaceholders(option.text)}
+                      <strong>{label}.</strong> <Latex>{convertMathPlaceholders(option.text)}</Latex>
                     </p>
                   );
                 })}

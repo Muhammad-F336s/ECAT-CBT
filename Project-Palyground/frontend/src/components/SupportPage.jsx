@@ -1,14 +1,33 @@
 import { useEffect, useState } from "react";
-import { FaHeadset, FaPaperPlane, FaCheckCircle, FaHourglassHalf, FaCommentDots, FaRedo } from "react-icons/fa";
+import { FaHeadset, FaPaperPlane, FaCheckCircle, FaHourglassHalf, FaCommentDots, FaRedo, FaTimesCircle } from "react-icons/fa";
 import API from "../utils/api";
 import "./SupportPage.css";
 
-const CATEGORIES = ["Bug", "Account", "Content/Question Error", "Other"];
+const CATEGORIES = [
+  "Bug Report",
+  "Test Question Error",
+  "Answer Key Issue",
+  "Missing Options",
+  "Lost in Dashboard",
+  "UI/UX Improvement",
+  "Performance Issue",
+  "Account Settings Problem",
+  "Subject Missing",
+  "Test Result Not Saving",
+  "Subscription Query",
+  "Suggest a Feature",
+  "University Request",
+  "General Feedback",
+  "Content/Question Error",
+  "Other"
+];
 
 const STATUS_META = {
   Pending:  { color: "#f39c12", label: "Pending",  icon: <FaHourglassHalf /> },
   Replied:  { color: "#3498db", label: "Replied",   icon: <FaCommentDots /> },
+  "Under Consideration": { color: "#9b59b6", label: "Under Consideration", icon: <FaHourglassHalf /> },
   Resolved: { color: "#27ae60", label: "Resolved",  icon: <FaCheckCircle /> },
+  Rejected: { color: "#e74c3c", label: "Rejected",  icon: <FaTimesCircle /> },
 };
 
 export default function SupportPage() {
@@ -22,7 +41,16 @@ export default function SupportPage() {
   const fetchTickets = async () => {
     try {
       const res = await API.get("/user/support/tickets");
-      setTickets(res.data);
+      const fetchedTickets = [...res.data];
+      
+      const unreadTickets = fetchedTickets.filter(t => t.hasUnreadReply === true);
+      if (unreadTickets.length > 0) {
+        Promise.all(unreadTickets.map(t => API.patch(`/user/support/tickets/${t.id}/mark-read`)))
+          .catch(err => console.error("Failed to mark tickets read", err));
+        unreadTickets.forEach(t => t.hasUnreadReply = false);
+      }
+      
+      setTickets(fetchedTickets);
     } catch (err) {
       console.error("Fetch tickets error:", err);
     } finally {
@@ -167,14 +195,6 @@ export default function SupportPage() {
                     </div>
                     <p className="support-ticket-desc">{ticket.description}</p>
                     
-                    {/* Render legacy reply if exists and not in thread */}
-                    {ticket.reply && (
-                      <div className="support-admin-reply">
-                        <strong>Admin Reply:</strong>
-                        <p>{ticket.reply}</p>
-                      </div>
-                    )}
-
                     {/* Render Thread */}
                     {ticket.thread && Array.isArray(ticket.thread) && ticket.thread.length > 0 && (
                       <div className="support-thread" style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -199,7 +219,7 @@ export default function SupportPage() {
                     )}
 
                     {/* Reply Form */}
-                    {ticket.status !== "Resolved" && (
+                    {ticket.isChatOpen && ticket.status !== "Resolved" && ticket.status !== "Rejected" && (
                       <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
                         <input 
                           type="text" 

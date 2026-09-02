@@ -20,6 +20,10 @@ import {
   markMessagesAsRead,
   deleteTicket,
   deleteLoginMessage,
+  unlockAiConfiguration,
+  getAiConfiguration,
+  listGroqModels,
+  updateAiConfiguration,
 } from "../controllers/adminController.js";
 import {
   getSubjectsAndChapters,
@@ -51,6 +55,10 @@ router.get("/messages/inbox", getInboxMessages);
 router.get("/analytics", getPlatformAnalytics);
 router.get("/settings", getSettings);
 router.patch("/settings", updateSettings);
+router.post("/ai/unlock", unlockAiConfiguration);
+router.get("/ai/config", getAiConfiguration);
+router.get("/ai/models", listGroqModels);
+router.patch("/ai/config", updateAiConfiguration);
 router.post("/danger/reset-attempts", resetAllTestAttempts);
 router.get("/danger/export-data", exportPlatformData);
 router.get("/support/tickets", getPlatformTickets);

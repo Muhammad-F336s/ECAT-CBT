@@ -43,6 +43,18 @@ const OnboardingScreen = ({ onComplete }) => {
     fetchData();
   }, []);
 
+  const handleSkip = async () => {
+    setSaving(true);
+    try {
+      await API.post("/exams/set-interests", { universityIds: [], examIds: [] });
+    } catch (err) {
+      console.error("Failed to save skip", err);
+    } finally {
+      setSaving(false);
+      onComplete();
+    }
+  };
+
   const toggle = (id, list, setList) => {
     setList(list.includes(id) ? list.filter(x => x !== id) : [...list, id]);
   };
@@ -289,7 +301,7 @@ const OnboardingScreen = ({ onComplete }) => {
               "Set My Dashboard →"
             )}
           </button>
-          <button className="ob-skip-btn" onClick={onComplete}>
+          <button className="ob-skip-btn" onClick={handleSkip}>
             Skip for now
           </button>
         </div>

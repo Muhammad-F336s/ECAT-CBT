@@ -44,7 +44,19 @@ export default function AdminSupport() {
     }
   };
 
-  const handleClearReply = async () => {
+    const handleToggleChat = async () => {
+      const newStatus = !selectedTicket.isChatOpen;
+      try {
+        await API.patch(`/admin/support/tickets/${selectedTicket.id}`, { isChatOpen: newStatus });
+        setSelectedTicket({ ...selectedTicket, isChatOpen: newStatus });
+        fetchAllTickets();
+      } catch (err) {
+        console.error("Toggle chat error:", err);
+        alert("Failed to toggle chat.");
+      }
+    };
+
+    const handleClearReply = async () => {
     if (!window.confirm("Are you sure you want to delete the reply?")) return;
     try {
       await API.patch(`/admin/support/tickets/${selectedTicket.id}`, { deleteReply: true });
@@ -138,11 +150,6 @@ export default function AdminSupport() {
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", textAlign: "left", width: "100%" }}>
                         <strong>{ticket.title}</strong>
                         <div style={{ fontSize: "0.85rem", color: "#555", marginTop: "5px" }}>{ticket.description}</div>
-                        {ticket.reply && (
-                          <div style={{ marginTop: "8px", padding: "8px", background: "#e8f5e9", borderLeft: "3px solid #2ecc71", fontSize: "0.85rem", textAlign: "left", width: "100%" }}>
-                            <strong>Initial Reply:</strong> {ticket.reply}
-                          </div>
-                        )}
                         {ticket.thread && Array.isArray(ticket.thread) && ticket.thread.length > 0 && (
                           <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
                             {ticket.thread.map((msg, idx) => (
@@ -168,10 +175,10 @@ export default function AdminSupport() {
                     </td>
                     <td data-label="Category">{ticket.category}</td>
                     <td data-label="Status">
-                      <span className="approval-status-pill" style={{ 
-                        background: ticket.status === "Resolved" ? "#2ecc71" : (ticket.status === "Replied" ? "#3498db" : (ticket.status === "False" ? "#e74c3c" : "#f39c12")),
-                        color: "#fff"
-                      }}>
+                        <span className="approval-status-pill" style={{ 
+                          background: ticket.status === "Resolved" ? "#2ecc71" : (ticket.status === "Rejected" || ticket.status === "False" ? "#e74c3c" : (ticket.status === "Replied" ? "#3498db" : (ticket.status === "Under Consideration" ? "#9b59b6" : "#f39c12"))),
+                          color: "#fff"
+                        }}>
                         {ticket.status}
                       </span>
                     </td>
@@ -247,27 +254,32 @@ export default function AdminSupport() {
                   required
                 />
               </div>
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Update Status</label>
-                <select 
-                  style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ddd" }}
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="Replied">Replied</option>
-                  <option value="Resolved">Resolved</option>
-                  <option value="False">False</option>
-                </select>
-              </div>
-              <div style={{ display: "flex", gap: "10px", justifyContent: "space-between" }}>
-                <div>
-                  {selectedTicket.reply && (
-                    <button type="button" className="action-secondary" style={{ borderColor: "#e74c3c", color: "#e74c3c" }} onClick={handleClearReply}>
-                      Clear Reply
-                    </button>
-                  )}
+                <div style={{ marginBottom: "20px" }}>
+                  <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Update Status</label>
+                  <select 
+                    style={{ width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #ddd" }}
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Replied">Replied</option>
+                    <option value="Under Consideration">Under Consideration</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="False">False</option>
+                  </select>
                 </div>
+                <div style={{ display: "flex", gap: "10px", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button type="button" className="action-secondary" style={{ borderColor: selectedTicket.isChatOpen ? "#e74c3c" : "#2ecc71", color: selectedTicket.isChatOpen ? "#e74c3c" : "#2ecc71" }} onClick={handleToggleChat}>
+                      {selectedTicket.isChatOpen ? "Close Chat" : "Open Chat"}
+                    </button>
+                    {selectedTicket.reply && (
+                      <button type="button" className="action-secondary" style={{ borderColor: "#e74c3c", color: "#e74c3c" }} onClick={handleClearReply}>
+                        Clear Reply
+                      </button>
+                    )}
+                  </div>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <button type="button" className="action-secondary" onClick={() => setSelectedTicket(null)}>Cancel</button>
                   <button type="submit" className="action-primary" disabled={saving}>

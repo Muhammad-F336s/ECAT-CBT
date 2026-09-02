@@ -25,6 +25,18 @@ model PlatformConfig {
   updatedAt                DateTime @updatedAt
 }
 
+// Singleton configuration for the server-side AI provider. The API key is
+// AES-GCM encrypted and is never selected or returned to the frontend.
+model AiProviderConfig {
+  id               Int      @id @default(1)
+  provider         String   @default("groq")
+  model            String   @default("openai/gpt-oss-120b")
+  apiKeyCiphertext String?  @db.Text
+  apiKeyLastFour   String?
+  updatedByEmail   String?
+  updatedAt        DateTime @updatedAt
+}
+
 enum PackageType {
   STANDARD
   PREMIUM
@@ -188,6 +200,8 @@ model SupportTicket {
   status      String   @default("Pending") // Pending, Replied, Resolved, False
   reply       String?  @db.Text
   thread      Json?    @default("[]")
+  isChatOpen  Boolean  @default(false)
+  hasUnreadReply Boolean @default(false)
   isFalse     Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

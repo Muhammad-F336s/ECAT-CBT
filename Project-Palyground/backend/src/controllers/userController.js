@@ -373,8 +373,22 @@ export const createSupportTicket = async (req, res) => {
     if (!title || !category || !description) {
       return res.status(400).json({ error: "All fields are required." });
     }
+    const initialThread = [
+      {
+        sender: "admin",
+        message: "Thanks for reaching out, we will address you shortly.",
+        timestamp: new Date().toISOString()
+      }
+    ];
+
     const ticket = await prisma.supportTicket.create({
-      data: { userId, title, category, description },
+      data: { 
+        userId, 
+        title, 
+        category, 
+        description,
+        thread: initialThread
+      },
     });
     res.status(201).json({ message: "Ticket submitted successfully.", ticket });
   } catch (error) {
@@ -422,5 +436,25 @@ export const replyToTicket = async (req, res) => {
   } catch (error) {
     console.error("Reply to ticket error:", error);
     res.status(500).json({ error: "Failed to send reply." });
+  }
+};
+
+export const markTicketRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.auth.id;
+
+    const ticket = await prisma.supportTicket.findUnique({ where: { id, userId } });
+    if (!ticket) return res.status(404).json({ error: "Ticket not found." });
+
+    const updatedTicket = await prisma.supportTicket.update({
+      where: { id },
+      data: { hasUnreadReply: false },
+    });
+
+    res.status(200).json({ message: "Ticket marked as read.", ticket: updatedTicket });
+  } catch (error) {
+    console.error("Mark ticket read error:", error);
+    res.status(500).json({ error: "Failed to mark ticket as read." });
   }
 };

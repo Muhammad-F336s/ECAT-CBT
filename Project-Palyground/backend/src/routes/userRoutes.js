@@ -14,6 +14,7 @@ import {
   createSupportTicket,
   getUserTickets,
   replyToTicket,
+  markTicketRead,
 } from "../controllers/userController.js";
 import { handleVectorBotChat } from "../controllers/vectorBotController.js";
 import { requireAdminAuth } from "../middleware/adminAuth.js";
@@ -29,6 +30,7 @@ router.patch("/profile", requireAuth, updateProfile);
 router.post("/support/ticket", requireAuth, createSupportTicket);
 router.get("/support/tickets", requireAuth, getUserTickets);
 router.post("/support/tickets/:id/reply", requireAuth, replyToTicket);
+router.patch("/support/tickets/:id/mark-read", requireAuth, markTicketRead);
 router.get("/pending-users", requireAdminAuth, listPendingUsers);
 router.get("/approved-users", requireAdminAuth, listApprovedUsers);
 router.get("/students", requireAdminAuth, listStudents);

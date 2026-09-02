@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { FaTimes } from "react-icons/fa";
 import "./TestModeSelection.css";
 
 export default function TestModeSelection() {
@@ -10,6 +11,13 @@ export default function TestModeSelection() {
 
   return (
     <div className="test-mode-selection-page">
+      <button 
+        className="back-to-dashboard-btn" 
+        onClick={() => navigate("/dashboard")}
+        title="Back to Dashboard"
+      >
+        <FaTimes />
+      </button>
       <div className="selection-panel">
         <div className="selection-badge">Choose Your Test Flow</div>
         <h1>Select Test Mode</h1>

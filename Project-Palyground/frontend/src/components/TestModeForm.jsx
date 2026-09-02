@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { ChevronDown } from "lucide-react";
 import "./TestModeForm.css";
 
 const SUBJECTS = [
@@ -34,6 +35,48 @@ const getDefaultSubjectQuestions = (field, total) => {
       assigned += result[id];
     }
   });
+  return result;
+};
+
+// Keep the per-subject counts equal to the requested total. When students turn
+// subjects off, their share is reassigned to the subjects that remain selected.
+const getSubjectQuestionsForSelection = (field, total, selectedSubjects) => {
+  const selected = SUBJECTS.filter((subject) => selectedSubjects[subject.id]);
+  const result = SUBJECTS.reduce((acc, subject) => {
+    acc[subject.id] = 0;
+    return acc;
+  }, {});
+
+  if (selected.length === 0) return result;
+
+  const distribution = FIELD_DISTRIBUTIONS[field] || {};
+  const totalWeight = selected.reduce(
+    (sum, subject) => sum + (distribution[subject.id] || 0),
+    0,
+  );
+  const weightedSubjects = selected.map((subject) => ({
+    id: subject.id,
+    // A field without configured weights is split evenly between its selections.
+    weight: totalWeight > 0 ? distribution[subject.id] || 0 : 1,
+  }));
+  const divisor = weightedSubjects.reduce((sum, subject) => sum + subject.weight, 0);
+
+  let assigned = 0;
+  const remainders = weightedSubjects.map((subject) => {
+    const exact = (total * subject.weight) / divisor;
+    const count = Math.floor(exact);
+    result[subject.id] = count;
+    assigned += count;
+    return { id: subject.id, remainder: exact - count };
+  });
+
+  // Assign leftover questions to the largest fractional shares so the final
+  // count always matches the user's requested total exactly.
+  remainders
+    .sort((a, b) => b.remainder - a.remainder)
+    .slice(0, total - assigned)
+    .forEach(({ id }) => { result[id] += 1; });
+
   return result;
 };
 
@@ -83,7 +126,9 @@ const getAccessStatus = (user) => {
   };
 };
 
-const PTB_CHAPTERS = {
+// Shared with Content Library so both pages apply the exact same syllabus list.
+// eslint-disable-next-line react-refresh/only-export-components
+export const PTB_CHAPTERS = {
   math: {
     part1: [
       "Number Systems",
@@ -245,7 +290,8 @@ const PTB_CHAPTERS = {
   },
 };
 
-const NEW_PTB_CHAPTERS = {
+// eslint-disable-next-line react-refresh/only-export-components
+export const NEW_PTB_CHAPTERS = {
   physics: {
     part1: [
       "Measurements", "Force and Motion", "Circular and Rotational Motion", "Work, Energy and Power", "Solids and Fluid Dynamics", "Heat and Thermodynamics", "Waves and Vibrations", "Physical Optics and Gravitational Waves", "Electrostatics and Current Electricity", "Electromagnetism", "Special Theory of Relativity", "Nuclear and Particle Physics"
@@ -298,8 +344,20 @@ const FIELDS = ["Pre-Engineering", "Pre-Medical", "ICS"];
 const SYLLABUS_OPTIONS = [
   "Old Syllabus (Batch 2023-2025)",
   "New Syllabus (Batch 2026+)",
-  "Mixed Syllabus (Custom %)",
+  "Both Syllabi (Custom Mix %)",
 ];
+
+const getChaptersForSyllabus = (subjectId, syllabusVersion) => {
+  if (syllabusVersion.includes("New")) return NEW_PTB_CHAPTERS[subjectId] || { part1: [], part2: [] };
+  if (!syllabusVersion.includes("Both")) return PTB_CHAPTERS[subjectId] || { part1: [], part2: [] };
+
+  const oldChapters = PTB_CHAPTERS[subjectId] || { part1: [], part2: [] };
+  const newChapters = NEW_PTB_CHAPTERS[subjectId] || { part1: [], part2: [] };
+  return {
+    part1: [...new Set([...(oldChapters.part1 || []), ...(newChapters.part1 || [])])],
+    part2: [...new Set([...(oldChapters.part2 || []), ...(newChapters.part2 || [])])],
+  };
+};
 
 const getSavedScheme = () => {
   const saved = localStorage.getItem("savedPaperScheme");
@@ -322,7 +380,10 @@ export default function TestModeForm({ user }) {
 
   const [studentName, setStudentName] = useState(() => localStorage.getItem("studentName") || user?.name || "");
   const [selectedField, setSelectedField] = useState(() => savedScheme?.selectedField || localStorage.getItem("field") || FIELDS[0]);
-  const [syllabusVersion, setSyllabusVersion] = useState(() => savedScheme?.syllabusVersion || SYLLABUS_OPTIONS[2]);
+  const [syllabusVersion, setSyllabusVersion] = useState(() => {
+    const savedVersion = savedScheme?.syllabusVersion;
+    return savedVersion === "Mixed Syllabus (Custom %)" ? SYLLABUS_OPTIONS[2] : savedVersion || SYLLABUS_OPTIONS[2];
+  });
   const [newSyllabusPercent, setNewSyllabusPercent] = useState(() => savedScheme?.newSyllabusPercent || 50);
   const [numberOfQuestions, setNumberOfQuestions] = useState(() => savedScheme?.numberOfQuestions || 100);
   const [selectedSubjects, setSelectedSubjects] = useState(() => savedScheme?.selectedSubjects || getDefaultSelectedSubjects(savedScheme?.selectedField || localStorage.getItem("field") || FIELDS[0]));
@@ -356,10 +417,14 @@ export default function TestModeForm({ user }) {
   };
 
   const toggleSubject = (subjectId) => {
-    setSelectedSubjects((prev) => ({
-      ...prev,
-      [subjectId]: !prev[subjectId],
-    }));
+    const nextSubjects = {
+      ...selectedSubjects,
+      [subjectId]: !selectedSubjects[subjectId],
+    };
+    setSelectedSubjects(nextSubjects);
+    setSubjectQuestions(
+      getSubjectQuestionsForSelection(selectedField, numberOfQuestions, nextSubjects),
+    );
   };
 
   const updateSubjectQuestions = (subjectId, value) => {
@@ -387,26 +452,6 @@ export default function TestModeForm({ user }) {
       },
     }));
   };
-
-  // Sync subject defaults when field or question count changes.
-  // Use a functional updater with useEffect deferred via useState initializer pattern.
-  // The linter rule flags direct setState in effects; we silence it deliberately here
-  // because this is a derived-state sync that depends on two interdependent state values.
-  // Moving this logic to a useMemo or event handler would require deeper refactor of the
-  // form state architecture — acceptable trade-off for now.
-  useEffect(() => {
-    const saved = getSavedScheme();
-    if (saved && saved.selectedField === selectedField && saved.numberOfQuestions === numberOfQuestions) {
-      return;
-    }
-    const nextSubjects = getDefaultSelectedSubjects(selectedField);
-    const nextQuestions = getDefaultSubjectQuestions(selectedField, numberOfQuestions);
-    // setState inside effect is intentional — derived state reset on field change
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSelectedSubjects(nextSubjects);
-     
-    setSubjectQuestions(nextQuestions);
-  }, [selectedField, numberOfQuestions]);
 
   // Persist selections on change (Paper Scheme Persistency)
   useEffect(() => {
@@ -505,7 +550,12 @@ export default function TestModeForm({ user }) {
         )}
 
         <div className="form-heading">
-          <h1>AI-Powered ECAT Test</h1>
+          <div className="form-heading-title">
+            <button type="button" className="form-dashboard-back" onClick={() => navigate("/dashboard")}>
+              ← Back to Dashboard
+            </button>
+            <h1>AI-Powered ECAT Test</h1>
+          </div>
           <span className={`badge badge-${accessStatus.type}`}>{accessStatus.badge}</span>
         </div>
 
@@ -546,7 +596,15 @@ export default function TestModeForm({ user }) {
           <div className="form-row">
             <label>
               Select Field
-              <select value={selectedField} onChange={(e) => setSelectedField(e.target.value)}>
+              <select
+                value={selectedField}
+                onChange={(e) => {
+                  const field = e.target.value;
+                  setSelectedField(field);
+                  setSelectedSubjects(getDefaultSelectedSubjects(field));
+                  setSubjectQuestions(getDefaultSubjectQuestions(field, numberOfQuestions));
+                }}
+              >
                 {FIELDS.map((field) => (
                   <option key={field} value={field}>{field}</option>
                 ))}
@@ -565,10 +623,10 @@ export default function TestModeForm({ user }) {
             </label>
           </div>
 
-          {syllabusVersion === "Mixed Syllabus (Custom %)" && (
+          {syllabusVersion === "Both Syllabi (Custom Mix %)" && (
             <div className="form-row">
               <label>
-                New Syllabus Percentage (%): {newSyllabusPercent}%
+                New Syllabus Percentage: {newSyllabusPercent}%
                 <input
                   type="range"
                   min="0"
@@ -577,7 +635,7 @@ export default function TestModeForm({ user }) {
                   onChange={(e) => setNewSyllabusPercent(Number(e.target.value))}
                 />
               </label>
-              <span className="slider-hint">The remaining {100 - newSyllabusPercent}% will be from the Old Syllabus.</span>
+              <span className="slider-hint">Your test will include {newSyllabusPercent}% new-syllabus and {100 - newSyllabusPercent}% old-syllabus MCQs. Both chapter lists are available below.</span>
             </div>
           )}
 
@@ -617,7 +675,13 @@ export default function TestModeForm({ user }) {
                 min="1"
                 max="100"
                 value={numberOfQuestions}
-                onChange={(e) => setNumberOfQuestions(Number(e.target.value))}
+                onChange={(e) => {
+                  const total = Number(e.target.value);
+                  setNumberOfQuestions(total);
+                  setSubjectQuestions(
+                    getSubjectQuestionsForSelection(selectedField, total, selectedSubjects),
+                  );
+                }}
                 required
               />
             </label>
@@ -648,8 +712,15 @@ export default function TestModeForm({ user }) {
             </div>
             <div className="chapter-groups">
               {visibleSubjects.map((subject) => {
-                const activeChaptersSource = syllabusVersion.includes("New") ? NEW_PTB_CHAPTERS : PTB_CHAPTERS;
-                const subChapters = activeChaptersSource[subject.id] || { part1: [], part2: [] };
+                const subChapters = getChaptersForSyllabus(subject.id, syllabusVersion);
+                const subjectChapters = [...(subChapters.part1 || []), ...(subChapters.part2 || [])];
+                const isEntireSubjectSelected = subjectChapters.length > 0 && subjectChapters.every(
+                  (chapter) => selectedChapters[subject.id]?.[chapter],
+                );
+                const isSubjectPartiallySelected = subjectChapters.some(
+                  (chapter) => selectedChapters[subject.id]?.[chapter],
+                );
+                const selectedChapterCount = Object.values(selectedChapters[subject.id] || {}).filter(Boolean).length;
                 const parts = [
                   { key: "part1", label: "Part 1 — Class 11", chapters: subChapters.part1 || [] },
                   { key: "part2", label: "Part 2 — Class 12", chapters: subChapters.part2 || [] },
@@ -662,15 +733,35 @@ export default function TestModeForm({ user }) {
                 })).filter((p) => p.chapters.length > 0 || !chapterSearch);
 
                 return (
-                  <div key={subject.id} className="chapter-group">
-                    <button
-                      type="button"
-                      className="chapter-group-toggle"
-                      onClick={() => toggleChapterGroup(subject.id)}
-                    >
-                      <span className="cgt-label">{subject.label}</span>
-                      <span className="cgt-arrow">{expandedSubjects[subject.id] ? "▲" : "▼"}</span>
-                    </button>
+                  <div
+                    key={subject.id}
+                    className={`chapter-group ${expandedSubjects[subject.id] ? "is-open" : ""} ${selectedChapterCount ? "has-selections" : ""}`}
+                  >
+                    <div className="chapter-group-heading">
+                      <label className="subject-all-check" title={`Select all ${subject.label} chapters`}>
+                        <input
+                          type="checkbox"
+                          checked={isEntireSubjectSelected}
+                          ref={(el) => { if (el) el.indeterminate = isSubjectPartiallySelected && !isEntireSubjectSelected; }}
+                          onChange={() => toggleAllChaptersInPart(subject.id, subjectChapters, isEntireSubjectSelected)}
+                        />
+                        <span className="sr-only">Select all {subject.label} chapters</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="chapter-group-toggle"
+                        onClick={() => toggleChapterGroup(subject.id)}
+                        aria-expanded={expandedSubjects[subject.id]}
+                      >
+                        <span className="cgt-label">{subject.label}</span>
+                        <span className="cgt-meta">
+                          <span className="cgt-count">
+                            {selectedChapterCount ? `${selectedChapterCount} selected` : "All chapters"}
+                          </span>
+                          <span className="cgt-arrow" aria-hidden="true"><ChevronDown size={16} strokeWidth={2.8} /></span>
+                        </span>
+                      </button>
+                    </div>
 
                     {expandedSubjects[subject.id] && (
                       <div className="part-groups">
@@ -700,8 +791,10 @@ export default function TestModeForm({ user }) {
                                   type="button"
                                   className="part-toggle-btn"
                                   onClick={() => togglePart(subject.id, part.key)}
+                                  aria-expanded={isPartOpen}
+                                  aria-label={`${isPartOpen ? "Collapse" : "Expand"} ${part.label}`}
                                 >
-                                  {isPartOpen ? "▲" : "▼"}
+                                  <ChevronDown size={15} strokeWidth={2.8} />
                                 </button>
                               </div>
                               {isPartOpen && (

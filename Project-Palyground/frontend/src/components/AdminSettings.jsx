@@ -20,6 +20,9 @@ import {
   FaUserShield,
   FaSnowflake,
   FaBox,
+  FaKey,
+  FaLock,
+  FaSync,
 } from "react-icons/fa";
 import API from "../utils/api";
 import "./AdminSettings.css";
@@ -31,6 +34,12 @@ export default function AdminSettings({ user }) {
   const [saving, setSaving] = useState(false);
   const [dangerBusy, setDangerBusy] = useState("");
   const [toast, setToast] = useState({ show: false, type: "", msg: "" });
+  const [aiAccessToken, setAiAccessToken] = useState("");
+  const [aiConfig, setAiConfig] = useState(null);
+  const [groqModels, setGroqModels] = useState([]);
+  const [aiModel, setAiModel] = useState("");
+  const [newAiKey, setNewAiKey] = useState("");
+  const [aiBusy, setAiBusy] = useState("");
 
   const isRoot =
     user?.rank === "Root Owner" || user?.email === "muhammad.f336s@gmail.com";
@@ -127,6 +136,59 @@ export default function AdminSettings({ user }) {
       showToast("error", err.response?.data?.error || "Failed to export data.");
     } finally {
       setDangerBusy("");
+    }
+  };
+
+  const aiHeaders = (token = aiAccessToken) => ({ headers: { "x-ai-config-token": token } });
+
+  const unlockAiSettings = async () => {
+    const secretCode = window.prompt("Enter your Admin Secret Code to unlock AI configuration for 10 minutes:");
+    if (!secretCode) return;
+    setAiBusy("unlock");
+    try {
+      const unlock = await API.post("/admin/ai/unlock", { secretCode });
+      const token = unlock.data.accessToken;
+      setAiAccessToken(token);
+      const [configRes, modelsRes] = await Promise.all([
+        API.get("/admin/ai/config", aiHeaders(token)),
+        API.get("/admin/ai/models", aiHeaders(token)),
+      ]);
+      setAiConfig(configRes.data);
+      setAiModel(configRes.data.model);
+      setGroqModels(modelsRes.data.models || []);
+      showToast("success", "AI configuration unlocked securely.");
+    } catch (err) {
+      showToast("error", err.response?.data?.error || "Could not unlock AI configuration.");
+    } finally {
+      setAiBusy("");
+    }
+  };
+
+  const refreshGroqModels = async () => {
+    setAiBusy("models");
+    try {
+      const res = await API.get("/admin/ai/models", aiHeaders());
+      setGroqModels(res.data.models || []);
+      showToast("success", "Groq model list refreshed.");
+    } catch (err) {
+      showToast("error", err.response?.data?.error || "Could not load Groq models.");
+    } finally {
+      setAiBusy("");
+    }
+  };
+
+  const saveAiConfiguration = async () => {
+    setAiBusy("save");
+    try {
+      const res = await API.patch("/admin/ai/config", { model: aiModel, apiKey: newAiKey }, aiHeaders());
+      setAiConfig(res.data.config);
+      setAiModel(res.data.config.model);
+      setNewAiKey("");
+      showToast("success", res.data.emailSent ? "AI configuration saved; Root Owner was emailed." : "AI configuration saved. Email alert is unavailable.");
+    } catch (err) {
+      showToast("error", err.response?.data?.error || "Could not save AI configuration.");
+    } finally {
+      setAiBusy("");
     }
   };
 
@@ -354,6 +416,49 @@ export default function AdminSettings({ user }) {
             </div>
           </section>
         )}
+
+        {/* AI Provider Configuration */}
+        <section className="settings-card ai-config-card">
+          <div className="settings-card-title">
+            <FaRobot className="settings-card-icon settings-card-icon--purple" />
+            <h2>AI Provider Configuration</h2>
+            <span className="settings-root-badge">Secret Code Required</span>
+          </div>
+          <p className="settings-card-desc">
+            Manage the active Groq model and API key. Keys are encrypted server-side and can never be viewed or copied after saving.
+          </p>
+          {!aiAccessToken ? (
+            <div className="ai-config-locked">
+              <FaLock />
+              <div><strong>Protected settings</strong><p>Enter your own admin secret code to continue.</p></div>
+              <button type="button" className="settings-save-btn" onClick={unlockAiSettings} disabled={aiBusy === "unlock"}>
+                <FaKey /> {aiBusy === "unlock" ? "Verifying..." : "Unlock AI Settings"}
+              </button>
+            </div>
+          ) : (
+            <div className="settings-form ai-config-form">
+              <div className="ai-config-status"><FaLock /> API key: <strong>{aiConfig?.keyConfigured ? `${aiConfig.keySource} (${aiConfig.keyLastFour})` : "Not configured"}</strong></div>
+              <div className="settings-field">
+                <label htmlFor="groqModel"><FaRobot className="field-icon" /> Active Groq Model</label>
+                <div className="ai-model-row">
+                  <select id="groqModel" value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
+                    {aiModel && !groqModels.includes(aiModel) && <option value={aiModel}>{aiModel} (current)</option>}
+                    {groqModels.map((model) => <option key={model} value={model}>{model}</option>)}
+                  </select>
+                  <button type="button" className="ai-refresh-btn" onClick={refreshGroqModels} disabled={aiBusy === "models"} title="Refresh models from Groq"><FaSync /></button>
+                </div>
+              </div>
+              <div className="settings-field">
+                <label htmlFor="groqKey"><FaKey className="field-icon" /> Replace Groq API Key <span className="field-optional">(optional)</span></label>
+                <input id="groqKey" type="password" autoComplete="new-password" value={newAiKey} onChange={(e) => setNewAiKey(e.target.value)} placeholder="Paste a new key only when replacing it" />
+                <small className="ai-key-note">The current key is never displayed. Leaving this blank preserves it.</small>
+              </div>
+              <button type="button" className="settings-save-btn" onClick={saveAiConfiguration} disabled={aiBusy === "save" || !aiModel}>
+                <FaSave /> {aiBusy === "save" ? "Saving securely..." : "Save AI Configuration"}
+              </button>
+            </div>
+          )}
+        </section>
 
         {/* Administration Controls */}
         <section className="settings-card">

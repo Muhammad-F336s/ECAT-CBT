@@ -248,19 +248,37 @@ export const printFullPaper = ({ user, results, blank = false }) => {
         </div>
         `}
 
-        ${!blank ? `<div class="paper-instructions">This document contains the complete test paper with all questions and your selected responses. Filled circle (&#9679;) indicates your chosen answer. Empty circle (&#9675;) indicates unselected options.</div>` : ``}
-
-        <main>
+        ${!blank ? `
+        <div class="summary-section">
+          <div class="summary-box">
+            <span class="summary-label">Score</span>
+            <span class="summary-value">${escapeHtml(results.score)} / ${escapeHtml(results.totalMarks)}</span>
+          </div>
+          <div class="summary-box">
+            <span class="summary-label">Percentage</span>
+            <span class="summary-value">${escapeHtml(results.percentage)}</span>
+          </div>
+          <div class="summary-box">
+            <span class="summary-label">Time Taken</span>
+            <span class="summary-value">${escapeHtml(results.timeTaken)}</span>
+          </div>
+          <div class="summary-box">
+            <span class="summary-label">Correct</span>
+            <span class="summary-value correct-value">${escapeHtml(results.correctCount)}</span>
+          </div>
+        </div>
+        ` : ``}
+        <main class="questions-list">
           ${questions.map((q) => buildQuestionBlock(q, { blank })).join("")}
         </main>
 
-        ${!blank ? `<footer class="paper-footer">ECAT CBT Simulator — Printed on ${escapeHtml(new Date().toLocaleString())}</footer>` : ``}
+        ${!blank ? `<footer class="paper-footer">Entrace.pk CBT Simulator – Printed on ${escapeHtml(new Date().toLocaleString())}</footer>` : ``}
       </body>
     </html>
   `;
 
   const iframe = document.createElement("iframe");
-  iframe.setAttribute("title", "ECAT Full Test Paper Print");
+  iframe.setAttribute("title", "Entrace.pk Full Test Paper Print");
   iframe.style.cssText =
     "position:fixed;width:0;height:0;border:0;visibility:hidden;";
   document.body.appendChild(iframe);

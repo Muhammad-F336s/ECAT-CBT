@@ -26,6 +26,21 @@
 .settings-toast--success { background: #1a472a; color: #fff; }
 .settings-toast--error   { background: #c0392b; color: #fff; }
 
+.ai-config-card { border-color: #d9d4f1; }
+.ai-config-locked,
+.ai-config-status,
+.ai-model-row { display: flex; align-items: center; gap: 12px; }
+.ai-config-locked { padding: 16px; border: 1px solid #e5e0f5; border-radius: 12px; background: #faf9ff; color: #554687; }
+.ai-config-locked > svg { font-size: 1.2rem; }
+.ai-config-locked p { margin: 3px 0 0; color: #67707a; font-size: .84rem; }
+.ai-config-locked .settings-save-btn { margin-left: auto; }
+.ai-config-form { gap: 16px; }
+.ai-config-status { padding: 10px 12px; border-radius: 8px; background: #f1f8f2; color: #275d35; font-size: .86rem; }
+.ai-model-row select { flex: 1; }
+.ai-refresh-btn { width: 42px; height: 42px; border: 1px solid #d3d9e6; border-radius: 8px; color: #38598c; background: #f6f8fc; cursor: pointer; }
+.ai-refresh-btn:disabled { opacity: .55; cursor: wait; }
+.ai-key-note, .field-optional { color: #728078; font-size: .78rem; font-weight: 400; }
+
 @keyframes slideInToast {
   from { opacity: 0; transform: translateX(40px); }
   to   { opacity: 1; transform: translateX(0); }

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../utils/api";
+import { NEW_PTB_CHAPTERS, PTB_CHAPTERS } from "./TestModeForm";
 import "./ContentLibrary.css";
 
 const FIELD_DISTRIBUTIONS = {
@@ -49,6 +50,8 @@ export default function ContentLibrary({ user }) {
   const [questionCount, setQuestionCount] = useState(10);
   const [isStudyMode, setIsStudyMode] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [syllabusView, setSyllabusView] = useState("both");
+  const generationAbortRef = useRef(null);
 
   const userField = localStorage.getItem("field") || "Pre-Engineering";
 
@@ -96,12 +99,16 @@ export default function ContentLibrary({ user }) {
 
   const handleStartPractice = async () => {
     if (!selectedChapter) return;
+    generationAbortRef.current?.abort();
+    const controller = new AbortController();
+    generationAbortRef.current = controller;
     setIsGenerating(true);
     try {
       const res = await API.post("/test/generate-chapter-practice", {
         chapterId: selectedChapter.id,
         requestedCount: questionCount,
-      });
+        syllabusType: syllabusView === "both" ? "mixed" : syllabusView,
+      }, { signal: controller.signal });
 
       const { questions, subjectName, marksPerQuestion } = res.data;
 
@@ -120,11 +127,19 @@ export default function ContentLibrary({ user }) {
         },
       });
     } catch (err) {
+      if (err.code === "ERR_CANCELED" || err.name === "CanceledError") return;
       console.error("Generate practice error:", err);
       alert("Failed to generate practice test. Please try again.");
     } finally {
+      if (generationAbortRef.current === controller) generationAbortRef.current = null;
       setIsGenerating(false);
     }
+  };
+
+  const handleCancelPracticeGeneration = () => {
+    generationAbortRef.current?.abort();
+    generationAbortRef.current = null;
+    setIsGenerating(false);
   };
 
   if (loading)
@@ -133,13 +148,39 @@ export default function ContentLibrary({ user }) {
     );
 
   const filteredLibrary = filterLibraryByField();
+  const getVisibleChapters = (subject) => {
+    const subjectId = SUBJECT_MAP[subject.name];
+    if (!subjectId || syllabusView === "both") return subject.chapters || [];
+    const source = syllabusView === "new" ? NEW_PTB_CHAPTERS : PTB_CHAPTERS;
+    const allowedNames = new Set([
+      ...(source[subjectId]?.part1 || []),
+      ...(source[subjectId]?.part2 || []),
+    ]);
+    return (subject.chapters || []).filter((chapter) => allowedNames.has(chapter.name));
+  };
 
   return (
     <div className="content-library-container">
       <div className="library-header">
         <h1>Content Library</h1>
         <p>Targeted practice: Select a chapter to master specific concepts.</p>
-        <div className="field-badge">Currently viewing: {userField}</div>
+        <div className="library-header-controls">
+          <div className="field-badge">Currently viewing: {userField}</div>
+          <label className="library-syllabus-select">
+            <span>Syllabus library</span>
+            <select
+              value={syllabusView}
+              onChange={(event) => {
+                setSyllabusView(event.target.value);
+                setSelectedChapter(null);
+              }}
+            >
+              <option value="old">Old Syllabus (2023–2025)</option>
+              <option value="new">New Syllabus (2026+)</option>
+              <option value="both">Both Syllabi</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div className="library-layout">
@@ -148,6 +189,7 @@ export default function ContentLibrary({ user }) {
           <div className="subjects-list">
             {filteredLibrary.map((subject) => {
               const mastery = getMastery(subject.name);
+              const visibleChapters = getVisibleChapters(subject);
               return (
                 <button
                   key={subject.id}
@@ -165,7 +207,7 @@ export default function ContentLibrary({ user }) {
                       )}
                     </div>
                     <span className="count-badge">
-                      {subject.chapters.reduce(
+                      {visibleChapters.reduce(
                         (acc, ch) => acc + ch._count.questions,
                         0,
                       )}{" "}
@@ -186,13 +228,17 @@ export default function ContentLibrary({ user }) {
           {selectedSubject ? (
             <>
               <div className="chapter-header">
-                <h3>{selectedSubject.name} Chapters</h3>
+                <div>
+                  <h3>{selectedSubject.name} Chapters</h3>
+                  <span className="chapter-syllabus-state">
+                    {syllabusView === "both" ? "Showing old + new syllabus chapters" : `${syllabusView === "new" ? "New" : "Old"} syllabus chapters`}
+                  </span>
+                </div>
                 <span className="subject-overall-stat">Overall Subject Mastery: {getMastery(selectedSubject.name)}%</span>
               </div>
               <div className="chapters-grid">
-                {selectedSubject.chapters &&
-                selectedSubject.chapters.length > 0 ? (
-                  selectedSubject.chapters.map((chapter) => {
+                {getVisibleChapters(selectedSubject).length > 0 ? (
+                  getVisibleChapters(selectedSubject).map((chapter) => {
                     const chMastery = getMastery(selectedSubject.name, chapter.id);
                     return (
                       <div
@@ -223,7 +269,7 @@ export default function ContentLibrary({ user }) {
                   })
                 ) : (
                   <div className="empty-state">
-                    <p>No chapters available for this subject</p>
+                    <p>No {syllabusView === "new" ? "new" : "old"} syllabus chapters are available for this subject yet.</p>
                   </div>
                 )}
               </div>
@@ -265,13 +311,18 @@ export default function ContentLibrary({ user }) {
               />
             </div>
 
-            <button
-              className="start-practice-btn"
-              onClick={handleStartPractice}
-              disabled={isGenerating}
-            >
-              {isGenerating ? "Generating..." : "Start Practice session"}
-            </button>
+            {isGenerating ? (
+              <div className="practice-generation-actions">
+                <span className="practice-generating-label">Generating your practice session...</span>
+                <button className="start-practice-btn" type="button" onClick={handleCancelPracticeGeneration}>
+                  Cancel Generation
+                </button>
+              </div>
+            ) : (
+              <button className="start-practice-btn" type="button" onClick={handleStartPractice}>
+                Start Practice session
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -1,9 +1,12 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import nodemailer from "nodemailer";
+import OpenAI from "openai";
 import prisma from "../db.js";
 import { getConfig } from "../configHelpers.js";
 import { JWT_SECRET } from "../jwtSecret.js";
+import { encryptAiApiKey, getAiConfigSummary, getAiRuntimeConfig } from "../services/aiProviderConfigService.js";
 
 const MAIN_ADMIN_EMAIL = "muhammad.f336s@gmail.com";
 const ROOT_OWNER_RANK = "Root Owner";
@@ -55,6 +58,124 @@ const requireRootOwner = (req, res) => {
     error: "Only the protected root owner can manage admin accounts.",
   });
   return false;
+};
+
+const AI_CONFIG_TOKEN_TTL = "10m";
+
+const requireAiConfigAccess = (req, res) => {
+  const unlockToken = req.headers["x-ai-config-token"];
+  if (!unlockToken) {
+    res.status(401).json({ error: "Enter your admin secret code to access AI configuration." });
+    return false;
+  }
+  try {
+    const payload = jwt.verify(unlockToken, JWT_SECRET);
+    if (payload.scope !== "ai-config" || payload.adminId !== req.adminAuth?.id) throw new Error("Invalid scope");
+    return true;
+  } catch {
+    res.status(401).json({ error: "AI configuration access expired. Enter your secret code again." });
+    return false;
+  }
+};
+
+const sendAiConfigAlert = async ({ adminEmail, model, apiKeyChanged }) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.warn("[AI Config] Email is not configured; Root Owner alert was not sent.");
+    return false;
+  }
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+  });
+  await transporter.sendMail({
+    from: `"ECAT CBT Security" <${process.env.EMAIL_USER}>`,
+    to: MAIN_ADMIN_EMAIL,
+    subject: "ECAT CBT security alert: AI configuration changed",
+    html: `<div style="font-family:Arial,sans-serif;max-width:560px;padding:24px;border:1px solid #d9e3ee;border-radius:12px">
+      <h2 style="color:#9f2d22">AI configuration changed</h2>
+      <p><strong>Admin:</strong> ${adminEmail}</p>
+      <p><strong>Provider:</strong> Groq</p>
+      <p><strong>Model:</strong> ${model}</p>
+      <p><strong>API key updated:</strong> ${apiKeyChanged ? "Yes" : "No"}</p>
+      <p><strong>Time:</strong> ${new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })}</p>
+      <p style="color:#667085">The API key is intentionally never included in this alert.</p>
+    </div>`,
+  });
+  return true;
+};
+
+export const unlockAiConfiguration = async (req, res) => {
+  try {
+    const secretCode = String(req.body?.secretCode || "").trim().toUpperCase();
+    const admin = await prisma.admin.findUnique({
+      where: { id: req.adminAuth.id },
+      select: { id: true, secretHash: true, isFrozen: true },
+    });
+    if (!admin || admin.isFrozen || !secretCode || !admin.secretHash || !(await bcrypt.compare(secretCode, admin.secretHash))) {
+      return res.status(403).json({ error: "Invalid admin secret code." });
+    }
+    const accessToken = jwt.sign({ scope: "ai-config", adminId: admin.id }, JWT_SECRET, { expiresIn: AI_CONFIG_TOKEN_TTL });
+    return res.status(200).json({ accessToken, expiresIn: 600 });
+  } catch (error) {
+    console.error("AI configuration unlock error:", error.message);
+    return res.status(500).json({ error: "Could not verify AI configuration access." });
+  }
+};
+
+export const getAiConfiguration = async (req, res) => {
+  try {
+    if (!requireAiConfigAccess(req, res)) return;
+    return res.status(200).json(await getAiConfigSummary());
+  } catch (error) {
+    console.error("Get AI configuration error:", error.message);
+    return res.status(500).json({ error: "Could not load AI configuration." });
+  }
+};
+
+export const listGroqModels = async (req, res) => {
+  try {
+    if (!requireAiConfigAccess(req, res)) return;
+    const { apiKey } = await getAiRuntimeConfig();
+    if (!apiKey) return res.status(400).json({ error: "Configure a Groq API key before loading models." });
+    const client = new OpenAI({ apiKey, baseURL: "https://api.groq.com/openai/v1" });
+    const response = await client.models.list();
+    const models = (response.data || []).map((model) => model.id).filter(Boolean).sort();
+    return res.status(200).json({ models });
+  } catch (error) {
+    console.error("List Groq models error:", error.message);
+    return res.status(502).json({ error: "Could not load the current Groq model list." });
+  }
+};
+
+export const updateAiConfiguration = async (req, res) => {
+  try {
+    if (!requireAiConfigAccess(req, res)) return;
+    const model = String(req.body?.model || "").trim();
+    const apiKey = String(req.body?.apiKey || "").trim();
+    if (!model || model.length > 160) return res.status(400).json({ error: "Choose a valid Groq model." });
+
+    const data = { model, provider: "groq", updatedByEmail: req.adminAuth.email };
+    if (apiKey) {
+      data.apiKeyCiphertext = encryptAiApiKey(apiKey);
+      data.apiKeyLastFour = `••••${apiKey.slice(-4)}`;
+    }
+    const config = await prisma.aiProviderConfig.upsert({ where: { id: 1 }, create: { id: 1, ...data }, update: data });
+
+    let emailSent = false;
+    try {
+      emailSent = await sendAiConfigAlert({ adminEmail: req.adminAuth.email, model: config.model, apiKeyChanged: Boolean(apiKey) });
+    } catch (mailError) {
+      console.error("AI configuration alert email failed:", mailError.message);
+    }
+    return res.status(200).json({
+      message: "AI configuration saved. The API key remains hidden.",
+      emailSent,
+      config: await getAiConfigSummary(),
+    });
+  } catch (error) {
+    console.error("Update AI configuration error:", error.message);
+    return res.status(500).json({ error: "Could not save AI configuration." });
+  }
 };
 
 export const listAdmins = async (req, res) => {
@@ -557,7 +678,7 @@ export const getPlatformTickets = async (req, res) => {
 export const updateTicketStatus = async (req, res) => {
   try {
     const { ticketId } = req.params;
-    const { status, reply, isFalse, deleteReply, freezeDays } = req.body;
+    const { status, reply, isFalse, deleteReply, freezeDays, isChatOpen } = req.body;
 
     const ticket = await prisma.supportTicket.findUnique({
       where: { id: ticketId },
@@ -568,6 +689,7 @@ export const updateTicketStatus = async (req, res) => {
 
     let updateData = {};
     if (status) updateData.status = status;
+    if (isChatOpen !== undefined) updateData.isChatOpen = isChatOpen;
     
     let currentThread = ticket.thread ? (typeof ticket.thread === "string" ? JSON.parse(ticket.thread) : ticket.thread) : [];
     if (!Array.isArray(currentThread)) currentThread = [];
@@ -577,6 +699,7 @@ export const updateTicketStatus = async (req, res) => {
       if (reply.trim() !== "") {
         currentThread.push({ sender: "admin", message: reply, timestamp: new Date().toISOString() });
         updateData.thread = currentThread;
+        updateData.hasUnreadReply = true;
       }
     }
     
@@ -772,4 +895,3 @@ export const deleteLoginMessage = async (req, res) => {
     res.status(500).json({ error: 'Failed to delete message.' });
   }
 };
-

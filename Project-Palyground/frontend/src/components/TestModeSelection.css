@@ -5,6 +5,32 @@
   place-items: center;
   padding: 36px 24px;
   background: #eef7ef;
+  position: relative;
+}
+
+.back-to-dashboard-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  color: #1a3a28;
+  font-size: 1.2rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.back-to-dashboard-btn:hover {
+  background: #eef7ef;
+  color: #1a3a28;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 .selection-panel {

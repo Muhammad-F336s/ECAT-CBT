@@ -1,4 +1,4 @@
-const MARKS_PER_QUESTION = 20;
+const MARKS_PER_QUESTION = 1;
 
 export const getAiFeedback = (percentage, score, totalMarks, studentName = "Student") => {
   const name = studentName.split(" ")[0] || studentName;
@@ -9,7 +9,7 @@ export const getAiFeedback = (percentage, score, totalMarks, studentName = "Stud
       tone: "fail",
       icons: "💀 ❌ 🪓",
       title: "TOTAL FAIL — SHARAM NAHI AATI?",
-      body: `Oye ${name}! ${score} out of ${totalMarks} marks? Matlab ECAT tumhe reject letter bhejne wala hai, dosti nahi. PUBG chhoro, kitab uthao warna agli dafa sirf "better luck next year" milega.`,
+      body: `Oye ${name}! ${score} out of ${totalMarks} marks? Matlab Entrace.pk tumhe reject letter bhejne wala hai, dosti nahi. PUBG chhoro, kitab uthao warna agli dafa sirf "better luck next year" milega.`,
     };
   }
 
@@ -18,7 +18,7 @@ export const getAiFeedback = (percentage, score, totalMarks, studentName = "Stud
       tone: "poor",
       icons: "😬 📉 ⚠️",
       title: "DANGER ZONE — WAKE UP!",
-      body: `${name}, ${pct}% se ECAT clear nahi hota. Abhi syllabus pakro, roz practice karo, warna ye score tumhari CV pe nahi, warning letter pe jaega.`,
+      body: `${name}, ${pct}% se Entrace.pk clear nahi hota. Abhi syllabus pakro, roz practice karo, warna ye score tumhari CV pe nahi, warning letter pe jaega.`,
     };
   }
 
@@ -27,7 +27,7 @@ export const getAiFeedback = (percentage, score, totalMarks, studentName = "Stud
       tone: "average",
       icons: "📚 💪 🎯",
       title: "AVERAGE — IMPROVE KARO!",
-      body: `${name}, ${pct}% matlab tum start to le chuke ho, lekin ECAT ke liye abhi bohot kaam baaki hai. Weak chapters identify karo aur un par focus karo.`,
+      body: `${name}, ${pct}% matlab tum start to le chuke ho, lekin Entrace.pk ke liye abhi bohot kaam baaki hai. Weak chapters identify karo aur un par focus karo.`,
     };
   }
 
@@ -43,7 +43,7 @@ export const getAiFeedback = (percentage, score, totalMarks, studentName = "Stud
   return {
     tone: "excellent",
     icons: "🏆 🔥 ⭐",
-    title: "EXCELLENT — ECAT READY VIBES!",
+    title: "EXCELLENT — ENTRACE.PK READY VIBES!",
     body: `Mubarak ho ${name}! ${pct}% brilliant performance hai. Isi consistency se chalo — ab full-length timed papers aur past paper revision pe focus karo.`,
   };
 };

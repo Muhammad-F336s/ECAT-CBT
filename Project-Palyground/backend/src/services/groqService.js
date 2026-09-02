@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import prisma from "../db.js";
+import { getAiRuntimeConfig } from "./aiProviderConfigService.js";
 
 // --- Groq Cloud CONFIGURATION ---
 const groqKeys = [
@@ -25,6 +26,17 @@ function switchToNextKey() {
   }
   return false;
 }
+
+const getGroqRuntime = async () => {
+  const config = await getAiRuntimeConfig();
+  if (config.apiKey) {
+    return {
+      client: new OpenAI({ apiKey: config.apiKey, baseURL: "https://api.groq.com/openai/v1" }),
+      model: config.model,
+    };
+  }
+  return { client: groq, model: "openai/gpt-oss-120b" };
+};
 
 // --- MATH TO LATEX CONVERTER ---
 function formatMathToLaTeX(text) {
@@ -72,23 +84,16 @@ function formatMathToLaTeX(text) {
 export async function auditQuestions(questions) {
   if (!questions || questions.length === 0) return [];
 
-  const auditPrompt = `You are a Senior Quality Auditor for ECAT exams. Review the following questions for accuracy.
-    For each question, check:
-    1. Mathematical accuracy of the question and solution.
-    2. Does the "correctAnswer" index (0-4) truly point to the mathematically correct option?
-    3. Are options distinct and not redundant?
-    
-    QUESTIONS TO AUDIT:
-    ${JSON.stringify(questions, null, 2)}
-    
-    Return a JSON object with an "audits" array. Each entry must have:
-    - index: (Number)
-    - status: "passed" or "flagged"
-    - notes: (String) Why it was flagged, or "Verified accurate" if passed.`;
+  const auditPrompt = `Audit these ECAT MCQs. Verify the correct-answer index and reject duplicate or malformed options.
+Return JSON only: {"audits":[{"index":0,"status":"passed|flagged","notes":"max 12 words"}]}.
+QUESTIONS: ${JSON.stringify(questions)}`;
 
   try {
-    const response = await groq.chat.completions.create({
-      model: "openai/gpt-oss-120b",
+    const runtime = await getGroqRuntime();
+    const response = await runtime.client.chat.completions.create({
+      // Keep the heavyweight model for question generation; use the smaller,
+      // low-latency model for this structured metadata audit.
+      model: process.env.GROQ_AUDIT_MODEL || "openai/gpt-oss-20b",
       messages: [
         {
           role: "system",
@@ -98,6 +103,7 @@ export async function auditQuestions(questions) {
       ],
       temperature: 0.0, // Absolute determinism for auditing
       response_format: { type: "json_object" },
+      max_tokens: Math.max(160, Math.min(500, questions.length * 32)),
     });
 
     const content = JSON.parse(response.choices[0].message.content);
@@ -190,8 +196,9 @@ export async function generateQuestions(
     Return exactly ${count} questions in JSON format.`;
 
   try {
-    const response = await groq.chat.completions.create({
-      model: "openai/gpt-oss-120b",
+    const runtime = await getGroqRuntime();
+    const response = await runtime.client.chat.completions.create({
+      model: runtime.model,
       messages: [
         {
           role: "system",
@@ -342,9 +349,10 @@ export async function generateAllQuestions(
   syllabusType,
   newSyllabusPercentage,
   targetChapterId = null,
+  signal,
 ) {
   const totalQuestions = parseInt(targetCount) || 10;
-  const batchSize = 10;
+  const batchSize = 5;
   const maxTotalAttempts = totalQuestions * 5; // Increased attempts
   let allQuestions = [];
   const seenTexts = new Set();
@@ -356,6 +364,10 @@ export async function generateAllQuestions(
     allQuestions.length < totalQuestions &&
     totalAttempts < maxTotalAttempts
   ) {
+    if (signal?.aborted) {
+      console.log("[Groq] Test generation cancelled by student.");
+      return [];
+    }
     const remaining = totalQuestions - allQuestions.length;
     const currentRequestedCount = Math.min(batchSize, remaining);
     let newlyAdded = 0;
@@ -394,6 +406,7 @@ export async function generateAllQuestions(
         );
       }
     } catch (err) {
+      if (signal?.aborted) return [];
       console.warn(`[Groq] Batch generation failed: ${err.message}. Retrying...`);
       await delay(2000);
     }
@@ -409,29 +422,42 @@ export async function generateAllQuestions(
     }
 
     totalAttempts++;
-    await delay(500);
+    // Do not hold a completed test generation behind an arbitrary long delay.
+    if (signal?.aborted) return [];
+    await delay(100);
   }
+
+  if (signal?.aborted) return [];
 
 
   // Formatting and Saving to Prisma Database
   console.log(`[Groq] All ${allQuestions.length} questions collected. Starting AI Audit pass...`);
   const auditResults = await auditQuestions(allQuestions);
   
-  const formattedQuestions = [];
+  const questionsToSave = [];
+  const chapterIdCache = new Map();
   for (let i = 0; i < allQuestions.length; i++) {
     const q = allQuestions[i];
     const audit = auditResults.find(a => a.index === i) || { status: "flagged", notes: "Audit missing" };
-    
     const subjectName = q.subject || subjects[0] || field;
-    const chapterId = targetChapterId || await getOrCreateChapterId(subjectName, q.chapter);
+    const chapterKey = `${subjectName}::${q.chapter || "General Topics"}`;
+    let chapterId = targetChapterId || chapterIdCache.get(chapterKey);
+    if (!chapterId) {
+      chapterId = await getOrCreateChapterId(subjectName, q.chapter);
+      chapterIdCache.set(chapterKey, chapterId);
+    }
 
-    // Create the question with options
+    let finalStatement = q.questionText;
+    if (q.passage) {
+      finalStatement = `[PASSAGE]\n${q.passage}\n\n${q.questionText}`;
+    }
+    questionsToSave.push({ q, audit, chapterId, finalStatement });
+  }
+
+  // These writes are independent. Saving them concurrently removes the long
+  // post-generation wait caused by one database round trip per question.
+  const savedQuestions = await Promise.all(questionsToSave.map(async ({ q, audit, chapterId, finalStatement }) => {
     try {
-      let finalStatement = q.questionText;
-      if (q.passage) {
-        finalStatement = `[PASSAGE]\n${q.passage}\n\n${q.questionText}`;
-      }
-
       const savedQuestion = await prisma.question.create({
         data: {
           statement: finalStatement,
@@ -448,18 +474,20 @@ export async function generateAllQuestions(
         include: { options: true },
       });
 
-      formattedQuestions.push({
+      return {
         id: savedQuestion.id,
         statement: savedQuestion.statement,
         chapterId: savedQuestion.chapterId,
         options: savedQuestion.options,
         isFlagged: savedQuestion.isFlagged,
         auditNotes: savedQuestion.auditNotes
-      });
+      };
     } catch (e) {
       console.error("[Groq] Failed to save AI question to DB:", e.message);
+      return null;
     }
-  }
+  }));
+  const formattedQuestions = savedQuestions.filter(Boolean);
 
   // Enforce the 1500 questions compute limit rule across the whole questions table
   try {

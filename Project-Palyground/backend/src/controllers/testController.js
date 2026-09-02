@@ -3,7 +3,9 @@ import crypto from "crypto";
 import { generateAllQuestions } from "../services/groqService.js";
 import { getConfig } from "../configHelpers.js";
 
-const MARKS_PER_QUESTION = 20;
+// Practice tests are scored one mark per MCQ. A 10-question custom test must
+// therefore show a total of 10, not the 200-mark ECAT full-paper scale.
+const MARKS_PER_QUESTION = 1;
 
 // Crypto-secure Fisher-Yates shuffle
 const secureShuffle = (array) => {
@@ -69,6 +71,11 @@ const loadStudentAccess = async (userId) => {
 
 export const generateTest = async (req, res) => {
   try {
+    const cancellation = new AbortController();
+    req.on("aborted", () => cancellation.abort());
+    res.on("close", () => {
+      if (!res.writableEnded) cancellation.abort();
+    });
     const userId = req.auth.id;
     const { 
       subjectId, 
@@ -162,8 +169,11 @@ export const generateTest = async (req, res) => {
           targetChapters,
           activeDifficulty,
           activeSyllabusType,
-          activeNewSyllabusPercent
+          activeNewSyllabusPercent,
+          null,
+          cancellation.signal,
         );
+        if (cancellation.signal.aborted) return;
         allAiQuestions = allAiQuestions.concat(batch);
       }
 
@@ -414,6 +424,11 @@ export const getContentLibrary = async (req, res) => {
 
 export const generateChapterPractice = async (req, res) => {
   try {
+    const cancellation = new AbortController();
+    req.on("aborted", () => cancellation.abort());
+    res.on("close", () => {
+      if (!res.writableEnded) cancellation.abort();
+    });
     const userId = req.auth.id;
     const { chapterId, difficulty = 5, syllabusType = "mixed", newSyllabusPercentage = 50 } = req.body;
 
@@ -459,7 +474,7 @@ export const generateChapterPractice = async (req, res) => {
     if (existingQuestions.length < requestedCount) {
       console.log(`[ChapterPractice] Pool small (${existingQuestions.length}/${requestedCount}). Augmenting...`);
 
-      const needed = requestedCount - existingQuestions.length + 15;
+      const needed = requestedCount - existingQuestions.length + 3;
       await generateAllQuestions(
         chapter.subject.name,
         [chapter.subject.name],
@@ -468,8 +483,10 @@ export const generateChapterPractice = async (req, res) => {
         difficulty,
         syllabusType,
         newSyllabusPercentage,
-        chapterId
+        chapterId,
+        cancellation.signal,
       );
+      if (cancellation.signal.aborted) return;
 
       // Fetch all again to include new ones
       finalPool = await prisma.question.findMany({

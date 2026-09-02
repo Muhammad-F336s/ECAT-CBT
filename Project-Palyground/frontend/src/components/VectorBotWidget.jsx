@@ -8,7 +8,7 @@ const QUICK_PROMPTS = [
   "⚡ Physics Formula Sheet",
   "📐 Maths Integration Shortcut",
   "🧪 Chemistry Core Concepts",
-  "⏱️ ECAT Time Strategy",
+  "⏱️ Entrace.pk Time Strategy",
 ];
 
 const STORAGE_KEY = "vectorbot_chat_history";
@@ -16,7 +16,7 @@ const STORAGE_KEY = "vectorbot_chat_history";
 const defaultWelcome = (name) => ({
   id: "welcome",
   sender: "bot",
-  text: `Hello ${name || "Aspirant"}! 🎯 I am **Vector Bot**, your 24/7 ECAT Study Mentor.\n\nI can help you with formula shortcuts, exam timing strategies, and subject doubts (Maths, Physics, Chemistry, CS, English).\n\nWhat would you like to review today?`,
+  text: `Hello ${name || "Aspirant"}! 🎯 I am **Vector Bot**, your 24/7 Entrace.pk Study Mentor.\n\nI can help you with formula shortcuts, exam timing strategies, and subject doubts (Maths, Physics, Chemistry, CS, English).\n\nWhat would you like to review today?`,
 });
 
 export default function VectorBotWidget({ user }) {
@@ -78,7 +78,7 @@ export default function VectorBotWidget({ user }) {
       const botMsg = {
         id: crypto.randomUUID(),
         sender: "bot",
-        text: res.data.reply || "Vector Bot is ready to help you excel in ECAT!",
+        text: res.data.reply || "Vector Bot is ready to help you excel on Entrace.pk!",
       };
       setMessages((prev) => [...prev, botMsg]);
     } catch (err) {
@@ -106,7 +106,7 @@ export default function VectorBotWidget({ user }) {
           type="button"
           className="vector-bot-launcher"
           onClick={() => setIsOpen(true)}
-          title="Open Vector Bot (AI ECAT Mentor)"
+          title="Open Vector Bot (AI Entrace.pk Mentor)"
         >
           <div className="vector-bot-icon-badge">🎯</div>
           <span className="vector-bot-label">Vector Bot</span>
@@ -121,7 +121,7 @@ export default function VectorBotWidget({ user }) {
               <div className="vector-bot-avatar">🎯</div>
               <div>
                 <h3>Vector Bot <span className="vector-badge">AI Mentor</span></h3>
-                <p>ECAT Direction &amp; Magnitude</p>
+                <p>Entrace.pk AI Study Mentor</p>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>

@@ -14,7 +14,8 @@
     "prisma:status": "prisma migrate status --config=./prisma.config.js",
     "prisma:generate": "prisma generate --config=./prisma.config.js",
     "prisma:validate": "prisma validate --config=./prisma.config.js",
-    "prisma:seed": "prisma db seed --config=./prisma.config.js"
+    "prisma:seed": "prisma db seed --config=./prisma.config.js",
+    "seed:new-syllabus-library": "node scripts/seedNewSyllabusLibrary.js"
   },
   "prisma": {
     "seed": "node scripts/seed.js"
