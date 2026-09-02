@@ -53,7 +53,10 @@ export default function ContentLibrary({ user }) {
   const [syllabusView, setSyllabusView] = useState("both");
   const generationAbortRef = useRef(null);
 
-  const userField = localStorage.getItem("field") || "Pre-Engineering";
+  const userField = user?.academicTrack || localStorage.getItem("field") || "Pre-Engineering";
+  const profileSubjects = Array.isArray(user?.academicSubjects) && user.academicSubjects.length > 0
+    ? new Set(user.academicSubjects)
+    : null;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,11 +92,12 @@ export default function ContentLibrary({ user }) {
   };
 
   const filterLibraryByField = () => {
-    const dist =
-      FIELD_DISTRIBUTIONS[userField] || FIELD_DISTRIBUTIONS["Pre-Engineering"];
     return library.filter((subject) => {
       const subId = SUBJECT_MAP[subject.name];
-      return subId && dist[subId] > 0;
+      if (!subId) return false;
+      if (profileSubjects) return profileSubjects.has(subId);
+      const dist = FIELD_DISTRIBUTIONS[userField] || FIELD_DISTRIBUTIONS["Pre-Engineering"];
+      return dist[subId] > 0;
     });
   };
 

@@ -63,6 +63,10 @@ model User {
   frozenUntil       DateTime?
   freezeReason      String?         @db.Text
   hasCompletedOnboarding Boolean    @default(false)
+  academicTrack          String?
+  academicSubjects       String[]  @default([])
+  academicProfileCompleted Boolean @default(false)
+  academicProfileEditExpiresAt DateTime?
   selectedUniversities University[]
   selectedExams        EntryExam[]
   attempts          TestAttempt[]   // Relation: User ne kitne tests diye

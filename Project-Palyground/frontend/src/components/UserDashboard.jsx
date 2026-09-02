@@ -1,13 +1,22 @@
 import Dashboard from "./Dashboard";
 import API from "../utils/api";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./UserDashboard.css";
-import OnboardingScreen from "./OnboardingScreen";
 
-export default function UserDashboard({ user, onStartTest, onOpenAccount, onCompleteOnboarding }) {
+const formatTime = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+
+export default function UserDashboard({ user, onStartTest, onOpenAccount, onChangeAcademicProfile }) {
   const initials = user?.name?.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "U";
   const [metrics, setMetrics] = useState({ totalTests: 0, averagePercentage: 0 });
-  const [showOnboarding, setShowOnboarding] = useState(!user?.hasCompletedOnboarding);
+  const [now, setNow] = useState(null);
+  const editExpiresAt = user?.academicProfileEditExpiresAt ? new Date(user.academicProfileEditExpiresAt).getTime() : null;
+  const secondsRemaining = useMemo(() => editExpiresAt && now ? Math.max(0, Math.ceil((editExpiresAt - now) / 1000)) : 0, [editExpiresAt, now]);
+  const canChangeAcademicProfile = Boolean(user?.academicProfileCompleted && secondsRemaining > 0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -30,19 +39,16 @@ export default function UserDashboard({ user, onStartTest, onOpenAccount, onComp
     };
   }, [user?.id]);
 
-  if (showOnboarding) {
-    return (
-      <OnboardingScreen 
-        onComplete={() => {
-          setShowOnboarding(false);
-          if (onCompleteOnboarding) onCompleteOnboarding();
-        }} 
-      />
-    );
-  }
-
   return (
     <div className="dashboard-page-container">
+      {canChangeAcademicProfile && (
+        <button type="button" className="academic-profile-countdown" onClick={onChangeAcademicProfile}>
+          <span className="academic-profile-countdown-icon">✎</span>
+          <span><strong>Change your field</strong><small>Update your academic profile before the edit window closes.</small></span>
+          <time>{formatTime(secondsRemaining)}</time>
+          <span className="academic-profile-countdown-arrow">→</span>
+        </button>
+      )}
       <div className="dashboard-top-grid">
         <section className="dashboard-profile-card">
           <div className="dashboard-profile-header">

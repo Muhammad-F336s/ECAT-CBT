@@ -17,6 +17,29 @@
   width: 100%;
 }
 
+.academic-profile-countdown {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid #f0c46f;
+  border-left: 4px solid #df9307;
+  border-radius: 14px;
+  background: #fff8e7;
+  color: #62420a;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.academic-profile-countdown:hover { background: #fff2d1; }
+.academic-profile-countdown-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #ffe0a3; font-size: 1rem; }
+.academic-profile-countdown strong, .academic-profile-countdown small { display: block; }
+.academic-profile-countdown strong { font-size: .88rem; }.academic-profile-countdown small { margin-top: 2px; color: #876b38; font-size: .78rem; }
+.academic-profile-countdown time { margin-left: auto; padding: 7px 10px; border-radius: 9px; background: #8b5208; color: #fff7e4; font-weight: 800; font-variant-numeric: tabular-nums; }
+.academic-profile-countdown-arrow { font-size: 1.15rem; font-weight: 800; }
+
 .dashboard-top-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);

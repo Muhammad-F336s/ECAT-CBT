@@ -13,6 +13,12 @@ const QUICK_PROMPTS = [
 
 const STORAGE_KEY = "vectorbot_chat_history";
 
+const OCEAN_THEME = {
+  "--bot-gradient": "linear-gradient(125deg,#063c56 0%,#087f8a 56%,#11a9ac 100%)",
+  "--bot-accent": "#ffd16a", "--bot-accent-dark": "#f49a37", "--bot-panel": "#f1fbfc",
+  "--bot-soft": "#e1f5f7", "--bot-border": "#bee6e8", "--bot-user": "#087d8a", "--bot-text": "#183d4b",
+};
+
 const defaultWelcome = (name) => ({
   id: "welcome",
   sender: "bot",
@@ -100,7 +106,7 @@ export default function VectorBotWidget({ user }) {
   };
 
   return (
-    <div className="vector-bot-container">
+    <div className="vector-bot-container" style={OCEAN_THEME}>
       {!isOpen && (
         <button
           type="button"
@@ -108,8 +114,9 @@ export default function VectorBotWidget({ user }) {
           onClick={() => setIsOpen(true)}
           title="Open Vector Bot (AI Entrace.pk Mentor)"
         >
-          <div className="vector-bot-icon-badge">🎯</div>
-          <span className="vector-bot-label">Vector Bot</span>
+          <div className="vector-bot-icon-badge"><span className="vector-bot-face"><i></i><i></i></span></div>
+          <span className="vector-bot-label"><strong>Ask Vector</strong><small>Your study co-pilot</small></span>
+          <span className="vector-bot-spark">✦</span>
           <span className="vector-bot-pulse" />
         </button>
       )}
@@ -118,7 +125,7 @@ export default function VectorBotWidget({ user }) {
         <div className="vector-bot-window">
           <header className="vector-bot-header">
             <div className="vector-bot-title-area">
-              <div className="vector-bot-avatar">🎯</div>
+              <div className="vector-bot-avatar"><span className="vector-bot-face"><i></i><i></i></span></div>
               <div>
                 <h3>Vector Bot <span className="vector-badge">AI Mentor</span></h3>
                 <p>Entrace.pk AI Study Mentor</p>
@@ -127,12 +134,12 @@ export default function VectorBotWidget({ user }) {
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <button
                 type="button"
+                className="vector-bot-clear"
                 onClick={() => {
                   localStorage.removeItem(STORAGE_KEY);
                   setMessages([defaultWelcome(userName)]);
                 }}
                 title="Clear chat history"
-                style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "6px", color: "#fff", fontSize: "0.7rem", padding: "4px 8px", cursor: "pointer" }}
               >
                 Clear
               </button>

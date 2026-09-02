@@ -44,6 +44,8 @@ import UserDashboard from "./components/UserDashboard";
 import ProgressPage from "./components/ProgressPage";
 import ProfilePage from "./components/ProfilePage";
 import OnboardingScreen from "./components/OnboardingScreen";
+import AcademicProfileSetup from "./components/AcademicProfileSetup";
+import ChangeTargetPage from "./components/ChangeTargetPage";
 import TestWindow from "./components/TestWindow";
 import TestModeSelection from "./components/TestModeSelection";
 import TestModeForm from "./components/TestModeForm";
@@ -138,9 +140,21 @@ function App() {
       localStorage.setItem("user", JSON.stringify(verifiedUser));
     } catch (err) {
       console.error("[AuthDebug] Session verification failed:", err);
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      setUser(null);
+      const status = err.response?.status;
+      // A temporary server/database problem must never look like a logout.
+      // Only remove a session when the server explicitly says the token is invalid.
+      if (status === 401 || status === 403) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setUser(null);
+      } else {
+        try {
+          const cachedUser = JSON.parse(localStorage.getItem("user") || "null");
+          setUser(cachedUser ? { ...cachedUser, role: normalizeRole(cachedUser.role) } : null);
+        } catch {
+          setUser(null);
+        }
+      }
     } finally {
       console.log("[AuthDebug] Verification process finished. Setting isLoading to false.");
       setIsLoading(false);
@@ -213,7 +227,17 @@ function App() {
           path="/*"
           element={
             user?.role === "student" ? (
-              <AppShell user={user} setUser={setUser} />
+              !user.isDemoAccount && !user.academicProfileCompleted ? (
+                <AcademicProfileSetup
+                  user={user}
+                  onComplete={(updatedUser) => {
+                    const normalizedUser = { ...updatedUser, role: normalizeRole(updatedUser.role) };
+                    setUser(normalizedUser);
+                    localStorage.setItem("user", JSON.stringify(normalizedUser));
+                    navigate("/dashboard", { replace: true });
+                  }}
+                />
+              ) : <AppShell user={user} setUser={setUser} />
             ) : user ? (
               <Navigate to="/admin/dashboard" replace />
             ) : (
@@ -675,8 +699,8 @@ function AppShell({ user, setUser }) {
               </button>
               <div className="sidebar-section-label" style={{ marginTop: "16px" }}>Preferences</div>
               <button
-                onClick={() => handleNavigate("/interests")}
-                className={`nav-button ${view === "interests" ? "active" : ""}`}
+                onClick={() => handleNavigate("/change-target")}
+                className={`nav-button ${view === "change-target" ? "active" : ""}`}
               >
                 Change Target
               </button>
@@ -698,7 +722,7 @@ function AppShell({ user, setUser }) {
         </aside>
       )}
       <main className="main-panel">
-        {!isTestView && view !== "interests" && (
+        {!isTestView && !["interests", "academic-profile", "change-target"].includes(view) && (
           <div className="page-header">
             <span>{pageCopy.label}</span>
             <h2>{pageCopy.title}</h2>
@@ -723,15 +747,25 @@ function AppShell({ user, setUser }) {
                   user={user}
                   onStartTest={() => navigate("/test")}
                   onOpenAccount={() => navigate("/profile")}
-                  onCompleteOnboarding={() => {
-                    const updated = { ...user, hasCompletedOnboarding: true };
-                    setUser(updated);
-                    localStorage.setItem("user", JSON.stringify(updated));
-                  }}
+                  onChangeAcademicProfile={() => navigate("/change-target")}
                 />
               }
             />
             <Route path="progress" element={<ProgressPage userId={user.id} />} />
+            <Route path="change-target" element={<ChangeTargetPage user={user} />} />
+            <Route
+              path="academic-profile"
+              element={
+                <AcademicProfileSetup
+                  user={user}
+                  onComplete={(updatedUser) => {
+                    const normalizedUser = { ...updatedUser, role: normalizeRole(updatedUser.role) };
+                    setUser(normalizedUser);
+                    localStorage.setItem("user", JSON.stringify(normalizedUser));
+                  }}
+                />
+              }
+            />
             <Route path="library" element={<ContentLibrary user={user} />} />
             <Route
               path="test"

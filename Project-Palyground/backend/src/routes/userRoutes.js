@@ -15,6 +15,8 @@ import {
   getUserTickets,
   replyToTicket,
   markTicketRead,
+  startAcademicProfile,
+  saveAcademicProfile,
 } from "../controllers/userController.js";
 import { handleVectorBotChat } from "../controllers/vectorBotController.js";
 import { requireAdminAuth } from "../middleware/adminAuth.js";
@@ -27,6 +29,8 @@ router.get("/me", requireAuth, getMe);
 router.post("/vector-bot/chat", requireAuth, handleVectorBotChat);
 router.get("/analytics/:userId", requireAuth, requireSelfOrAdmin("userId"), getUserAnalytics);
 router.patch("/profile", requireAuth, updateProfile);
+router.post("/academic-profile/start", requireAuth, startAcademicProfile);
+router.put("/academic-profile", requireAuth, saveAcademicProfile);
 router.post("/support/ticket", requireAuth, createSupportTicket);
 router.get("/support/tickets", requireAuth, getUserTickets);
 router.post("/support/tickets/:id/reply", requireAuth, replyToTicket);

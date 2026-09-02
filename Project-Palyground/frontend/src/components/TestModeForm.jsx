@@ -379,14 +379,16 @@ export default function TestModeForm({ user }) {
   const savedScheme = getSavedScheme();
 
   const [studentName, setStudentName] = useState(() => localStorage.getItem("studentName") || user?.name || "");
-  const [selectedField, setSelectedField] = useState(() => savedScheme?.selectedField || localStorage.getItem("field") || FIELDS[0]);
+  const profileField = user?.academicTrack || localStorage.getItem("field") || FIELDS[0];
+  const profileSubjectIds = Array.isArray(user?.academicSubjects) && user.academicSubjects.length > 0 ? user.academicSubjects : null;
+  const [selectedField, setSelectedField] = useState(() => savedScheme?.selectedField || profileField);
   const [syllabusVersion, setSyllabusVersion] = useState(() => {
     const savedVersion = savedScheme?.syllabusVersion;
     return savedVersion === "Mixed Syllabus (Custom %)" ? SYLLABUS_OPTIONS[2] : savedVersion || SYLLABUS_OPTIONS[2];
   });
   const [newSyllabusPercent, setNewSyllabusPercent] = useState(() => savedScheme?.newSyllabusPercent || 50);
   const [numberOfQuestions, setNumberOfQuestions] = useState(() => savedScheme?.numberOfQuestions || 100);
-  const [selectedSubjects, setSelectedSubjects] = useState(() => savedScheme?.selectedSubjects || getDefaultSelectedSubjects(savedScheme?.selectedField || localStorage.getItem("field") || FIELDS[0]));
+  const [selectedSubjects, setSelectedSubjects] = useState(() => savedScheme?.selectedSubjects || (profileSubjectIds ? SUBJECTS.reduce((acc, subject) => ({ ...acc, [subject.id]: profileSubjectIds.includes(subject.id) }), {}) : getDefaultSelectedSubjects(savedScheme?.selectedField || profileField)));
   const [subjectQuestions, setSubjectQuestions] = useState(() => savedScheme?.subjectQuestions || getDefaultSubjectQuestions(savedScheme?.selectedField || localStorage.getItem("field") || FIELDS[0], savedScheme?.numberOfQuestions || 100));
   const [difficultyLevel, setDifficultyLevel] = useState(() => savedScheme?.difficultyLevel || 5);
   const [chapterSearch, setChapterSearch] = useState("");
@@ -401,7 +403,7 @@ export default function TestModeForm({ user }) {
   const [negativeMarking, setNegativeMarking] = useState(() => savedScheme?.negativeMarking || false);
 
   const currentDist = FIELD_DISTRIBUTIONS[selectedField] || {};
-  const visibleSubjects = SUBJECTS.filter((s) => (currentDist[s.id] || 0) > 0);
+  const visibleSubjects = SUBJECTS.filter((s) => profileSubjectIds ? profileSubjectIds.includes(s.id) : (currentDist[s.id] || 0) > 0);
 
   const togglePart = (subjectId, partKey) => {
     const key = `${subjectId}_${partKey}`;
@@ -598,6 +600,7 @@ export default function TestModeForm({ user }) {
               Select Field
               <select
                 value={selectedField}
+                disabled={Boolean(user?.academicTrack)}
                 onChange={(e) => {
                   const field = e.target.value;
                   setSelectedField(field);

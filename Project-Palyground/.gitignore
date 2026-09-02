@@ -22,6 +22,8 @@ New Syllabus.md
 deploy-check-dist
 deploy-check-dist-2
 deploy-check-dist-3
+.build-check
+
 
 # Editor directories and files
 .vscode/*

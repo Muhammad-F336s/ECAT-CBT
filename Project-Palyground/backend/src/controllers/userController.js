@@ -7,6 +7,17 @@ const generateSecret = () =>
   `ADM-${crypto.randomBytes(3).toString("hex").toUpperCase()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
 const MAIN_ADMIN_EMAIL = "muhammad.f336s@gmail.com";
 
+const ACADEMIC_TRACKS = new Set(["Pre-Engineering", "Pre-Medical", "ICS", "ICom", "FA"]);
+const ACADEMIC_SUBJECTS = new Set(["math", "physics", "chemistry", "biology", "english", "computer"]);
+const ACADEMIC_PROFILE_EDIT_WINDOW_MS = 30 * 60 * 1000;
+
+const academicProfileSelect = {
+  id: true, name: true, email: true, cnic: true, role: true, isApproved: true,
+  packageType: true, testAttemptsLimit: true, academicTrack: true,
+  academicSubjects: true, academicProfileCompleted: true,
+  academicProfileEditExpiresAt: true, hasCompletedOnboarding: true,
+};
+
 export const getMe = async (req, res) => {
   try {
     const userId = req.auth.id;
@@ -33,11 +44,17 @@ export const getMe = async (req, res) => {
         id: true,
         name: true,
         email: true,
+        cnic: true,
         role: true,
         isApproved: true,
         isDemoAccount: true,
         packageType: true,
         testAttemptsLimit: true,
+        academicTrack: true,
+        academicSubjects: true,
+        academicProfileCompleted: true,
+        academicProfileEditExpiresAt: true,
+        hasCompletedOnboarding: true,
         createdAt: true,
       },
     });
@@ -78,6 +95,62 @@ export const getMe = async (req, res) => {
   } catch (error) {
     console.error("Get me error:", error);
     res.status(500).json({ error: "Internal server error while fetching profile." });
+  }
+};
+
+// Initial setup has no countdown; the edit countdown begins only after first save.
+export const startAcademicProfile = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.auth.id }, select: academicProfileSelect });
+    if (!user) return res.status(404).json({ error: "User not found." });
+    if (user.role !== "student") return res.status(403).json({ error: "Only students have an academic profile." });
+    if (user.academicProfileCompleted) return res.status(200).json({ user });
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { academicProfileEditExpiresAt: null },
+      select: academicProfileSelect,
+    });
+    res.status(200).json({ user: updated });
+  } catch (error) {
+    console.error("Start academic profile error:", error);
+    res.status(500).json({ error: "Unable to start academic profile setup." });
+  }
+};
+
+export const saveAcademicProfile = async (req, res) => {
+  try {
+    const { academicTrack, academicSubjects } = req.body;
+    const subjects = Array.isArray(academicSubjects) ? [...new Set(academicSubjects)] : [];
+    if (!ACADEMIC_TRACKS.has(academicTrack)) return res.status(400).json({ error: "Please select a valid academic track." });
+    if (subjects.length === 0 || subjects.length > 5 || subjects.some((subject) => !ACADEMIC_SUBJECTS.has(subject))) {
+      return res.status(400).json({ error: "Select between one and five valid subjects." });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.auth.id }, select: academicProfileSelect });
+    if (!user) return res.status(404).json({ error: "User not found." });
+    const isFirstSave = !user.academicProfileCompleted;
+    if (!isFirstSave && (!user.academicProfileEditExpiresAt || user.academicProfileEditExpiresAt <= new Date())) {
+      return res.status(403).json({ error: "Your 30-minute edit window has expired. Please contact support to request a change." });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        academicTrack,
+        academicSubjects: subjects,
+        academicProfileCompleted: true,
+        // Academic profile setup now replaces the old university-interest
+        // onboarding for new students, so take them straight to dashboard.
+        hasCompletedOnboarding: true,
+        ...(isFirstSave ? { academicProfileEditExpiresAt: new Date(Date.now() + ACADEMIC_PROFILE_EDIT_WINDOW_MS) } : {}),
+      },
+      select: academicProfileSelect,
+    });
+    res.status(200).json({ message: isFirstSave ? "Academic profile saved. Your 30-minute edit window has started." : "Academic profile updated.", user: updated });
+  } catch (error) {
+    console.error("Save academic profile error:", error);
+    res.status(500).json({ error: "Unable to save academic profile." });
   }
 };
 
