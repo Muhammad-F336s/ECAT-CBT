@@ -46,6 +46,8 @@ import ProfilePage from "./components/ProfilePage";
 import OnboardingScreen from "./components/OnboardingScreen";
 import AcademicProfileSetup from "./components/AcademicProfileSetup";
 import ChangeTargetPage from "./components/ChangeTargetPage";
+import ProfileChangeRequestPage from "./components/ProfileChangeRequestPage";
+import AdminProfileChangeRequests from "./components/AdminProfileChangeRequests";
 import TestWindow from "./components/TestWindow";
 import TestModeSelection from "./components/TestModeSelection";
 import TestModeForm from "./components/TestModeForm";
@@ -227,7 +229,10 @@ function App() {
           path="/*"
           element={
             user?.role === "student" ? (
-              !user.isDemoAccount && !user.academicProfileCompleted ? (
+              // Only an explicit false from the server means first-time setup.
+              // Older cached/login payloads can omit this field and must still
+              // open the dashboard rather than trapping a returning student here.
+              !user.isDemoAccount && user.academicProfileCompleted === false ? (
                 <AcademicProfileSetup
                   user={user}
                   onComplete={(updatedUser) => {
@@ -379,6 +384,12 @@ function AdminAppShell({ user, setUser }) {
               className={`nav-button ${location.pathname === "/admin/students" ? "active" : ""}`}
             >
               <FaRegCheckCircle /> Approved Students
+            </button>
+            <button
+              onClick={() => handleNavigate("/admin/profile-change-requests")}
+              className={`nav-button ${location.pathname === "/admin/profile-change-requests" ? "active" : ""}`}
+            >
+              <FaList /> Profile Change Requests
             </button>
             <button
               onClick={() => setIsUserManagementOpen(!isUserManagementOpen)}
@@ -556,6 +567,7 @@ function AdminAppShell({ user, setUser }) {
             <Route path="features" element={<Navigate to="/admin/settings" replace />} />
             <Route path="settings" element={<AdminSettings user={user} />} />
             <Route path="support" element={<AdminSupport />} />
+            <Route path="profile-change-requests" element={<AdminProfileChangeRequests />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
         </div>
@@ -704,6 +716,12 @@ function AppShell({ user, setUser }) {
               >
                 Change Target
               </button>
+              <button
+                onClick={() => handleNavigate("/profile-change-request")}
+                className={`nav-button ${view === "profile-change-request" ? "active" : ""}`}
+              >
+                Profile Change Request
+              </button>
             </div>
           </div>
           <div className="sidebar-bottom">
@@ -753,6 +771,7 @@ function AppShell({ user, setUser }) {
             />
             <Route path="progress" element={<ProgressPage userId={user.id} />} />
             <Route path="change-target" element={<ChangeTargetPage user={user} />} />
+            <Route path="profile-change-request" element={<ProfileChangeRequestPage user={user} />} />
             <Route
               path="academic-profile"
               element={

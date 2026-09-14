@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import API from "../utils/api";
 import "./AcademicProfileSetup.css";
 
-const TRACKS = ["Pre-Engineering", "Pre-Medical", "ICS", "ICom", "FA"];
+const TRACKS = [{ id: "Pre-Engineering", label: "FSc Pre-Engineering" }, { id: "Pre-Medical", label: "FSc Pre-Medical" }, { id: "ICS", label: "ICS" }, { id: "ICom", label: "ICom" }, { id: "FA", label: "FA / Arts" }, { id: "Other / Gap-year", label: "Other / Gap-year" }];
 const SUBJECTS = [
   { id: "math", label: "Mathematics" },
   { id: "physics", label: "Physics" },
@@ -17,12 +18,22 @@ const RECOMMENDED_SUBJECTS = {
   ICS: ["computer", "math", "physics", "english"],
   ICom: ["math", "english"],
   FA: ["english"],
+  "Other / Gap-year": ["english"],
+};
+const ALLOWED_SUBJECTS = {
+  "Pre-Engineering": ["math", "physics", "chemistry", "english"],
+  "Pre-Medical": ["biology", "physics", "chemistry", "english"],
+  ICS: ["computer", "math", "physics", "english"],
+  ICom: ["math", "english"],
+  FA: ["english"],
+  "Other / Gap-year": ["math", "physics", "chemistry", "biology", "english", "computer"],
 };
 
 const formatTime = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 const maskCnic = (cnic) => cnic ? `${cnic.slice(0, 5)}-*******-${cnic.slice(-1)}` : "Not provided";
 
 export default function AcademicProfileSetup({ user, onComplete }) {
+  const navigate = useNavigate();
   const [profileUser, setProfileUser] = useState(user);
   const [track, setTrack] = useState("");
   const [subjects, setSubjects] = useState([]);
@@ -80,7 +91,7 @@ export default function AcademicProfileSetup({ user, onComplete }) {
 
   const save = async (event) => {
     event.preventDefault();
-    if (isExpired) return setError("Your 30-minute edit window has expired. Please contact support to request a change.");
+    if (isExpired) return setError("Your 10-minute free correction window has expired. Submit a profile change request instead.");
     setSaving(true);
     setError("");
     try {
@@ -115,10 +126,10 @@ export default function AcademicProfileSetup({ user, onComplete }) {
         <div className={`academic-profile-notice ${isExpired ? "is-expired" : ""}`}>
           <div>
             <strong>{hasSavedProfile ? "Your profile has been saved." : "Review your academic profile carefully."}</strong>
-            <p>{hasSavedProfile ? "You may update these details while the 30-minute edit window is active. Once it expires, changes will be locked and cannot be made directly." : "There is no time limit for this initial setup. After you save, you will have 30 minutes to make any corrections."}</p>
+            <p>{isExpired ? "This is your saved academic profile. It is now read-only; request a change for an administrator to review." : hasSavedProfile ? "You may update these details while the 10-minute free correction window is active. Once it expires, changes will be locked and cannot be made directly." : "Your academic profile personalizes tests and study content. After submitting, you have a 10-minute free correction window; after that, changes require an approved request."}</p>
           </div>
           {hasSavedProfile && <div className="academic-profile-timer" aria-live="polite">
-            <span>{isExpired ? "Time expired" : "30-minute edit window"}</span>
+            <span>{isExpired ? "Time expired" : "10-minute free correction window"}</span>
             <strong>{formatTime(secondsRemaining)}</strong>
           </div>}
         </div>
@@ -133,13 +144,13 @@ export default function AcademicProfileSetup({ user, onComplete }) {
           <fieldset disabled={isExpired || saving}>
             <legend>Choose your academic track</legend>
             <div className="academic-track-grid">
-              {TRACKS.map((item) => <button type="button" key={item} className={track === item ? "selected" : ""} onClick={() => selectTrack(item)}>{item}</button>)}
+              {TRACKS.map((item) => <button type="button" key={item.id} className={track === item.id ? "selected" : ""} onClick={() => selectTrack(item.id)}>{item.label}</button>)}
             </div>
 
             {track && <div className="academic-subject-section">
-              <div><h2>Select your subjects</h2><p>Recommended subjects are selected automatically. You may choose up to five.</p></div>
+              <div><h2>Select your subjects</h2><p>Recommended subjects are selected automatically. Only subjects relevant to your academic track are available.</p></div>
               <div className="academic-subject-grid">
-                {SUBJECTS.map((subject) => <label key={subject.id} className={subjects.includes(subject.id) ? "selected" : ""}>
+                {SUBJECTS.filter((subject) => (ALLOWED_SUBJECTS[track] || []).includes(subject.id)).map((subject) => <label key={subject.id} className={subjects.includes(subject.id) ? "selected" : ""}>
                   <input type="checkbox" checked={subjects.includes(subject.id)} onChange={() => toggleSubject(subject.id)} />
                   {subject.label}
                 </label>)}
@@ -149,9 +160,15 @@ export default function AcademicProfileSetup({ user, onComplete }) {
           </fieldset>
 
           {error && <p className="academic-profile-error" role="alert">{error}</p>}
-          <button className="academic-profile-submit" disabled={saving || isExpired || !track || subjects.length === 0}>
-            {saving ? "Saving profile…" : hasSavedProfile ? "Save changes" : "Save profile and start edit window"}
-          </button>
+          {isExpired ? (
+            <button type="button" className="academic-profile-submit" onClick={() => navigate("/profile-change-request")}>
+              Contact admin to ask a change
+            </button>
+          ) : (
+            <button className="academic-profile-submit" disabled={saving || !track || subjects.length === 0}>
+              {saving ? "Saving profile…" : hasSavedProfile ? "Save changes" : "Save profile and start edit window"}
+            </button>
+          )}
         </form>
       </section>
     </main>

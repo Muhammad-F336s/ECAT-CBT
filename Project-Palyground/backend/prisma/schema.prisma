@@ -71,7 +71,41 @@ model User {
   selectedExams        EntryExam[]
   attempts          TestAttempt[]   // Relation: User ne kitne tests diye
   tickets           SupportTicket[] // Relation: Support tickets submitted by the user
+  profileChangeRequests ProfileChangeRequest[]
   createdAt         DateTime        @default(now())
+}
+
+model ProfileChangeRequest {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentTrack      String
+  currentSubjects   String[]
+  requestedTrack    String
+  requestedSubjects String[]
+  reason            String   @db.Text
+  transactionId     String?
+  receiptProof      String?  @db.Text
+  status            String   @default("Pending payment verification")
+  adminReason       String?  @db.Text
+  reviewedByAdminId String?
+  reviewedByName    String?
+  reviewedAt        DateTime?
+  appliedAt         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  audits            ProfileChangeRequestAudit[]
+}
+
+model ProfileChangeRequestAudit {
+  id             String   @id @default(uuid())
+  requestId      String
+  request        ProfileChangeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  action         String
+  note           String?  @db.Text
+  adminId        String?
+  adminName      String?
+  createdAt      DateTime @default(now())
 }
 
 

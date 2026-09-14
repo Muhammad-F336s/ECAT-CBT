@@ -39,6 +39,7 @@ import {
   getApprovedQuestionsGrouped,
 } from "../controllers/adminQuestionController.js";
 import { requireAdminAuth } from "../middleware/adminAuth.js";
+import { listProfileChangeRequests, reviewProfileChangeRequest } from "../controllers/profileChangeController.js";
 
 const router = express.Router();
 
@@ -68,6 +69,8 @@ router.post("/impersonate", impersonateUser);
 router.get("/notifications/counts", getNotificationCounts);
 router.post("/messages/mark-read", markMessagesAsRead);
 router.delete("/messages/:id", deleteLoginMessage);
+router.get("/profile-change-requests", listProfileChangeRequests);
+router.patch("/profile-change-requests/:requestId", reviewProfileChangeRequest);
 
 
 

@@ -579,6 +579,10 @@ export const login = async (req, res) => {
         packageType: user.packageType ?? "STANDARD",
         testAttemptsLimit: user.testAttemptsLimit,
         hasCompletedOnboarding: user.hasCompletedOnboarding ?? false,
+        academicTrack: user.academicTrack,
+        academicSubjects: user.academicSubjects,
+        academicProfileCompleted: user.academicProfileCompleted ?? false,
+        academicProfileEditExpiresAt: user.academicProfileEditExpiresAt,
         loginMessages,
       },
     });

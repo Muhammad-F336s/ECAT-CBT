@@ -7,9 +7,17 @@ const generateSecret = () =>
   `ADM-${crypto.randomBytes(3).toString("hex").toUpperCase()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
 const MAIN_ADMIN_EMAIL = "muhammad.f336s@gmail.com";
 
-const ACADEMIC_TRACKS = new Set(["Pre-Engineering", "Pre-Medical", "ICS", "ICom", "FA"]);
+const ACADEMIC_TRACKS = new Set(["Pre-Engineering", "Pre-Medical", "ICS", "ICom", "FA", "Other / Gap-year"]);
 const ACADEMIC_SUBJECTS = new Set(["math", "physics", "chemistry", "biology", "english", "computer"]);
-const ACADEMIC_PROFILE_EDIT_WINDOW_MS = 30 * 60 * 1000;
+const ACADEMIC_ALLOWED_SUBJECTS = {
+  "Pre-Engineering": new Set(["math", "physics", "chemistry", "english"]),
+  "Pre-Medical": new Set(["biology", "physics", "chemistry", "english"]),
+  ICS: new Set(["computer", "math", "physics", "english"]),
+  ICom: new Set(["math", "english"]),
+  FA: new Set(["english"]),
+  "Other / Gap-year": new Set(["math", "physics", "chemistry", "biology", "english", "computer"]),
+};
+const ACADEMIC_PROFILE_EDIT_WINDOW_MS = 10 * 60 * 1000;
 
 const academicProfileSelect = {
   id: true, name: true, email: true, cnic: true, role: true, isApproved: true,
@@ -123,7 +131,7 @@ export const saveAcademicProfile = async (req, res) => {
     const { academicTrack, academicSubjects } = req.body;
     const subjects = Array.isArray(academicSubjects) ? [...new Set(academicSubjects)] : [];
     if (!ACADEMIC_TRACKS.has(academicTrack)) return res.status(400).json({ error: "Please select a valid academic track." });
-    if (subjects.length === 0 || subjects.length > 5 || subjects.some((subject) => !ACADEMIC_SUBJECTS.has(subject))) {
+    if (subjects.length === 0 || subjects.length > 5 || subjects.some((subject) => !ACADEMIC_ALLOWED_SUBJECTS[academicTrack]?.has(subject))) {
       return res.status(400).json({ error: "Select between one and five valid subjects." });
     }
 
@@ -131,7 +139,7 @@ export const saveAcademicProfile = async (req, res) => {
     if (!user) return res.status(404).json({ error: "User not found." });
     const isFirstSave = !user.academicProfileCompleted;
     if (!isFirstSave && (!user.academicProfileEditExpiresAt || user.academicProfileEditExpiresAt <= new Date())) {
-      return res.status(403).json({ error: "Your 30-minute edit window has expired. Please contact support to request a change." });
+      return res.status(403).json({ error: "Your 10-minute free correction window has expired. Submit a profile change request instead." });
     }
 
     const updated = await prisma.user.update({
@@ -147,7 +155,7 @@ export const saveAcademicProfile = async (req, res) => {
       },
       select: academicProfileSelect,
     });
-    res.status(200).json({ message: isFirstSave ? "Academic profile saved. Your 30-minute edit window has started." : "Academic profile updated.", user: updated });
+    res.status(200).json({ message: isFirstSave ? "Academic profile saved. Your 10-minute free correction window has started." : "Academic profile updated.", user: updated });
   } catch (error) {
     console.error("Save academic profile error:", error);
     res.status(500).json({ error: "Unable to save academic profile." });

@@ -18,6 +18,7 @@ import {
   startAcademicProfile,
   saveAcademicProfile,
 } from "../controllers/userController.js";
+import { createProfileChangeRequest, getMyProfileChangeRequests } from "../controllers/profileChangeController.js";
 import { handleVectorBotChat } from "../controllers/vectorBotController.js";
 import { requireAdminAuth } from "../middleware/adminAuth.js";
 import { requireAuth, requireSelfOrAdmin } from "../middleware/auth.js";
@@ -31,6 +32,8 @@ router.get("/analytics/:userId", requireAuth, requireSelfOrAdmin("userId"), getU
 router.patch("/profile", requireAuth, updateProfile);
 router.post("/academic-profile/start", requireAuth, startAcademicProfile);
 router.put("/academic-profile", requireAuth, saveAcademicProfile);
+router.post("/profile-change-requests", requireAuth, createProfileChangeRequest);
+router.get("/profile-change-requests", requireAuth, getMyProfileChangeRequests);
 router.post("/support/ticket", requireAuth, createSupportTicket);
 router.get("/support/tickets", requireAuth, getUserTickets);
 router.post("/support/tickets/:id/reply", requireAuth, replyToTicket);
