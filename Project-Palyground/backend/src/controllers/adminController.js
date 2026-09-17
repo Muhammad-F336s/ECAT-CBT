@@ -1,12 +1,12 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import nodemailer from "nodemailer";
 import OpenAI from "openai";
 import prisma from "../db.js";
 import { getConfig } from "../configHelpers.js";
 import { JWT_SECRET } from "../jwtSecret.js";
 import { encryptAiApiKey, getAiConfigSummary, getAiRuntimeConfig } from "../services/aiProviderConfigService.js";
+import { sendAdminSecurityAlertEmail } from "../services/emailService.js";
 
 const MAIN_ADMIN_EMAIL = "muhammad.f336s@gmail.com";
 const ROOT_OWNER_RANK = "Root Owner";
@@ -79,29 +79,23 @@ const requireAiConfigAccess = (req, res) => {
 };
 
 const sendAiConfigAlert = async ({ adminEmail, model, apiKeyChanged }) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn("[AI Config] Email is not configured; Root Owner alert was not sent.");
-    return false;
-  }
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-  });
-  await transporter.sendMail({
-    from: `"ECAT CBT Security" <${process.env.EMAIL_USER}>`,
+  const bodyHtml = `
+    <p><strong>Admin:</strong> ${adminEmail}</p>
+    <p><strong>Provider:</strong> Groq</p>
+    <p><strong>Model:</strong> ${model}</p>
+    <p><strong>API key updated:</strong> ${apiKeyChanged ? "Yes" : "No"}</p>
+    <p><strong>Time:</strong> ${new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })}</p>
+    <p style="color:#667085">The API key is intentionally never included in this alert.</p>
+  `;
+  const result = await sendAdminSecurityAlertEmail({
     to: MAIN_ADMIN_EMAIL,
-    subject: "ECAT CBT security alert: AI configuration changed",
-    html: `<div style="font-family:Arial,sans-serif;max-width:560px;padding:24px;border:1px solid #d9e3ee;border-radius:12px">
-      <h2 style="color:#9f2d22">AI configuration changed</h2>
-      <p><strong>Admin:</strong> ${adminEmail}</p>
-      <p><strong>Provider:</strong> Groq</p>
-      <p><strong>Model:</strong> ${model}</p>
-      <p><strong>API key updated:</strong> ${apiKeyChanged ? "Yes" : "No"}</p>
-      <p><strong>Time:</strong> ${new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })}</p>
-      <p style="color:#667085">The API key is intentionally never included in this alert.</p>
-    </div>`,
+    subject: "AI Configuration Changed",
+    bodyHtml,
   });
-  return true;
+  if (!result.sent) {
+    console.warn("[AI Config] Security alert email not sent:", result.reason);
+  }
+  return result.sent;
 };
 
 export const unlockAiConfiguration = async (req, res) => {

@@ -44,15 +44,19 @@ export function convertMathPlaceholders(text) {
     },
   );
 
-  // Some AI models return valid LaTex directly instead of the requested
-  // MATH[...] wrapper. React-Latex needs `$...$` delimiters, so preserve the
-  // surrounding sentence while placing the LaTex expression into math mode.
-  if (!withMatrices.includes("$") && /\\(?:int|sum|frac|sqrt|sin|cos|tan|log|ln|pi|theta|alpha|beta|gamma|Delta|infty|times|div|leq|geq)/.test(withMatrices)) {
-    return withMatrices.replace(
-      /(\\(?:int|sum|frac|sqrt|sin|cos|tan|log|ln|pi|theta|alpha|beta|gamma|Delta|infty|times|div|leq|geq)[^.,;!?]*)(?=[.,;!?]|$)/g,
-      "$$1$",
-    );
-  }
+  // AI can return matrices with missing or duplicate `$` delimiters. Normalize
+  // every supported matrix environment into one valid KaTeX math block.
+  const normalizedMatrices = withMatrices.replace(
+    /\$?\\begin\{(bmatrix|pmatrix|vmatrix|Vmatrix)\}([\s\S]*?)\\end\{\1\}\$?/g,
+    (_, environment, body) => `$\\begin{${environment}}${body}\\end{${environment}}$`,
+  );
 
-  return withMatrices;
+  // Only transform raw LaTex outside already-valid `$...$` math blocks.
+  return normalizedMatrices.split(/(\$[^$]*\$)/g).map((part) => {
+    if (part.startsWith("$") && part.endsWith("$")) return part;
+    return part
+      .replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, "$\\frac{$1}{$2}$")
+      .replace(/\\sqrt\s*\{([^{}]*)\}/g, "$\\sqrt{$1}$")
+      .replace(/\\(times|div|leq|geq|neq|pm|cdot|pi|theta|alpha|beta|gamma|Delta|infty)/g, "$\\$1$");
+  }).join("");
 }

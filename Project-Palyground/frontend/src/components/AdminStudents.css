@@ -1,0 +1,218 @@
+﻿/* --- Package pill badges -------------------------------------------------- */
+.as-pkg-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.pkg-starter  { background: #e5e7eb; color: #374151; }
+.pkg-basic    { background: #dbeafe; color: #1d4ed8; }
+.pkg-standard { background: #dcfce7; color: #15803d; }
+.pkg-premium  { background: #fef9c3; color: #92400e; border: 1px solid #fbbf24; }
+
+/* --- Expiry badges --------------------------------------------------------- */
+.pkg-expiry { font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+.pkg-expiry--none    { color: #9ca3af; }
+.pkg-expiry--expired { color: #dc2626; }
+.pkg-expiry--soon    { color: #d97706; }
+.pkg-expiry--ok      { color: #16a34a; }
+
+/* --- Attempts display ------------------------------------------------------ */
+.as-attempts { display: flex; align-items: baseline; gap: 4px; font-size: 0.85rem; }
+.as-attempts strong { color: #111; font-size: 1rem; }
+.as-attempts span   { color: #6b7280; }
+
+/* --- Academic track -------------------------------------------------------- */
+.as-track { font-size: 0.8rem; color: #374151; white-space: nowrap; }
+
+/* --- Student cell ---------------------------------------------------------- */
+.as-student-cell { display: flex; flex-direction: column; gap: 3px; }
+.as-student-cell strong { font-size: 0.9rem; color: #111; line-height: 1.2; }
+.as-email { font-size: 0.75rem; color: #6b7280; }
+
+/* --- Inline badges --------------------------------------------------------- */
+.as-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+.as-badge--root   { background: #1b5e20; color: #fff; }
+.as-badge--demo   { background: #f59e0b; color: #fff; }
+.as-badge--frozen { background: #3b82f6; color: #fff; }
+
+/* --- Frozen row tint ------------------------------------------------------- */
+.as-row--frozen td { background: rgba(59,130,246,0.05); }
+
+/* --- Action buttons -------------------------------------------------------- */
+.as-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.as-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: none; border-radius: 8px; cursor: pointer;
+  font-weight: 700; transition: opacity 0.15s, transform 0.1s;
+}
+.as-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.as-btn:not(:disabled):hover { opacity: 0.85; transform: translateY(-1px); }
+.as-btn--sm      { padding: 5px 11px; font-size: 0.75rem; }
+.as-btn--primary { background: #2d6a4f; color: #fff; }
+.as-btn--ghost   { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+.as-btn--danger  { background: #ef4444; color: #fff; }
+.as-btn--amber   { background: #f59e0b; color: #fff; }
+.as-dropdown-wrap { position: relative; }
+
+/* --- Table tweaks ---------------------------------------------------------- */
+.as-table th {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: #4b5563; background: #f9fafb; padding: 10px 12px;
+  text-align: left; border-bottom: 1px solid #e5e7eb; white-space: nowrap;
+}
+.as-table td {
+  padding: 10px 12px; vertical-align: middle;
+  border-bottom: 1px solid #f3f4f6; font-size: 0.85rem;
+}
+.as-table tr:last-child td { border-bottom: none; }
+
+/* --- Status badge extras --------------------------------------------------- */
+.approval-status--pending { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+
+/* --- Modal ----------------------------------------------------------------- */
+.as-modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center; z-index: 9999;
+}
+.as-modal {
+  background: #fff; border-radius: 16px; padding: 28px 32px;
+  width: min(480px,90vw); box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.as-modal h3 { margin: 0; font-size: 1.1rem; color: #111; }
+.as-modal p  { margin: 0; color: #6b7280; font-size: 0.9rem; }
+.as-modal-input {
+  width: 100%; box-sizing: border-box; padding: 10px 14px;
+  border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem;
+  outline: none; transition: border-color 0.15s;
+}
+.as-modal-input:focus { border-color: #2d6a4f; }
+.as-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+
+/* Grant package grid */
+.as-pkg-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+.as-pkg-option {
+  border: 2px solid #e5e7eb; border-radius: 10px; background: #fafafa;
+  padding: 12px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  display: flex; justify-content: center;
+}
+.as-pkg-option:hover { border-color: #2d6a4f; background: #f0fdf4; }
+.as-pkg-option--selected { border-color: #2d6a4f; background: #f0fdf4; box-shadow: 0 0 0 3px rgba(45,106,79,0.15); }
+
+/* --- Summary grid ---------------------------------------------------------- */
+.as-summary-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr));
+  gap: 12px; padding: 4px 0;
+}
+.as-summary-card {
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+  background: #f9fafb; border: 1px solid #e5e7eb;
+}
+.as-summary-card strong { font-size: 1.6rem; font-weight: 900; line-height: 1; }
+.as-summary-card span   { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: #6b7280; font-weight: 700; }
+.as-summary-card--total    { border-left: 4px solid #6b7280; }
+.as-summary-card--active   { border-left: 4px solid #16a34a; }
+.as-summary-card--frozen   { border-left: 4px solid #3b82f6; }
+.as-summary-card--pending  { border-left: 4px solid #f59e0b; }
+.as-summary-card--starter  { border-left: 4px solid #9ca3af; }
+.as-summary-card--basic    { border-left: 4px solid #3b82f6; }
+.as-summary-card--standard { border-left: 4px solid #16a34a; }
+.as-summary-card--premium  { border-left: 4px solid #f59e0b; }
+.as-summary-card--expired  { border-left: 4px solid #ef4444; }
+
+/* --- Responsive ------------------------------------------------------------ */
+@media (max-width: 768px) {
+  .as-table thead { display: none; }
+  .as-table td {
+    display: flex; justify-content: space-between;
+    align-items: center; padding: 8px 12px;
+  }
+  .as-table td::before {
+    content: attr(data-label); font-weight: 700; font-size: 0.7rem;
+    text-transform: uppercase; color: #9ca3af; margin-right: 10px; white-space: nowrap;
+  }
+  .as-summary-grid { grid-template-columns: repeat(3,1fr); }
+}
+
+/* --- Interactive summary cards -------------------------------------------- */
+.as-summary-section { }
+.as-summary-header { margin-bottom: 10px; }
+.as-summary-header h2 { margin: 0 0 4px; }
+.as-summary-header p  { margin: 0; font-size: 0.85rem; color: #5b6d62; }
+
+.as-active-filter-label { color: #374151; }
+.as-clear-filter {
+  background: none; border: none; color: #2d6a4f;
+  font-weight: 700; cursor: pointer; font-size: 0.85rem;
+  text-decoration: underline; padding: 0;
+}
+.as-clear-filter:hover { color: #ef4444; }
+
+.as-filter-tag {
+  font-size: 0.78rem;
+  background: #d1fae5;
+  color: #065f46;
+  padding: 1px 7px;
+  border-radius: 12px;
+  margin-left: 6px;
+  font-weight: 700;
+}
+
+/* summary cards as buttons */
+.as-summary-card {
+  cursor: pointer;
+  text-align: left;
+  border: none;
+  transition: transform 0.15s, box-shadow 0.15s, border-left-width 0.1s;
+}
+.as-summary-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+.as-summary-card--selected {
+  box-shadow: 0 0 0 3px rgba(45,106,79,0.35) !important;
+  transform: translateY(-2px);
+}
+
+/* --- Admin code field in modal --------------------------------------------- */
+.as-code-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.as-code-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #374151;
+}
+.as-modal-input--error {
+  border-color: #ef4444 !important;
+  background: #fff5f5;
+}
+.as-code-err {
+  font-size: 0.78rem;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* --- Protected demo row ---------------------------------------------------- */
+.as-row--protected td {
+  background: rgba(241, 245, 249, 0.65);
+}
+.approval-status--active {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}

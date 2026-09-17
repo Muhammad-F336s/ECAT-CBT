@@ -23,6 +23,9 @@ import {
   FaKey,
   FaLock,
   FaSync,
+  FaUniversity,
+  FaTimes,
+  FaInfoCircle,
 } from "react-icons/fa";
 import API from "../utils/api";
 import "./AdminSettings.css";
@@ -41,6 +44,22 @@ export default function AdminSettings({ user }) {
   const [newAiKey, setNewAiKey] = useState("");
   const [aiBusy, setAiBusy] = useState("");
 
+  // Bank settings & 2-step verification state
+  const [bankSettings, setBankSettings] = useState({ activeBank: null, pendingRequest: null });
+  const [showBankForm, setShowBankForm] = useState(false);
+  const [bankForm, setBankForm] = useState({
+    proposedBankName: "",
+    proposedAccountTitle: "",
+    proposedIban: "",
+    proposedRaastId: "",
+    proposedSupportContact: "",
+    adminSecretCode: "",
+  });
+  const [rootAuthCode, setRootAuthCode] = useState("");
+  const [bankBusy, setBankBusy] = useState("");
+  const [showCancelAllPrompt, setShowCancelAllPrompt] = useState(false);
+  const [cancelAllCode, setCancelAllCode] = useState("");
+
   const isRoot =
     user?.rank === "Root Owner" || user?.email === "muhammad.f336s@gmail.com";
 
@@ -56,7 +75,103 @@ export default function AdminSettings({ user }) {
       }
     };
     fetchSettings();
+    fetchBankSettings();
   }, []);
+
+  const fetchBankSettings = async () => {
+    try {
+      const res = await API.get("/admin/bank-settings");
+      setBankSettings(res.data);
+      if (res.data.activeBank) {
+        setBankForm((prev) => ({
+          ...prev,
+          proposedBankName: res.data.activeBank.bankName || "",
+          proposedAccountTitle: res.data.activeBank.accountTitle || "",
+          proposedIban: res.data.activeBank.iban || "",
+          proposedRaastId: res.data.activeBank.raastId || "",
+          proposedSupportContact: res.data.activeBank.supportContact || "",
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to load bank settings:", err);
+    }
+  };
+
+  const handleRequestBankChange = async (e) => {
+    e.preventDefault();
+    setBankBusy("request");
+    try {
+      const res = await API.post("/admin/bank-settings/request-change", bankForm);
+      showToast("success", res.data.message);
+      setBankForm((prev) => ({ ...prev, adminSecretCode: "" }));
+      setShowBankForm(false);
+      await fetchBankSettings();
+    } catch (err) {
+      showToast("error", err.response?.data?.error || "Failed to submit bank change request.");
+    } finally {
+      setBankBusy("");
+    }
+  };
+
+  const handleApproveBankChange = async () => {
+    if (!bankSettings.pendingRequest || !rootAuthCode.trim()) {
+      showToast("error", "Please enter the Root Authorization Secret Code.");
+      return;
+    }
+    setBankBusy("approve");
+    try {
+      const res = await API.post("/admin/bank-settings/approve-change", {
+        requestId: bankSettings.pendingRequest.id,
+        rootSecretCode: rootAuthCode.trim(),
+      });
+      showToast("success", res.data.message);
+      setRootAuthCode("");
+      await fetchBankSettings();
+    } catch (err) {
+      showToast("error", err.response?.data?.error || "Failed to approve bank change.");
+    } finally {
+      setBankBusy("");
+    }
+  };
+
+  const handleCancelBankChange = async () => {
+    const adminCode = window.prompt("Enter your Admin Secret Code to cancel this request:");
+    if (!adminCode) return;
+    setBankBusy("cancel");
+    try {
+      const res = await API.post("/admin/bank-settings/cancel-change", {
+        requestId: bankSettings.pendingRequest.id,
+        adminSecretCode: adminCode.trim(),
+      });
+      showToast("success", res.data.message);
+      await fetchBankSettings();
+    } catch (err) {
+      showToast("error", err.response?.data?.error || "Failed to cancel change request.");
+    } finally {
+      setBankBusy("");
+    }
+  };
+
+  const handleCancelAllBankRequests = async () => {
+    if (!cancelAllCode.trim()) {
+      showToast("error", "Please enter your Admin Secret Code.");
+      return;
+    }
+    setBankBusy("cancelAll");
+    try {
+      const res = await API.post("/admin/bank-settings/cancel-all", {
+        adminSecretCode: cancelAllCode.trim(),
+      });
+      showToast("success", res.data.message);
+      setCancelAllCode("");
+      setShowCancelAllPrompt(false);
+      await fetchBankSettings();
+    } catch (err) {
+      showToast("error", err.response?.data?.error || "Failed to cancel requests.");
+    } finally {
+      setBankBusy("");
+    }
+  };
 
   const showToast = (type, msg) => {
     setToast({ show: true, type, msg });
@@ -456,6 +571,251 @@ export default function AdminSettings({ user }) {
               <button type="button" className="settings-save-btn" onClick={saveAiConfiguration} disabled={aiBusy === "save" || !aiModel}>
                 <FaSave /> {aiBusy === "save" ? "Saving securely..." : "Save AI Configuration"}
               </button>
+            </div>
+          )}
+        </section>
+
+        {/* Official Payment Receiving Account (2-Step Root Verification) */}
+        <section className="settings-card bank-settings-card">
+          <div className="settings-card-title">
+            <FaUniversity className="settings-card-icon settings-card-icon--green" />
+            <div>
+              <h2>Payment Receiving Account (IBAN)</h2>
+              <p className="settings-card-subtitle">Official destination for student package & profile change bank transfers</p>
+            </div>
+            {bankSettings?.activeBank && (
+              <span className="bank-active-tag">
+                <FaCheckCircle /> {bankSettings.activeBank.bankName}
+              </span>
+            )}
+          </div>
+
+          {/* Active Bank Details Display */}
+          {bankSettings?.activeBank && (
+            <div className="bank-current-preview">
+              <div className="bank-preview-grid">
+                <div className="bank-preview-item">
+                  <span>Bank Name</span>
+                  <strong>{bankSettings.activeBank.bankName}</strong>
+                </div>
+                <div className="bank-preview-item">
+                  <span>Account Title</span>
+                  <strong>{bankSettings.activeBank.accountTitle}</strong>
+                </div>
+                <div className="bank-preview-item bank-preview-iban">
+                  <span>Official IBAN</span>
+                  <code>{bankSettings.activeBank.iban}</code>
+                </div>
+                <div className="bank-preview-item">
+                  <span>Raast ID</span>
+                  <strong>{bankSettings.activeBank.raastId || "—"}</strong>
+                </div>
+                <div className="bank-preview-item">
+                  <span>Support Email</span>
+                  <strong>{bankSettings.activeBank.supportContact || "—"}</strong>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Pending Approval Box (if any request is active) */}
+          {bankSettings?.pendingRequest ? (
+            <div className="bank-pending-alert">
+              <div className="bank-pending-header">
+                <div className="bank-pending-badge">
+                  <FaLock /> 2-Step Root Authorization Required
+                </div>
+                <span className="bank-pending-expiry">
+                  Expires: {new Date(bankSettings.pendingRequest.expiresAt).toLocaleTimeString("en-PK", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit" })} PKT
+                </span>
+              </div>
+
+              <div className="bank-pending-desc">
+                <p>
+                  <strong>{bankSettings.pendingRequest.requestedByAdminName}</strong> ({bankSettings.pendingRequest.requestedByAdminEmail}) requested to update payment details:
+                </p>
+                <div className="bank-pending-diff">
+                  <div><span>Proposed Bank:</span> <strong>{bankSettings.pendingRequest.proposedBankName}</strong></div>
+                  <div><span>Proposed Title:</span> <strong>{bankSettings.pendingRequest.proposedAccountTitle}</strong></div>
+                  <div><span>Proposed IBAN:</span> <code>{bankSettings.pendingRequest.proposedIban}</code></div>
+                  {bankSettings.pendingRequest.proposedRaastId && <div><span>Proposed Raast ID:</span> <strong>{bankSettings.pendingRequest.proposedRaastId}</strong></div>}
+                </div>
+                <p className="bank-pending-instruction">
+                  <FaInfoCircle /> A secret authorization code was dispatched to <strong>muhammad.f336s@gmail.com</strong> (Root Owner). Enter it below to apply these changes across all student challans and portal screens:
+                </p>
+              </div>
+
+              <div className="bank-auth-action-row">
+                <input
+                  type="text"
+                  placeholder="Enter Root Code (e.g. BANK-XXXXXX)"
+                  value={rootAuthCode}
+                  onChange={(e) => setRootAuthCode(e.target.value)}
+                  className="bank-auth-input"
+                />
+                <button
+                  type="button"
+                  className="settings-save-btn bank-approve-btn"
+                  onClick={handleApproveBankChange}
+                  disabled={bankBusy === "approve" || !rootAuthCode.trim()}
+                >
+                  <FaCheckCircle /> {bankBusy === "approve" ? "Applying..." : "Authorize & Update"}
+                </button>
+                <button
+                  type="button"
+                  className="settings-danger-btn bank-cancel-btn"
+                  onClick={handleCancelBankChange}
+                  disabled={bankBusy === "cancel"}
+                >
+                  <FaTimes /> Cancel Request
+                </button>
+              </div>
+
+              {/* Cancel All Pending Requests — inline secret prompt */}
+              {!showCancelAllPrompt ? (
+                <div className="bank-cancel-all-row">
+                  <button
+                    type="button"
+                    className="bank-cancel-all-btn"
+                    onClick={() => setShowCancelAllPrompt(true)}
+                    disabled={bankBusy !== ""}
+                  >
+                    <FaTrashAlt /> Cancel All Pending Requests
+                  </button>
+                </div>
+              ) : (
+                <div className="bank-cancel-all-prompt">
+                  <p className="bank-cancel-all-warn">
+                    <FaExclamationCircle /> This will cancel <strong>all</strong> stuck pending requests. Enter your Admin Secret Code to confirm:
+                  </p>
+                  <div className="bank-cancel-all-inputs">
+                    <input
+                      type="password"
+                      className="bank-auth-input"
+                      placeholder="Your Admin Secret Code"
+                      value={cancelAllCode}
+                      onChange={(e) => setCancelAllCode(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="settings-danger-btn"
+                      onClick={handleCancelAllBankRequests}
+                      disabled={bankBusy === "cancelAll" || !cancelAllCode.trim()}
+                    >
+                      <FaTrashAlt /> {bankBusy === "cancelAll" ? "Cancelling..." : "Confirm Cancel All"}
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-cancel-btn"
+                      onClick={() => { setShowCancelAllPrompt(false); setCancelAllCode(""); }}
+                    >
+                      Back
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bank-actions-area">
+              {!showBankForm ? (
+                <button
+                  type="button"
+                  className="settings-save-btn bank-open-form-btn"
+                  onClick={() => setShowBankForm(true)}
+                >
+                  <FaShieldAlt /> Request IBAN / Bank Details Change
+                </button>
+              ) : (
+                <form onSubmit={handleRequestBankChange} className="bank-change-form">
+                  <div className="bank-form-header">
+                    <h4>Propose New Receiving Account</h4>
+                    <button type="button" className="bank-close-form" onClick={() => setShowBankForm(false)}>
+                      <FaTimes />
+                    </button>
+                  </div>
+
+                  <div className="bank-form-grid">
+                    <div className="settings-field">
+                      <label>Bank Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={bankForm.proposedBankName}
+                        onChange={(e) => setBankForm({ ...bankForm, proposedBankName: e.target.value })}
+                        placeholder="e.g. Meezan Bank, NayaPay, HBL"
+                      />
+                    </div>
+                    <div className="settings-field">
+                      <label>Account Title *</label>
+                      <input
+                        type="text"
+                        required
+                        value={bankForm.proposedAccountTitle}
+                        onChange={(e) => setBankForm({ ...bankForm, proposedAccountTitle: e.target.value })}
+                        placeholder="e.g. Hafiz Muhammad Faizan"
+                      />
+                    </div>
+                    <div className="settings-field bank-field-full">
+                      <label>New IBAN *</label>
+                      <input
+                        type="text"
+                        required
+                        value={bankForm.proposedIban}
+                        onChange={(e) => setBankForm({ ...bankForm, proposedIban: e.target.value })}
+                        placeholder="PK..."
+                      />
+                    </div>
+                    <div className="settings-field">
+                      <label>Raast ID (Mobile No)</label>
+                      <input
+                        type="text"
+                        value={bankForm.proposedRaastId}
+                        onChange={(e) => setBankForm({ ...bankForm, proposedRaastId: e.target.value })}
+                        placeholder="03001234567"
+                      />
+                    </div>
+                    <div className="settings-field">
+                      <label>Payment Support Contact</label>
+                      <input
+                        type="text"
+                        value={bankForm.proposedSupportContact}
+                        onChange={(e) => setBankForm({ ...bankForm, proposedSupportContact: e.target.value })}
+                        placeholder="support@entrace.pk"
+                      />
+                    </div>
+                    <div className="settings-field bank-field-full bank-secret-field">
+                      <label><FaKey /> Your Admin Secret Code *</label>
+                      <input
+                        type="password"
+                        required
+                        placeholder="Enter ADM-XXXX-XXXX"
+                        value={bankForm.adminSecretCode}
+                        onChange={(e) => setBankForm({ ...bankForm, adminSecretCode: e.target.value })}
+                      />
+                      <small className="bank-sec-hint">
+                        <FaLock /> Protected 2-Step Action: Submitting this will email a one-time secret authorization code to the Root Owner (muhammad.f336s@gmail.com). Changes will NOT apply until that code is entered.
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="bank-form-buttons">
+                    <button
+                      type="submit"
+                      className="settings-save-btn"
+                      disabled={bankBusy === "request"}
+                    >
+                      <FaShieldAlt /> {bankBusy === "request" ? "Submitting..." : "Submit Request to Root Owner"}
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-cancel-btn"
+                      onClick={() => setShowBankForm(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
         </section>

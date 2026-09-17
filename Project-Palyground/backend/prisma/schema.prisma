@@ -22,6 +22,12 @@ model PlatformConfig {
   emailVerificationRequired Boolean @default(false)
   autoApproveStudents      Boolean  @default(true)
   freezeThreshold          Int      @default(3)
+  // Bank & Payment configuration
+  bankName                 String?  @default("Meezan Bank Limited")
+  accountTitle             String?  @default("Entrace.pk Education Portal")
+  iban                     String?  @default("PK42MEZN0001234567890123")
+  raastId                  String?  @default("03001234567")
+  supportContact           String?  @default("support@entrace.pk")
   updatedAt                DateTime @updatedAt
 }
 
@@ -38,6 +44,8 @@ model AiProviderConfig {
 }
 
 enum PackageType {
+  STARTER
+  BASIC
   STANDARD
   PREMIUM
 }
@@ -58,6 +66,10 @@ model User {
   passwordResetToken    String?         // Hashed secure password reset token
   passwordResetExpiry   DateTime?       // Token expiry (1 hour from issue)
   packageType       PackageType     @default(STANDARD)
+  packageStartedAt  DateTime?
+  packageExpiresAt  DateTime?
+  remainingTestAttempts Int         @default(0)
+  starterClaimedAt  DateTime?
   testAttemptsLimit Int             @default(0)
   falseReportCount  Int             @default(0)
   frozenUntil       DateTime?
@@ -72,6 +84,7 @@ model User {
   attempts          TestAttempt[]   // Relation: User ne kitne tests diye
   tickets           SupportTicket[] // Relation: Support tickets submitted by the user
   profileChangeRequests ProfileChangeRequest[]
+  paymentOrders     PaymentOrder[]
   createdAt         DateTime        @default(now())
 }
 
@@ -92,6 +105,8 @@ model ProfileChangeRequest {
   reviewedByName    String?
   reviewedAt        DateTime?
   appliedAt         DateTime?
+  paymentOrderId    String?  @unique
+  paymentOrder      PaymentOrder? @relation(fields: [paymentOrderId], references: [id], onDelete: SetNull)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   audits            ProfileChangeRequestAudit[]
@@ -289,4 +304,108 @@ model TestPattern {
   pastPapers      Json?       @default("[]") // Stores URLs/paths to past papers
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+}
+
+// ---- Manual Bank-Transfer Payment & Package Models ----
+
+model Package {
+  id            String         @id @default(uuid())
+  name          String
+  code          String         @unique // STARTER, BASIC, STANDARD, PREMIUM, PROFILE_CHANGE
+  description   String?        @db.Text
+  price         Float          @default(0)
+  validityDays  Int            @default(30)
+  testAttempts  Int            @default(0)
+  features      String[]       @default([])
+  badgeText     String?        // "Recommended", "Best Value", etc.
+  displayOrder  Int            @default(0)
+  isActive      Boolean        @default(true)
+  isRecommended Boolean        @default(false)
+  colorTheme    String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  paymentOrders PaymentOrder[]
+}
+
+model PaymentOrder {
+  id                   String                @id @default(uuid())
+  referenceCode        String                @unique // ENT-2026-000001
+  userId               String
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose              String                // PACKAGE_PURCHASE | PROFILE_CHANGE | TEST_CREDIT | TEST_BUNDLE
+  packageCode          String?
+  packageId            String?
+  package              Package?              @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  expectedAmount       Float
+  currency             String                @default("PKR")
+  status               String                @default("PENDING_PAYMENT") // DRAFT, PENDING_PAYMENT, RECEIPT_SUBMITTED, UNDER_REVIEW, VERIFIED, REJECTED, EXPIRED, CANCELLED
+  issuedAt             DateTime              @default(now())
+  expiresAt            DateTime
+  transactionId        String?
+  receiptProof         String?               @db.Text
+  submittedAt          DateTime?
+  verifiedAt           DateTime?
+  verifiedByAdminId    String?
+  verifiedByName       String?
+  rejectionReason      String?               @db.Text
+  metadata             Json?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  audits               PaymentAudit[]
+  profileChangeRequest ProfileChangeRequest?
+}
+
+model PaymentAudit {
+  id             String       @id @default(uuid())
+  paymentOrderId String
+  paymentOrder   PaymentOrder @relation(fields: [paymentOrderId], references: [id], onDelete: Cascade)
+  action         String
+  oldStatus      String?
+  newStatus      String?
+  note           String?      @db.Text
+  adminId        String?
+  adminName      String?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+}
+
+model BankChangeRequest {
+  id                    String    @id @default(uuid())
+  requestedByAdminId    String
+  requestedByAdminName  String
+  requestedByAdminEmail String
+  proposedBankName      String
+  proposedAccountTitle  String
+  proposedIban          String
+  proposedRaastId       String?
+  proposedSupportContact String?
+  secretCodeHash        String
+  status                String    @default("PENDING") // PENDING, APPROVED, REJECTED, EXPIRED
+  createdAt             DateTime  @default(now())
+  expiresAt             DateTime
+  resolvedAt            DateTime?
+  resolvedByAdminEmail  String?
+}
+
+// Package change requests -- require Root Admin approval before going live
+model PackageChangeRequest {
+  id                    String    @id @default(uuid())
+  packageCode           String    // STARTER, BASIC, STANDARD, PREMIUM
+  packageName           String
+  // Admin who submitted
+  submittedByAdminId    String
+  submittedByAdminName  String
+  submittedByAdminEmail String
+  // Proposed changes (stored as JSON snapshot)
+  currentSnapshot       Json      // current package state at time of request
+  proposedChanges       Json      // { name?, features?, badgeText?, price?, validityDays?, testAttempts? }
+  changeType            String    // "FEATURES" | "PRICING" | "FULL"
+  adminNote             String?   @db.Text
+  // Root Admin decision
+  status                String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  rootAdminNote         String?   @db.Text
+  resolvedAt            DateTime?
+  resolvedByEmail       String?
+  createdAt             DateTime  @default(now())
+  expiresAt             DateTime
 }

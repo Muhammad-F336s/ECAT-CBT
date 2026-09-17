@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .claude
+.ECAT-CBT_Cleanup_Report.md
 
 
 

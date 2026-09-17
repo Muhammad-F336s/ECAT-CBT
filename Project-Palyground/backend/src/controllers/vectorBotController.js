@@ -1,3 +1,4 @@
+import { getFeaturesForPackage } from "../config/featureFlags.js";
 import OpenAI from "openai";
 
 // Use Groq Cloud as the LLM provider for the mentor
@@ -52,6 +53,25 @@ export const handleVectorBotChat = async (req, res) => {
     }
 
     const userQuery = message.trim();
+
+    // Check package feature access
+    if (req.auth) {
+      const { default: prismaDb } = await import("../db.js");
+      const userRecord = await prismaDb.user.findUnique({
+        where: { id: req.auth.id },
+        select: { packageType: true },
+      }).catch(() => null);
+      if (userRecord) {
+        const features = getFeaturesForPackage(userRecord.packageType);
+        if (!features.vectorBot) {
+          return res.status(403).json({
+            error: "Vector Bot AI Mentor is available in Starter and Premium plans. Please upgrade your package to access this feature.",
+            code: "FEATURE_NOT_IN_PLAN",
+            feature: "vectorBot",
+          });
+        }
+      }
+    }
 
     // Check if OpenAI key is available for live response
     if (openai) {

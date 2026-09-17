@@ -10,11 +10,12 @@ import {
 } from "../controllers/resourceController.js";
 import { requireAdminAuth } from "../middleware/adminAuth.js";
 import { requireAuth } from "../middleware/auth.js";
+import { requireActivePackage } from "../middleware/requireActivePackage.js";
 
 const router = express.Router();
 
-// Fetching material resources is accessible by both students & admin
-router.get("/", requireAuth, getResources);
+// Fetching material resources requires an active package
+router.get("/", requireAuth, requireActivePackage, getResources);
 
 // All mutation endpoints require Admin clearance
 router.post("/groups", requireAdminAuth, createResourceGroup);

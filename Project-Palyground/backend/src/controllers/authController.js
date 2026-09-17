@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
-import nodemailer from "nodemailer";
+import { sendOtpEmail as sendOtpEmailCentral, sendPasswordResetEmail as sendPasswordResetEmailCentral } from "../services/emailService.js";
 import prisma from "../db.js";
 import { getConfig } from "../configHelpers.js";
 import { JWT_SECRET } from "../jwtSecret.js";
@@ -12,39 +12,10 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // Store pending signups in memory so they are not saved in DB until verified
 const pendingSignups = new Map();
 
-// ---- Nodemailer transporter (reusable) ----
-const getMailTransporter = () => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) return null;
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-  });
-};
 
-// ---- Send OTP email ----
+// ---- Send OTP email via Centralized Email Service ----
 const sendOtpEmail = async (to, name, otp) => {
-  const transporter = getMailTransporter();
-  if (!transporter) {
-    // Dev-only: log OTP to console when email is not configured
-    console.warn("[Email] EMAIL_USER/PASS not configured — OTP for dev:", otp);
-    return;
-  }
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to,
-    subject: "ECAT CBT – Your Email Verification Code",
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;padding:30px;border:1px solid #e0e0e0;border-radius:12px">
-        <h2 style="color:#2d6a4f">Email Verification</h2>
-        <p>Hi <strong>${name}</strong>,</p>
-        <p>Use the 6-digit OTP below to verify your email address:</p>
-        <div style="text-align:center;margin:28px 0">
-          <span style="font-size:2.4rem;font-weight:bold;letter-spacing:10px;color:#1b4332;background:#d8f3dc;padding:14px 28px;border-radius:10px">${otp}</span>
-        </div>
-        <p style="color:#555;font-size:0.88rem">This code expires in <strong>10 minutes</strong>. Do not share it with anyone.</p>
-        <p style="color:#d9534f;font-size:0.85rem;margin-top:15px;"><strong>Note:</strong> If you did not request this, please ignore it. Check your Spam or Junk folder if you have trouble finding future emails.</p>
-      </div>`,
-  });
+  return sendOtpEmailCentral({ to, name, otp });
 };
 
 // ---- Pull unread login messages on login ----
@@ -194,6 +165,8 @@ export const verifyEmail = async (req, res) => {
         }
       });
     } else {
+      const now = new Date();
+      const starterExpiresAt = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
       await prisma.user.create({
         data: {
           name: pendingUser.name,
@@ -204,8 +177,12 @@ export const verifyEmail = async (req, res) => {
           cnic: pendingUser.cnic,
           isApproved: pendingUser.isApproved,
           isEmailVerified: true,
-          packageType: pendingUser.packageType,
-          testAttemptsLimit: pendingUser.testAttemptsLimit,
+          packageType: "STARTER",
+          packageStartedAt: now,
+          packageExpiresAt: starterExpiresAt,
+          remainingTestAttempts: 2,
+          testAttemptsLimit: 2,
+          starterClaimedAt: now,
         }
       });
     }
@@ -295,7 +272,20 @@ export const googleAuth = async (req, res) => {
     res.status(200).json({
       message: "Google sign-in successful.",
       token,
-      user: { id: user.id, name: user.name, email: user.email, isDemoAccount: user.isDemoAccount || false },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isDemoAccount: user.isDemoAccount || false,
+        packageType: user.packageType,
+        packageExpiresAt: user.packageExpiresAt,
+        packageStartedAt: user.packageStartedAt,
+        remainingTestAttempts: user.remainingTestAttempts,
+        testAttemptsLimit: user.testAttemptsLimit,
+        starterClaimedAt: user.starterClaimedAt,
+        academicProfileCompleted: user.academicProfileCompleted ?? false,
+      },
     });
   } catch (error) {
     console.error("Google auth error:", error.message);
@@ -484,7 +474,8 @@ export const resetPassword = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const { email, password, role, secretCode } = req.body;
+    const { email: rawEmail, password, role, secretCode } = req.body;
+    const email = (rawEmail || "").toLowerCase().trim();
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required." });
     }
@@ -578,6 +569,10 @@ export const login = async (req, res) => {
         isDemoAccount: user.isDemoAccount || false,
         packageType: user.packageType ?? "STANDARD",
         testAttemptsLimit: user.testAttemptsLimit,
+        packageExpiresAt: user.packageExpiresAt,
+        packageStartedAt: user.packageStartedAt,
+        remainingTestAttempts: user.remainingTestAttempts,
+        starterClaimedAt: user.starterClaimedAt,
         hasCompletedOnboarding: user.hasCompletedOnboarding ?? false,
         academicTrack: user.academicTrack,
         academicSubjects: user.academicSubjects,

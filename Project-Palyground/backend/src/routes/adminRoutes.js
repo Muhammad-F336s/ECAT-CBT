@@ -40,6 +40,38 @@ import {
 } from "../controllers/adminQuestionController.js";
 import { requireAdminAuth } from "../middleware/adminAuth.js";
 import { listProfileChangeRequests, reviewProfileChangeRequest } from "../controllers/profileChangeController.js";
+import {
+  listPackages,
+  getPackageDetails,
+  updatePackageDetails,
+  updatePackagePrice,
+  togglePackageActive,
+  setRecommendedPackage,
+} from "../controllers/adminPackageController.js";
+import {
+  getFeaturesList,
+  submitPackageChangeRequest,
+  listChangeRequests,
+  approvePackageChange,
+  rejectPackageChange,
+} from "../controllers/adminPackageChangeController.js";
+import {
+  listPaymentOrders,
+  getPaymentPendingCounts,
+  getPaymentOrderDetail,
+  markUnderReview,
+  verifyPaymentOrder,
+  rejectPaymentOrder,
+  manualPackageGrant,
+  discardPaymentOrders,
+} from "../controllers/adminPaymentController.js";
+import {
+  getBankSettings,
+  requestBankChange,
+  approveBankChange,
+  cancelBankChange,
+  cancelAllPendingBankRequests,
+} from "../controllers/adminBankSettingsController.js";
 
 const router = express.Router();
 
@@ -56,6 +88,11 @@ router.get("/messages/inbox", getInboxMessages);
 router.get("/analytics", getPlatformAnalytics);
 router.get("/settings", getSettings);
 router.patch("/settings", updateSettings);
+router.get("/bank-settings", getBankSettings);
+router.post("/bank-settings/request-change", requestBankChange);
+router.post("/bank-settings/approve-change", approveBankChange);
+router.post("/bank-settings/cancel-change", cancelBankChange);
+router.post("/bank-settings/cancel-all", cancelAllPendingBankRequests);
 router.post("/ai/unlock", unlockAiConfiguration);
 router.get("/ai/config", getAiConfiguration);
 router.get("/ai/models", listGroqModels);
@@ -72,7 +109,30 @@ router.delete("/messages/:id", deleteLoginMessage);
 router.get("/profile-change-requests", listProfileChangeRequests);
 router.patch("/profile-change-requests/:requestId", reviewProfileChangeRequest);
 
+// ─── Package Catalog Management ──────────────────────────────────────────────
+router.get("/packages", listPackages);
+router.get("/packages/:code", getPackageDetails);
+router.put("/packages/:code", updatePackageDetails);
+router.patch("/packages/:code/price", updatePackagePrice);
+router.patch("/packages/:code/toggle", togglePackageActive);
+router.patch("/packages/:code/recommended", setRecommendedPackage);
 
+// ─── Package Change Requests (Root Admin Approval Flow) ──────────────────────
+router.get("/package-changes/features-list", getFeaturesList);
+router.get("/package-changes/requests", listChangeRequests);
+router.post("/package-changes/submit", submitPackageChangeRequest);
+router.post("/package-changes/:id/approve", approvePackageChange);
+router.post("/package-changes/:id/reject", rejectPackageChange);
+
+// ─── Admin Payment Management ─────────────────────────────────────────────────
+router.get("/payments/pending-count", getPaymentPendingCounts);
+router.get("/payments", listPaymentOrders);
+router.get("/payments/:orderId", getPaymentOrderDetail);
+router.post("/payments/:orderId/mark-under-review", markUnderReview);
+router.post("/payments/:orderId/verify", verifyPaymentOrder);
+router.post("/payments/:orderId/reject", rejectPaymentOrder);
+router.patch("/students/:userId/package", manualPackageGrant);
+router.post("/payments/discard", discardPaymentOrders);
 
 // Subject, Chapter & Question CRUD Router Links
 router.get("/subjects", getSubjectsAndChapters);

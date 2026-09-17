@@ -11,6 +11,7 @@ import {
   FaBell,
   FaBook,
   FaChartBar,
+  FaClipboardList,
   FaChevronDown,
   FaChevronLeft,
   FaCog,
@@ -26,6 +27,8 @@ import {
   FaEye,
   FaArchive,
   FaGraduationCap,
+  FaFileInvoiceDollar,
+  FaCrown,
 } from "react-icons/fa";
 import AuthPage from "./components/AuthPage";
 import AdminAdministration from "./components/AdminAdministration";
@@ -48,6 +51,8 @@ import AcademicProfileSetup from "./components/AcademicProfileSetup";
 import ChangeTargetPage from "./components/ChangeTargetPage";
 import ProfileChangeRequestPage from "./components/ProfileChangeRequestPage";
 import AdminProfileChangeRequests from "./components/AdminProfileChangeRequests";
+import AdminPayments from "./components/AdminPayments";
+import AdminPackages from "./components/AdminPackages";
 import TestWindow from "./components/TestWindow";
 import TestModeSelection from "./components/TestModeSelection";
 import TestModeForm from "./components/TestModeForm";
@@ -57,6 +62,7 @@ import HistoricalResultViewer from "./components/HistoricalResultViewer";
 import ResetPassword from "./components/ResetPassword";
 import DemoStudentToggle from "./components/DemoStudentToggle";
 import SupportPage from "./components/SupportPage";
+import PackagesPage from "./components/PackagesPage";
 import VectorBotWidget from "./components/VectorBotWidget";
 import API from "./utils/api";
 
@@ -86,6 +92,11 @@ const PAGE_COPY = {
     label: "Progress",
     title: "Review your learning progress",
     copy: "Check your practice history, scores, and subject performance in one focused view.",
+  },
+  packages: {
+    label: "Packages & Payment",
+    title: "Select your CBT preparation package",
+    copy: "Upgrade or renew your plan, view bank details, and submit payment receipts.",
   },
   profile: {
     label: "Account Settings",
@@ -294,6 +305,8 @@ function AdminAppShell({ user, setUser }) {
   const [pendingQuestionCount, setPendingQuestionCount] = useState(0);
   const [pendingTicketsCount, setPendingTicketsCount] = useState(0);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [pendingPaymentsCount, setPendingPaymentsCount] = useState(0);
+  const [pendingProfileChangesCount, setPendingProfileChangesCount] = useState(0);
   const [loginMessages, setLoginMessages] = useState(user.loginMessages || []);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
 
@@ -301,16 +314,21 @@ function AdminAppShell({ user, setUser }) {
     let isMounted = true;
     const fetchCounts = async () => {
       try {
-        const [usersRes, questionsRes, notifRes] = await Promise.all([
+        const [usersRes, questionsRes, notifRes, paymentsRes, profileRes] = await Promise.all([
           API.get("/user/pending-users"),
           API.get("/admin/questions/pending"),
-          API.get("/admin/notifications/counts")
+          API.get("/admin/notifications/counts"),
+          API.get("/admin/payments/pending-count").catch(() => ({ data: { awaitingReview: 0 } })),
+          API.get("/admin/profile-change-requests").catch(() => ({ data: [] }))
         ]);
         if (isMounted) {
           setPendingApprovalCount(usersRes.data.length);
           setPendingQuestionCount(questionsRes.data.length);
           setPendingTicketsCount(notifRes.data.pendingTickets);
           setUnreadMessagesCount(notifRes.data.unreadMessages);
+          setPendingPaymentsCount(paymentsRes.data?.awaitingReview || 0);
+          const pendingProfiles = (profileRes.data || []).filter(r => r.status === "PENDING").length;
+          setPendingProfileChangesCount(pendingProfiles);
         }
       } catch (err) {
         console.error("Dashboard counts fetch failed:", err);
@@ -386,30 +404,78 @@ function AdminAppShell({ user, setUser }) {
               <FaRegCheckCircle /> Approved Students
             </button>
             <button
-              onClick={() => handleNavigate("/admin/profile-change-requests")}
-              className={`nav-button ${location.pathname === "/admin/profile-change-requests" ? "active" : ""}`}
-            >
-              <FaList /> Profile Change Requests
-            </button>
-            <button
               onClick={() => setIsUserManagementOpen(!isUserManagementOpen)}
               className="nav-button"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
             >
-              <FaUsers /> Users Management{" "}
-              <FaChevronDown
-                className={`nav-end-icon ${isUserManagementOpen ? "open" : ""}`}
-              />
+              <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <FaUsers /> Users Management
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                {(pendingPaymentsCount + unreadMessagesCount + pendingProfileChangesCount) > 0 && (
+                  <span className="nav-count" style={{ background: "#ef4444", color: "#fff" }}>
+                    {pendingPaymentsCount + unreadMessagesCount + pendingProfileChangesCount}
+                  </span>
+                )}
+                <FaChevronDown
+                  className={`nav-end-icon ${isUserManagementOpen ? "open" : ""}`}
+                />
+              </span>
             </button>
             <div
               className={`dropdown-menu ${isUserManagementOpen ? "open" : ""}`}
             >
               <button
+                onClick={() => handleNavigate("/admin/profile-change-requests")}
+                className={`nav-button dropdown-item profile-requests-nav ${
+                  location.pathname === "/admin/profile-change-requests" ? "active" : ""
+                }`}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FaClipboardList /> Profile Requests
+                </span>
+                {pendingProfileChangesCount > 0 && (
+                  <span className="nav-count">{pendingProfileChangesCount}</span>
+                )}
+              </button>
+              <button
                 onClick={() => handleNavigate("/admin/messages")}
                 className={`nav-button dropdown-item ${
                   location.pathname === "/admin/messages" ? "active" : ""
                 }`}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
               >
-                <FaCommentDots /> Message Center
+                <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FaCommentDots /> Message Center
+                </span>
+                {unreadMessagesCount > 0 && (
+                  <span className="nav-count">{unreadMessagesCount}</span>
+                )}
+              </button>
+              <button
+                onClick={() => handleNavigate("/admin/payments")}
+                className={`nav-button dropdown-item ${
+                  location.pathname === "/admin/payments" ? "active" : ""
+                }`}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FaFileInvoiceDollar /> Payments &amp; Receipts
+                </span>
+                {pendingPaymentsCount > 0 && (
+                  <span className="nav-count" style={{ background: "#ef4444", color: "#fff" }}>
+                    {pendingPaymentsCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => handleNavigate("/admin/packages")}
+                className={`nav-button dropdown-item ${
+                  location.pathname === "/admin/packages" ? "active" : ""
+                }`}
+              >
+                <FaCrown /> Package Catalog
               </button>
               <button
                 onClick={() => handleNavigate("/admin/administration")}
@@ -568,6 +634,8 @@ function AdminAppShell({ user, setUser }) {
             <Route path="settings" element={<AdminSettings user={user} />} />
             <Route path="support" element={<AdminSupport />} />
             <Route path="profile-change-requests" element={<AdminProfileChangeRequests />} />
+            <Route path="payments" element={<AdminPayments />} />
+            <Route path="packages" element={<AdminPackages user={user} />} />
             <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
         </div>
@@ -716,6 +784,12 @@ function AppShell({ user, setUser }) {
               >
                 Change Target
               </button>
+                            <button
+                onClick={() => handleNavigate("/packages")}
+                className={`nav-button ${view === "packages" ? "active" : ""}`}
+              >
+                Packages &amp; Plans
+              </button>
               <button
                 onClick={() => handleNavigate("/profile-change-request")}
                 className={`nav-button ${view === "profile-change-request" ? "active" : ""}`}
@@ -770,6 +844,7 @@ function AppShell({ user, setUser }) {
               }
             />
             <Route path="progress" element={<ProgressPage userId={user.id} />} />
+            <Route path="packages" element={<PackagesPage user={user} onUpdateUser={handleProfileSave} />} />
             <Route path="change-target" element={<ChangeTargetPage user={user} />} />
             <Route path="profile-change-request" element={<ProfileChangeRequestPage user={user} />} />
             <Route

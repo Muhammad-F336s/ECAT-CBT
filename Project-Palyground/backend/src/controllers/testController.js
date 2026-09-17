@@ -1,7 +1,8 @@
-import prisma from "../db.js";
+﻿import prisma from "../db.js";
 import crypto from "crypto";
 import { generateAllQuestions } from "../services/groqService.js";
 import { getConfig } from "../configHelpers.js";
+import { deductTestAttempt } from "../middleware/requireActivePackage.js";
 
 // Practice tests are scored one mark per MCQ. A 10-question custom test must
 // therefore show a total of 10, not the 200-mark ECAT full-paper scale.
@@ -464,7 +465,7 @@ export const generateChapterPractice = async (req, res) => {
 
     // 2. Check existing questions in DB
     const existingQuestions = await prisma.question.findMany({
-      where: { chapterId, isApproved: true },
+      where: { chapterId },
       include: { options: true },
     });
 
@@ -474,7 +475,7 @@ export const generateChapterPractice = async (req, res) => {
     if (existingQuestions.length < requestedCount) {
       console.log(`[ChapterPractice] Pool small (${existingQuestions.length}/${requestedCount}). Augmenting...`);
 
-      const needed = requestedCount - existingQuestions.length + 3;
+      const needed = requestedCount - existingQuestions.length + 15;
       await generateAllQuestions(
         chapter.subject.name,
         [chapter.subject.name],
@@ -549,4 +550,5 @@ export const getRecentAttempts = async (req, res) => {
     res.status(500).json({ error: "Failed to retrieve recent attempts." });
   }
 };
+
 

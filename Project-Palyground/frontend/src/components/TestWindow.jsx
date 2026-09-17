@@ -1,9 +1,7 @@
+import MathText from "./MathText";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import Latex from "react-latex-next";
-import "katex/dist/katex.min.css";
 import API from "../utils/api";
-import { convertMathPlaceholders } from "../utils/mathUtils";
 import TestResultPage from "./TestResultPage";
 import "./TestWindow.css";
 
@@ -615,22 +613,17 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
         };
 
         const { passageText, questionText } = parseStatement(currentQuestion?.statement);
-        const renderedQuestionText = convertMathPlaceholders(questionText);
-        const renderedPassageText = convertMathPlaceholders(passageText);
-
         const renderQuestionBody = () => (
           <>
             <h3 className="cbt-question-title">
               Question {currentIdx + 1} of {questions.length}
             </h3>
-            <p className="cbt-question-text"><Latex>{renderedQuestionText}</Latex></p>
+            <p className="cbt-question-text"><MathText text={questionText} /></p>
 
             <div className="cbt-options-list">
               {currentQuestion.options.map((option, index) => {
                 const label = OPTION_LABELS[index] || String(index + 1);
-                const isSelected = currentAnswer === option.text;
-                const renderedOptionText = convertMathPlaceholders(option.text);
-                return (
+                const isSelected = currentAnswer === option.text;                return (
                   <label
                     key={option.id}
                     className={`cbt-option-row ${isSelected ? "selected" : ""} ${isCurrentLocked ? "locked" : ""}`}
@@ -644,7 +637,7 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
                       onChange={() => handleSelectOption(option.text)}
                     />
                     <span className="cbt-option-label">{label}.</span>
-                    <span className="cbt-option-text"><Latex>{renderedOptionText}</Latex></span>
+                    <span className="cbt-option-text"><MathText text={option.text} /></span>
                   </label>
                 );
               })}
@@ -657,7 +650,7 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
             <main className="cbt-question-panel cbt-split-container" style={{ fontSize: `${zoomLevel}rem` }}>
               <div className="cbt-passage-panel">
                 <h4 className="cbt-passage-title">Reading Comprehension Passage</h4>
-                <div className="cbt-passage-body"><Latex>{renderedPassageText}</Latex></div>
+                <div className="cbt-passage-body"><MathText text={passageText} /></div>
               </div>
               <div className="cbt-question-content">
                 {renderQuestionBody()}
@@ -751,12 +744,12 @@ const TestWindow = ({ userId, user, onTestComplete }) => {
         <div className="cbt-study-feedback">
           <div className={currentAnswer === currentQuestion.correctAnswer ? "feedback-correct" : "feedback-wrong"}>
             <strong>{currentAnswer === currentQuestion.correctAnswer ? "Correct!" : "Incorrect."}</strong>
-            <p>Correct Answer: {currentQuestion.correctAnswer}</p>
+            <p>Correct Answer: <MathText text={currentQuestion.correctAnswer} /></p>
             <div className="explanation-box">
               <strong>Explanation:</strong>
-              <p>{currentQuestion.explanation?.split("===TRICK===")[0]}</p>
+              <p><MathText text={currentQuestion.explanation?.split("===TRICK===")[0]} /></p>
               {currentQuestion.explanation?.includes("===TRICK===") && (
-                <p><strong>💡 Trick:</strong> {currentQuestion.explanation.split("===TRICK===")[1]}</p>
+                <p><strong>💡 Trick:</strong> <MathText text={currentQuestion.explanation.split("===TRICK===")[1]} /></p>
               )}
             </div>
           </div>

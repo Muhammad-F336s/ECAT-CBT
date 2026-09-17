@@ -29,6 +29,10 @@ export default function VectorBotWidget({ user }) {
   const [isOpen, setIsOpen] = useState(false);
   const userName = user?.name?.split(" ")[0] || "Aspirant";
 
+  // Feature gate: hide Vector Bot entirely if not in user's plan
+  const hasVectorBotAccess = user?.features?.vectorBot !== false;
+  if (!hasVectorBotAccess) return null;
+
   const [messages, setMessages] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);

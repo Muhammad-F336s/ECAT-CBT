@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import prisma from "../db.js";
 import { DEMO_ACCOUNT_EMAIL } from "./adminController.js";
+import { getFeaturesForPackage } from "../config/featureFlags.js";
 
 const generateSecret = () =>
   `ADM-${crypto.randomBytes(3).toString("hex").toUpperCase()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
@@ -42,6 +43,7 @@ export const getMe = async (req, res) => {
         packageType: "PREMIUM",
         testAttemptsLimit: -1,
         createdAt: new Date().toISOString(),
+        features: getFeaturesForPackage("PREMIUM"),
       });
     }
 
@@ -58,6 +60,10 @@ export const getMe = async (req, res) => {
         isDemoAccount: true,
         packageType: true,
         testAttemptsLimit: true,
+        packageExpiresAt: true,
+        packageStartedAt: true,
+        remainingTestAttempts: true,
+        starterClaimedAt: true,
         academicTrack: true,
         academicSubjects: true,
         academicProfileCompleted: true,
@@ -91,6 +97,7 @@ export const getMe = async (req, res) => {
           testAttemptsLimit: -1,
           createdAt: admin.createdAt,
           rank: admin.rank,
+          features: getFeaturesForPackage("PREMIUM"),
         };
       }
     }
@@ -99,7 +106,9 @@ export const getMe = async (req, res) => {
       return res.status(404).json({ error: "User not found in system." });
     }
 
-    res.status(200).json(user);
+    // Attach feature permissions based on package type
+    const features = getFeaturesForPackage(user.packageType);
+    res.status(200).json({ ...user, features });
   } catch (error) {
     console.error("Get me error:", error);
     res.status(500).json({ error: "Internal server error while fetching profile." });
@@ -265,7 +274,19 @@ export const listPendingUsers = async (req, res) => {
     const users = await prisma.user.findMany({
       where: { role: { in: ["student", "admin"] }, isApproved: false, testAttemptsLimit: 0 },
       orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, email: true, role: true, isApproved: true, packageType: true, testAttemptsLimit: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isApproved: true,
+        packageType: true,
+        testAttemptsLimit: true,
+        domain: true,
+        cnic: true,
+        academicTrack: true,
+        createdAt: true,
+      },
     });
     res.status(200).json(users);
   } catch (error) {
@@ -295,7 +316,9 @@ export const listStudents = async (req, res) => {
       orderBy: { createdAt: "desc" },
       select: {
         id: true, name: true, email: true, role: true, isApproved: true, packageType: true,
-        testAttemptsLimit: true, createdAt: true,
+        testAttemptsLimit: true, remainingTestAttempts: true, packageStartedAt: true, packageExpiresAt: true,
+        starterClaimedAt: true, academicTrack: true, academicSubjects: true, cnic: true,
+        isDemoAccount: true, frozenUntil: true, freezeReason: true, createdAt: true,
         attempts: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, score: true, totalMarks: true, createdAt: true } },
         _count: { select: { attempts: true } },
       },
@@ -321,10 +344,15 @@ export const approveDemoUser = async (req, res) => {
         isDemoAccount: true,
         packageType: "PREMIUM",
         testAttemptsLimit: -1,
+        remainingTestAttempts: -1,
+        // Demo accounts never expire — always permanent
+        packageExpiresAt: null,
+        packageStartedAt: null,
       },
       select: {
         id: true, name: true, email: true, role: true, isApproved: true,
         isDemoAccount: true, packageType: true, testAttemptsLimit: true,
+        remainingTestAttempts: true, packageExpiresAt: true,
         createdAt: true, _count: { select: { attempts: true } },
       },
     });
@@ -367,6 +395,15 @@ export const updateUserPackage = async (req, res) => {
   try {
     const { userId } = req.params;
     const { attemptsLimit, packageType, isApproved } = req.body;
+
+    // Protect demo accounts — package/approval cannot be changed from admin panel
+    const existing = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isDemoAccount: true, email: true },
+    });
+    if (existing?.isDemoAccount) {
+      return res.status(403).json({ error: "Demo accounts are protected and cannot be modified." });
+    }
 
     const updateData = {};
     if (attemptsLimit !== undefined) {
@@ -416,13 +453,45 @@ export const approveUser = async (req, res) => {
       await prisma.user.delete({ where: { id: userId } });
       return res.status(200).json({ message: "Admin approved", user: { ...admin, role: "admin", isApproved: true, testAttemptsLimit: -1, _count: { attempts: 0 } } });
     }
-    const normalizedLimit = attemptsLimit === "unlimited" || attemptsLimit === -1 ? -1 : Number(attemptsLimit ?? -1);
+
+    // Student approval flow: Apply package (STARTER, BASIC, STANDARD, PREMIUM)
+    const { packageCode } = req.body;
+    const selectedPkgCode = (packageCode || pendingUser.packageType || "STARTER").toUpperCase();
+    
+    // Look up package specs from catalog
+    const pkg = await prisma.package.findUnique({ where: { code: selectedPkgCode } });
+    const now = new Date();
+    const days = pkg?.validityDays ?? (selectedPkgCode === "STARTER" ? 5 : 15);
+    const attempts = pkg?.testAttempts ?? (selectedPkgCode === "STARTER" ? 2 : 7);
+    const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { isApproved: approve ?? true, testAttemptsLimit: normalizedLimit },
-      select: { id: true, name: true, email: true, role: true, isApproved: true, packageType: true, testAttemptsLimit: true, createdAt: true, _count: { select: { attempts: true } } },
+      data: {
+        isApproved: approve ?? true,
+        packageType: selectedPkgCode,
+        packageStartedAt: now,
+        packageExpiresAt: expiresAt,
+        remainingTestAttempts: attempts,
+        testAttemptsLimit: attempts,
+        starterClaimedAt: selectedPkgCode === "STARTER" ? now : undefined,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isApproved: true,
+        packageType: true,
+        remainingTestAttempts: true,
+        testAttemptsLimit: true,
+        packageExpiresAt: true,
+        packageStartedAt: true,
+        createdAt: true,
+        _count: { select: { attempts: true } },
+      },
     });
-    res.status(200).json({ message: "User updated", user });
+    res.status(200).json({ message: `Student approved with ${selectedPkgCode} package!`, user });
   } catch (error) {
     console.error("Approve user error:", error);
     res.status(500).json({ error: "Failed to update user." });

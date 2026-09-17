@@ -9,6 +9,7 @@ import {
   FaShieldAlt,
 } from "react-icons/fa";
 import API from "../utils/api";
+import MathText from "./MathText";
 import "./AdminApprovals.css";
 
 export default function AdminReviewQueue() {
@@ -231,11 +232,11 @@ export default function AdminReviewQueue() {
                     <tr key={q.id} style={q.isFlagged ? { borderLeft: "4px solid #e74c3c", background: "#fffefe" } : {}}>
                       <td>
                         <div style={{ fontWeight: 500, fontSize: "0.95rem", color: "var(--ecat-blue-dark)" }} className="mathjax-question-statement">
-                          {q.statement}
+                          <MathText text={q.statement} />
                         </div>
                         <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
                           <div style={{ fontSize: "0.8rem", color: "#666", padding: "8px", background: "#f1f3f5", borderRadius: "4px" }}>
-                            <strong>Explanation:</strong> {q.explanation?.replace(/===TRICK===/g, " | Trick: ")}
+                            <strong>Explanation:</strong> <MathText text={q.explanation?.replace(/===TRICK===/g, " | Trick: ")} />
                           </div>
                           {q.auditNotes && (
                             <div style={{ 

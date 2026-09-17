@@ -10,6 +10,7 @@ import userRoutes from "./routes/userRoutes.js";
 import resourceRoutes from "./routes/resourceRoutes.js";
 import examRoutes from "./routes/examRoutes.js";
 import adminTestRoutes from "./routes/adminTestRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 dotenv.config();
 
@@ -66,6 +67,7 @@ app.use("/api/test", testRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/resources", resourceRoutes);
 app.use("/api/exams", examRoutes);
+app.use("/api/payment", paymentRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "active", engine: "Prisma Neon Fully Operational" });

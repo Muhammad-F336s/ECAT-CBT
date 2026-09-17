@@ -193,7 +193,7 @@ export async function generateQuestions(
     IMPORTANT: Use MATH[equation] for all mathematical terms. 
     Example: MATH[x^2 + (1)/(2)] instead of LaTeX.
     
-    Return exactly ${count} questions in JSON format.`;
+    Return a valid JSON object containing exactly ${count} questions under the "questions" array key.`;
 
   try {
     const runtime = await getGroqRuntime();
@@ -211,7 +211,7 @@ export async function generateQuestions(
                 "questionText": "Question using MATH[...]",
                 "options": ["Opt 1", "Opt 2", "Opt 3", "Opt 4", "Opt 5"],
                 "correctAnswer": 0-4,
-                "explanation": "Brief explanation using MATH[...] if needed",
+                "explanation": "Brief step-by-step calculation using MATH[...] if needed",
                 "trick": "Short shortcut",
                 "passage": "Only for English, otherwise null",
                 "subject": "${subjectsString}",
@@ -221,34 +221,42 @@ export async function generateQuestions(
           }
           
           SYSTEM RULES:
-          1. CHAIN OF THOUGHT: FOR EVERY QUESTION, first calculate the final numeric answer step-by-step internally in the "explanation" field. 
-          2. ACCURACY: DO NOT generate options before calculating the correct answer. 
-          3. VALIDATION: Once the answer is calculated, create 5 options. ONE MUST BE the correct answer. 
-          4. CONSISTENCY: The "correctAnswer" (0-4) MUST match the index of the calculated answer.
-          5. FORMAT: Use MATH[...] for ALL mathematical expressions, formulas, and numbers.
-          6. STRICT OUTPUT: ALWAYS return exactly 5 options. If you cannot produce a mathematically sound question with 5 distinct options, do not return the question.
-          7. EXPLANATION: The explanation MUST conclude with: "Therefore, the correct answer is option [X]". This ensures your answer index logic is sound.
-          8. STRUCTURE: Output valid JSON only.`,
+          1. EXPLANATION: In the "explanation" field, show concise step-by-step calculation (2-3 sentences max). Conclude with: "Therefore, the correct answer is option [X]".
+          2. ACCURACY: Calculate the correct answer first, then create 5 options where exactly ONE option matches the calculated answer.
+          3. CONSISTENCY: The "correctAnswer" (0-4) MUST match the zero-based index of the calculated answer.
+          4. FORMAT: Use MATH[...] for ALL mathematical expressions, formulas, and numbers.
+          5. STRICT OUTPUT: ALWAYS return exactly 5 options per question.
+          6. STRUCTURE: Output ONLY a valid JSON object matching the schema above with the root key "questions". Do NOT wrap output in markdown code blocks like \`\`\`json. Do NOT include any text outside the JSON object.`,
         },
         { role: "user", content: prompt },
       ],
-      temperature: 0.1, // Fixed to low temperature for maximum determinism
+      temperature: 0.2,
+      max_tokens: 4096,
       response_format: { type: "json_object" },
     });
 
-    let text = response.choices[0].message.content;
-    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    text = text.replace(/\\/g, "\\\\").replace(/\\\\\\\\/g, "\\\\");
+    let text = response.choices[0].message.content || "";
+    text = text.trim();
+    if (text.startsWith("```")) {
+      text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    }
 
     let content;
     try {
       content = JSON.parse(text);
     } catch (parseError) {
-      console.error(
-        "JSON Parse failed after sanitization. Raw Text Sample:",
-        text.substring(0, 100),
-      );
-      throw parseError;
+      try {
+        const sanitized = text
+          .replace(/[\u0000-\u001F]+/g, (match) => match === "\n" || match === "\r" || match === "\t" ? match : "")
+          .replace(/,\s*([\]}])/g, "$1");
+        content = JSON.parse(sanitized);
+      } catch (fallbackError) {
+        console.error(
+          "JSON Parse failed after sanitization. Raw Text Sample:",
+          text.substring(0, 150),
+        );
+        throw parseError;
+      }
     }
 
     let rawQuestions = Array.isArray(content)
@@ -281,9 +289,12 @@ export async function generateQuestions(
 
     return validQuestions;
   } catch (error) {
-    if (error.status === 429 && switchToNextKey()) {
+    if (error.error?.failed_generation) {
+      console.warn("[Groq] failed_generation details:", String(error.error.failed_generation).substring(0, 150));
+    }
+    if ((error.status === 429 || error.status === 400) && switchToNextKey()) {
       console.warn(
-        `[Groq] Quota exceeded for Key #${currentKeyIndex}. Retrying...`,
+        `[Groq] Status ${error.status} for Key #${currentKeyIndex}. Switched key, retrying batch...`,
       );
       return await generateQuestions(
         field,
@@ -353,7 +364,7 @@ export async function generateAllQuestions(
 ) {
   const totalQuestions = parseInt(targetCount) || 10;
   const batchSize = 5;
-  const maxTotalAttempts = totalQuestions * 5; // Increased attempts
+  const maxTotalAttempts = Math.max(30, Math.ceil(totalQuestions / batchSize) * 4);
   let allQuestions = [];
   const seenTexts = new Set();
   let totalAttempts = 0;
@@ -369,7 +380,8 @@ export async function generateAllQuestions(
       return [];
     }
     const remaining = totalQuestions - allQuestions.length;
-    const currentRequestedCount = Math.min(batchSize, remaining);
+    // Adaptive batch size: drop to 3 if experiencing consecutive failures
+    const currentRequestedCount = Math.min(consecutiveFailures >= 2 ? 3 : batchSize, remaining);
     let newlyAdded = 0;
 
     try {
@@ -408,26 +420,31 @@ export async function generateAllQuestions(
     } catch (err) {
       if (signal?.aborted) return [];
       console.warn(`[Groq] Batch generation failed: ${err.message}. Retrying...`);
-      await delay(2000);
+      await delay(1500);
     }
 
     if (newlyAdded === 0) {
       consecutiveFailures++;
-      if (consecutiveFailures >= 3) { // Reduced failure tolerance
-        console.warn(`[Groq] Failed to generate valid questions. Waiting...`);
-        await delay(3000);
+      if (consecutiveFailures >= 3) {
+        console.warn(`[Groq] Multiple generation failures. Cooling down...`);
+        await delay(2500);
       }
     } else {
       consecutiveFailures = 0;
     }
 
     totalAttempts++;
-    // Do not hold a completed test generation behind an arbitrary long delay.
     if (signal?.aborted) return [];
-    await delay(100);
+    if (allQuestions.length < totalQuestions) {
+      await delay(300);
+    }
   }
 
   if (signal?.aborted) return [];
+  if (allQuestions.length === 0) {
+    console.warn("[Groq] No questions could be collected after maximum attempts.");
+    return [];
+  }
 
 
   // Formatting and Saving to Prisma Database

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { FaChevronDown } from "react-icons/fa";
 import "./TestModeForm.css";
 
 const SUBJECTS = [
@@ -761,7 +761,7 @@ export default function TestModeForm({ user }) {
                           <span className="cgt-count">
                             {selectedChapterCount ? `${selectedChapterCount} selected` : "All chapters"}
                           </span>
-                          <span className="cgt-arrow" aria-hidden="true"><ChevronDown size={16} strokeWidth={2.8} /></span>
+                          <span className="cgt-arrow" aria-hidden="true"><FaChevronDown style={{ fontSize: "13px" }} /></span>
                         </span>
                       </button>
                     </div>
@@ -797,7 +797,7 @@ export default function TestModeForm({ user }) {
                                   aria-expanded={isPartOpen}
                                   aria-label={`${isPartOpen ? "Collapse" : "Expand"} ${part.label}`}
                                 >
-                                  <ChevronDown size={15} strokeWidth={2.8} />
+                                  <FaChevronDown style={{ fontSize: "12px" }} />
                                 </button>
                               </div>
                               {isPartOpen && (

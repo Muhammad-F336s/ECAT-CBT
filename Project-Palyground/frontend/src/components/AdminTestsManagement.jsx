@@ -1,16 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import API from "../utils/api";
 import "./AdminTestsManagement.css";
-
-const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8787/api",
-});
-
-API.interceptors.request.use((req) => {
-  const token = localStorage.getItem("token");
-  if (token) req.headers.Authorization = `Bearer ${token}`;
-  return req;
-});
 
 export default function AdminTestsManagement() {
   const [activeTab, setActiveTab] = useState("tests"); // 'tests' | 'pattern'

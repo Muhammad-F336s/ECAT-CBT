@@ -11,7 +11,7 @@ const FALLBACK_CONFIG = {
   supportEmail: "support@ecat-cbt.com",
   defaultTestSize: 40,
   maxPracticeQuestions: 100,
-  defaultPackage: "STANDARD",
+  defaultPackage: "STARTER",
   registrationMode: "Open",
   emailVerificationRequired: false,
   autoApproveStudents: true,

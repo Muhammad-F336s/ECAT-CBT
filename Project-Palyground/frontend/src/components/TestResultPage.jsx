@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import MathText from "./MathText";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
 import { getAiFeedback, getProTip } from "../utils/aiFeedback";
 import { printFullPaper } from "../utils/printFullPaper";
-import { convertMathPlaceholders } from "../utils/mathUtils";
-import Latex from "react-latex-next";
-import "katex/dist/katex.min.css";
 import "./TestResultPage.css";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -265,7 +263,7 @@ const TestResultPage = ({
           visibleItems.map((item) => (
             <article key={item.questionId} className="ecat-review-card">
               <h4>
-                Q{item.questionNumber}: <Latex>{convertMathPlaceholders(item.statement)}</Latex>
+                Q{item.questionNumber}: <MathText text={item.statement} />
               </h4>
 
               <div className="ecat-review-options">
@@ -282,7 +280,7 @@ const TestResultPage = ({
                         isCorrect ? "correct" : ""
                       } ${isSelected && !isCorrect ? "wrong-selected" : ""}`}
                     >
-                      <strong>{label}.</strong> <Latex>{convertMathPlaceholders(option.text)}</Latex>
+                      <strong>{label}.</strong> <MathText text={option.text} />
                     </p>
                   );
                 })}
@@ -309,12 +307,12 @@ const TestResultPage = ({
                     {explanationText.trim() && (
                       <div className="ecat-explanation">
                         <strong>Explanation:</strong>
-                        <p>{explanationText}</p>
+                        <p><MathText text={explanationText} /></p>
                       </div>
                     )}
                     <div className="ecat-pro-tip">
                       <strong>💡 Pro Tip / Trick:</strong>
-                      <p>{customTrick.trim() || getProTip(item.status)}</p>
+                      <p><MathText text={customTrick.trim() || getProTip(item.status)} /></p>
                     </div>
                   </>
                 );

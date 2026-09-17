@@ -1,16 +1,21 @@
+import MathText from "./MathText";
 import { useEffect, useState } from "react";
+import { FaBookOpen, FaChevronDown } from "react-icons/fa";
 import API from "../utils/api";
-import "./AdminApprovals.css";
+import "./AdminApprovedQuestions.css";
+
+const questionCount = (dates) => Object.values(dates).reduce((total, questions) => total + questions.length, 0);
 
 export default function AdminApprovedQuestions() {
   const [groupedQuestions, setGroupedQuestions] = useState({});
   const [loading, setLoading] = useState(true);
+  const [openSubjects, setOpenSubjects] = useState({});
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await API.get("/admin/questions/approved-grouped");
-        setGroupedQuestions(res.data);
+        setGroupedQuestions(res.data || {});
       } catch (err) {
         console.error("Failed to fetch approved questions:", err);
       } finally {
@@ -20,34 +25,62 @@ export default function AdminApprovedQuestions() {
     fetchData();
   }, []);
 
+  const toggleSubject = (subject) => setOpenSubjects((current) => ({ ...current, [subject]: !current[subject] }));
+  const subjects = Object.entries(groupedQuestions);
+
   if (loading) return <div className="approval-empty-state">Loading archive...</div>;
 
   return (
-    <div className="approval-page">
+    <div className="approval-page approved-archive-page">
       <header className="approval-header">
         <div>
           <p className="approval-kicker">Archive</p>
           <h1>Approved Questions</h1>
+          <span>Open a subject to browse its approved questions, grouped by date and chapter.</span>
         </div>
       </header>
 
-      {Object.entries(groupedQuestions).map(([subject, dates]) => (
-        <section key={subject} className="approval-card" style={{ marginBottom: "20px" }}>
-          <h2>{subject}</h2>
-          {Object.entries(dates).map(([date, questions]) => (
-            <div key={date} style={{ marginTop: "15px" }}>
-              <h3 style={{ fontSize: "1rem", color: "#5b6d62", borderBottom: "1px solid #eee", paddingBottom: "5px" }}>{date}</h3>
-              <ul style={{ listStyle: "none", padding: 0 }}>
-                {questions.map((q) => (
-                  <li key={q.id} style={{ padding: "10px", borderBottom: "1px solid #f0f0f0" }}>
-                    <strong>{q.chapter.name}:</strong> {q.statement}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </section>
-      ))}
+      {subjects.length === 0 ? (
+        <div className="approval-empty-state">No approved questions are available yet.</div>
+      ) : (
+        <div className="subject-archive-list">
+          {subjects.map(([subject, dates]) => {
+            const isOpen = Boolean(openSubjects[subject]);
+            const total = questionCount(dates);
+            return (
+              <section key={subject} className={`subject-archive ${isOpen ? "is-open" : ""}`}>
+                <button type="button" className="subject-archive-trigger" onClick={() => toggleSubject(subject)} aria-expanded={isOpen}>
+                  <span className="subject-archive-icon"><FaBookOpen /></span>
+                  <span className="subject-archive-name">{subject}</span>
+                  <span className="subject-archive-count">{total} {total === 1 ? "question" : "questions"}</span>
+                  <FaChevronDown className="subject-archive-chevron" />
+                </button>
+
+                {isOpen && (
+                  <div className="subject-archive-content">
+                    {Object.entries(dates).map(([date, questions]) => (
+                      <section key={date} className="archive-date-group">
+                        <h3>{date}<span>{questions.length} {questions.length === 1 ? "question" : "questions"}</span></h3>
+                        <ol className="archive-question-list">
+                          {questions.map((q, index) => (
+                            <li key={q.id}>
+                              <span className="archive-question-number">{index + 1}</span>
+                              <div>
+                                <p className="archive-question-chapter">{q.chapter?.name || "Uncategorized"}</p>
+                                <div className="archive-question-statement"><MathText text={q.statement} /></div>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      </section>
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
